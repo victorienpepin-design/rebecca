@@ -261,12 +261,58 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     return { postings, longueurs, moyenne: total / Math.max(1, textes.length), n: textes.length, k1, b };
   }
 
+  // ---------- Synonymes du soin : un mot de la question cherche aussi ses proches (poids 0,5) ----------
+  const FAMILLES = [
+    "précaution prévention protection protéger isolement isoler",
+    "traitement traiter thérapeutique médicament soigner soin",
+    "transmission transmettre transmet contamination contaminer contagion contagiosité contagieux contagieuse",
+    "symptôme signe clinique manifestation",
+    "diagnostic diagnostiquer dépistage dépister examen test analyse",
+    "posologie dose dosage",
+    "vaccin vaccination vacciner",
+    "soignant personnel professionnel",
+    "décès mortalité létalité mortel",
+    "grave sévère gravité sévérité",
+    "enfant pédiatrie pédiatrique nourrisson",
+    "enceinte grossesse",
+    "désinfection désinfecter nettoyage décontamination détersion bionettoyage",
+    "déchet DASRI",
+    "masque FFP2 APR",
+    "moustique vecteur vectoriel antivectorielle piqûre",
+    "fièvre température fébrile",
+    "hôpital hospitalisation hospitaliser hospitalisé",
+    "alerte alerter signalement signaler déclaration déclarer",
+    "contact exposé exposition"
+  ];
+  let PROCHES = null;
+  function proches() {
+    if (PROCHES) return PROCHES;
+    PROCHES = new Map();
+    for (const f of FAMILLES) {
+      const termes = [...new Set(f.split(" ").flatMap(m => analyser(m)))];
+      for (const t of termes) {
+        if (!PROCHES.has(t)) PROCHES.set(t, new Set());
+        for (const u of termes) if (u !== t) PROCHES.get(t).add(u);
+      }
+    }
+    return PROCHES;
+  }
+
+  // Termes cherchés et leur poids : ceux de la question (1), leurs proches (0,5)
+  function termesRecherche(question) {
+    const poids = new Map();
+    const termes = analyser(question, true);
+    for (const t of termes) poids.set(t, 1);
+    for (const t of termes) {
+      const pr = proches().get(t);
+      if (pr) for (const u of [...pr].sort()) if (!poids.has(u)) poids.set(u, 0.5);
+    }
+    return poids;
+  }
+
   function scoresBM25(index, question) {
     const scores = new Float64Array(index.n);
-    const vus = new Set();
-    for (const t of analyser(question, true)) {
-      if (vus.has(t)) continue;
-      vus.add(t);
+    for (const [t, w] of termesRecherche(question)) {
       const p = index.postings.get(t);
       if (!p) continue;
       const df = p.length / 2;
@@ -274,7 +320,7 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
       for (let i = 0; i < p.length; i += 2) {
         const d = p[i], tf = p[i + 1];
         const norme = index.k1 * (1 - index.b + index.b * index.longueurs[d] / index.moyenne);
-        scores[d] += idf * tf * (index.k1 + 1) / (tf + norme);
+        scores[d] += w * idf * tf * (index.k1 + 1) / (tf + norme);
       }
     }
     return scores;
@@ -487,7 +533,7 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   racine.Coeur = {
     normaliserModele, prenormaliser, analyser, construireBM25, scoresBM25, scoresVecteurs, classer,
     fusionner, analyserQuestion, reperer, surligner, extrait, versTexteSimple, rendreMarkdown,
-    echapper, formaterPourLLM, estUnite, estNombre, preparerSigles, siglesDansQuestion, developperQuestion
+    echapper, formaterPourLLM, estUnite, estNombre, preparerSigles, siglesDansQuestion, developperQuestion, termesRecherche
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* COEUR:FIN */
