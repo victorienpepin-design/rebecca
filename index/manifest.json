@@ -1,7 +1,7 @@
 {
  "format": 2,
- "version": "c5b85a453bb5",
- "cree_le": "2026-10-31 21:44",
+ "version": "7031a5846437",
+ "cree_le": "2026-10-31 22:46",
  "fuseau": "Europe/Paris",
  "modele": {
   "id": "Xenova/multilingual-e5-small",
@@ -30,12 +30,12 @@
  },
  "recherche": {
   "candidats": 50,
-  "retenus": 8,
-  "par_doc": 3,
+  "retenus": 12,
+  "par_doc": 4,
   "total": 6,
-  "poids_doc": 0.01,
+  "poids_doc": 0,
   "k_docs": 10,
-  "seuil_sens": 0.8713,
+  "seuil_sens": null,
   "marge_absents": 0
  },
  "morceaux": "chunks.json",
