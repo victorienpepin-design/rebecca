@@ -1,7 +1,7 @@
 {
  "format": 2,
- "version": "ac16fe09a306",
- "cree_le": "2026-10-31 16:30",
+ "version": "91efba3167ae",
+ "cree_le": "2026-10-31 16:54",
  "fuseau": "Europe/Paris",
  "modele": {
   "id": "Xenova/multilingual-e5-small",
@@ -19,13 +19,13 @@
  "embeddings": {
   "fichier": "embeddings.bin",
   "format": "float16",
-  "n": 205,
+  "n": 563,
   "dim": 384
  },
  "docs_vecteurs": {
   "fichier": "docs.bin",
   "format": "float16",
-  "n": 6,
+  "n": 20,
   "dim": 384
  },
  "recherche": {
@@ -39,6 +39,6 @@
   "marge_absents": 0
  },
  "morceaux": "chunks.json",
- "nb_docs": 6,
- "nb_morceaux": 205
+ "nb_docs": 20,
+ "nb_morceaux": 563
 }
