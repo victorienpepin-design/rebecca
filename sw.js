@@ -1,6 +1,7 @@
 // Généré par l'atelier : permet à la page de fonctionner hors connexion.
 const CACHE = "moteur-v1";
 const HF = /(^|\.)huggingface\.co$|(^|\.)hf\.co$|xethub/;
+const API = /(^|\.)groq\.com$|(^|\.)googleapis\.com$/;
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(["./", "index.html"].map(u => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));
 });
@@ -12,6 +13,7 @@ self.addEventListener("fetch", e => {
   if (req.method !== "GET" || req.headers.has("range")) return;
   const url = new URL(req.url);
   if (!/^https?:$/.test(url.protocol) || HF.test(url.hostname)) return;   // le modèle est mis en cache par transformers.js
+  if (req.cache === "no-store" || API.test(url.hostname)) return;          // le Rédacteur (Groq, Gemini) : jamais en cache
   e.respondWith(url.origin === self.location.origin ? reseauDabord(req, url) : cacheDabord(req));
 });
 async function reseauDabord(req, url) {

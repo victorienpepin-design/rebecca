@@ -28,7 +28,14 @@ body.bloque { overflow: hidden; }
 .page { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; }
 header h1 { font-size: 1.35rem; margin: 8px 0 2px; letter-spacing: -.01em; }
 header p { margin: 0 0 14px; color: var(--doux); font-size: .9rem; }
-form { display: flex; gap: 8px; position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; }
+form { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; }
+form .champ { display: flex; gap: 8px; flex: 1 1 300px; min-width: 0; }
+form .boutons { display: flex; gap: 8px; flex: 0 0 auto; }
+@media (max-width: 599px) {
+  form { position: static; }
+  form .boutons { flex: 1 1 100%; }
+  form .boutons button { flex: 1; justify-content: center; }
+}
 input[type=search] { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; padding: 12px 14px; border: 1.5px solid var(--bord); border-radius: 12px; background: var(--carte); color: var(--texte); }
 input[type=search]:focus { outline: none; border-color: var(--accent); }
 button, .bouton { font: inherit; font-size: .95rem; border: 0; border-radius: 10px; padding: 10px 14px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
@@ -95,6 +102,34 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
 #v-etat { font-size: .88rem; color: var(--doux); margin: 0 4px; }
 .v-zone { flex: 1; overflow: auto; padding: 8px; text-align: center; -webkit-overflow-scrolling: touch; }
 .v-zone canvas { background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.2); max-width: none; }
+.reponse { margin: 6px 0 14px; border: 1.5px solid var(--accent); display: grid; gap: 8px; }
+.reponse[hidden] { display: none; }
+.r-tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.r-corps { overflow-wrap: anywhere; }
+.r-corps p { margin: 0 0 8px; }
+.r-corps ul { margin: 0 0 8px; padding-left: 20px; }
+.r-corps li { margin: 3px 0; }
+.r-attente { color: var(--doux); }
+.r-attente::after { content: ""; display: inline-block; width: 1em; text-align: left; animation: points 1.2s steps(4) infinite; }
+@keyframes points { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+a.cite { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; margin: 0 1px; border-radius: 11px; background: var(--accent-doux);
+  color: var(--accent); font-size: .78rem; font-weight: 700; text-decoration: none; vertical-align: 2px; }
+a.cite.invalide { background: transparent; border: 1px solid var(--erreur); color: var(--erreur); }
+mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px dotted var(--erreur); border-radius: 0; padding: 0; font-weight: 600; }
+.r-alertes { display: grid; gap: 4px; font-size: .9rem; color: var(--erreur); }
+.r-alertes[hidden], .r-sources[hidden], .r-pied[hidden] { display: none; }
+.r-sources { display: grid; gap: 6px; border-top: 1px solid var(--bord); padding-top: 8px; font-size: .88rem; }
+.r-source { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.r-source .r-doc { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; color: var(--doux); }
+.r-source .r-doc b { color: var(--texte); font-weight: 600; }
+.r-source a, .r-source button { font-size: .85rem; }
+.r-source button { min-height: 32px; padding: 4px 10px; }
+.r-pied { margin: 0; }
+.reglages { display: grid; gap: 10px; padding: 4px 0 12px; }
+.reglages label { display: grid; gap: 4px; font-size: .9rem; color: var(--doux); }
+.reglages input, .reglages select { font: inherit; font-size: 16px; padding: 10px 12px; border: 1.5px solid var(--bord); border-radius: 10px; background: var(--carte); color: var(--texte); min-width: 0; }
+.reglages input:focus, .reglages select:focus { outline: none; border-color: var(--accent); }
+.carte.surligne { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -105,9 +140,14 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   </header>
 
   <form id="formulaire" role="search" autocomplete="off">
-    <input id="question" type="search" autocomplete="off" name="rebecca-q" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
-    <button id="effacer" class="secondaire" type="button" aria-label="Effacer la recherche" hidden>✕</button>
-    <button id="chercher" type="submit" disabled>Chercher</button>
+    <div class="champ">
+      <input id="question" type="search" autocomplete="off" name="rebecca-q" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
+      <button id="effacer" class="secondaire" type="button" aria-label="Effacer la recherche" hidden>✕</button>
+    </div>
+    <div class="boutons">
+      <button id="chercher" class="secondaire" type="submit" disabled>🔎 Chercher</button>
+      <button id="repondre" type="button" disabled>✍️ Répondre</button>
+    </div>
   </form>
 
   <div id="etat" class="etat" role="status" aria-live="polite">
@@ -121,6 +161,14 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     <input id="fichiers-index" type="file" multiple accept=".json,.bin">
   </div>
 
+  <section id="reponse" class="carte reponse" hidden aria-live="polite">
+    <div class="r-tete"><b>✍️ Réponse</b><span id="r-meta" class="petit"></span></div>
+    <div id="r-corps" class="r-corps"></div>
+    <div id="r-alertes" class="r-alertes" hidden></div>
+    <div id="r-sources" class="r-sources" hidden></div>
+    <p id="r-pied" class="petit r-pied" hidden>Rédigée par une IA à partir des passages ci-dessous : vérifie la source avant d'agir.</p>
+  </section>
+
   <div id="outils" class="outils" hidden>
     <span id="mode"></span>
     <button id="copier-llm" class="secondaire" type="button">📋 Copier pour un LLM</button>
@@ -132,6 +180,23 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   <details id="biblio" class="infos">
     <summary id="biblio-titre">📚 Bibliothèque</summary>
     <ul id="biblio-liste" class="biblio"></ul>
+  </details>
+
+  <details id="reglages" class="infos">
+    <summary>⚙️ Réglages du Rédacteur (réponse rédigée)</summary>
+    <div class="reglages">
+      <label>Fournisseur
+        <select id="r-fournisseur"><option value="groq">Groq (gratuit, rapide)</option><option value="gemini">Gemini (Google AI Studio, gratuit)</option></select></label>
+      <label>Clé API
+        <input id="r-cle" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="colle ta clé ici"></label>
+      <label>Modèle (vide = choix automatique)
+        <input id="r-modele" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="automatique"></label>
+      <div class="actions"><button id="r-enregistrer" type="button">Enregistrer et tester</button><button id="r-oublier" class="secondaire" type="button">Effacer la clé</button></div>
+      <div id="r-etat" class="petit" role="status"></div>
+      <p class="petit" style="margin:0">La clé reste <b>seulement sur cet appareil</b>, dans ce navigateur : elle n'est jamais envoyée sur le site, seulement à Groq ou Google avec ta question et les passages.
+        Clé gratuite : Groq → console.groq.com › API Keys ; Gemini → aistudio.google.com › Get API key.
+        Sur iPhone/iPad, Rebecca ajoutée à l'écran d'accueil a sa propre mémoire : colle la clé une fois dedans. Safari peut l'oublier après 7 jours sans ouvrir Rebecca.</p>
+    </div>
   </details>
 
   <details id="infos" class="infos">
@@ -765,6 +830,361 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* COEUR:FIN */
 </script>
+<script>
+/* REDACTEUR:DEBUT — le Rédacteur de Rebecca : réponse courte et sourcée à partir des passages trouvés.
+   Appelle un LLM gratuit (Groq ou Gemini) directement depuis la page ; la clé reste sur l'appareil.
+   Garde-fous : « AUCUNE_REPONSE » si les passages ne répondent pas, chiffres vérifiés mot pour mot. */
+(function (racine) {
+  "use strict";
+
+  // ---------- Fournisseurs ----------
+  const FOURNISSEURS = {
+    groq: {
+      nom: "Groq", base: "https://api.groq.com/openai/v1", prefixeCle: /^gsk_/, aideCle: "console.groq.com › API Keys",
+      exclus: /whisper|tts|orpheus|playai|guard|safeguard|compound|allam|embed|vision|audio|speech|distil/i,
+      prefere: [/gpt-oss-120b/, /kimi/, /qwen/, /llama-3\.3-70b/, /llama-4/, /gpt-oss-20b/, /llama/, /gemma|mistral/],
+      defauts: ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"],
+    },
+    gemini: {
+      nom: "Gemini", base: "https://generativelanguage.googleapis.com/v1beta", prefixeCle: /^AIza/, aideCle: "aistudio.google.com › Get API key",
+      exclus: /tts|image|live|embedding|aqa|audio|robotics|computer|native|veo|imagen|thinking|exp|learnlm|nano|pro/i,
+      prefere: [/^gemini-\d+(\.\d+)?-flash$/, /^gemini-flash-latest$/, /^gemini-\d+(\.\d+)?-flash-lite$/, /^gemini-flash-lite-latest$/,
+                /^gemini-.*flash/, /^gemma-3-27b/, /^gemma/],
+      defauts: ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"],
+    },
+  };
+  const NB_CANDIDATS = 6;
+
+  // ---------- Consignes données au LLM ----------
+  const SENTINELLE = "AUCUNE_REPONSE";
+  const CONSIGNES = `Tu es Rebecca, l'assistante documentaire d'une équipe soignante (infirmiers, médecins) dans un hôpital français.
+Tu réponds UNIQUEMENT à partir des extraits numérotés fournis, jamais avec tes propres connaissances.
+
+Règles :
+1. Réponds en français, court et direct : 1 à 5 phrases (150 mots au plus), ou une courte liste à puces si la réponse est une liste ou des étapes.
+2. Après chaque information, indique entre crochets le numéro de l'extrait d'où elle vient : [1], [2]. Aucune information sans crochet.
+3. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas.
+4. Si les extraits ne permettent pas de répondre à la question, réponds exactement et seulement : ${SENTINELLE}
+5. Si les extraits ne répondent qu'en partie, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
+6. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
+7. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
+
+  function messageUtilisateur(contexte) {
+    return `${contexte.trim()}\n\nRéponds à la question en suivant les règles (crochets [n] après chaque information, ou ${SENTINELLE}).`;
+  }
+
+  // ---------- Erreurs ----------
+  const COURT = { cle: "clé refusée", modele: "modèle indisponible", limite: "limite par minute", limite_jour: "limite du jour",
+                  service: "service en panne", reseau: "pas de connexion", delai: "trop long", parametre: "réglage refusé",
+                  vide: "réponse vide", bloque: "réponse bloquée", aucun_modele: "aucun modèle", autre: "erreur" };
+  class ErreurRedacteur extends Error {
+    constructor(code, message, extra = {}) { super(message); this.code = code; this.court = COURT[code] || code; Object.assign(this, extra); }
+  }
+
+  function dureeEnSecondes(t) {
+    let s = 0, vu = false;
+    for (const [, n, u] of String(t).matchAll(/([\d.]+)\s*(ms|h|m|s)/g)) {
+      vu = true; s += parseFloat(n) * ({ h: 3600, m: 60, s: 1, ms: 0.001 })[u];
+    }
+    return vu ? s : null;
+  }
+
+  async function lireErreur(r) {
+    let texte = "", corps = null;
+    try { texte = await r.text(); corps = JSON.parse(texte); } catch (e) {}
+    let err = corps && (corps.error || (Array.isArray(corps) && corps[0] && corps[0].error)) || {};
+    if (typeof err === "string") err = { message: err };
+    const details = JSON.stringify(err.details || []);
+    const message = String(err.message || texte || `erreur ${r.status}`).slice(0, 500);
+    let attente = null;
+    const ra = Number(r.headers && r.headers.get && r.headers.get("retry-after"));
+    if (ra > 0) attente = ra;
+    const m = /try again in\s+([\d.hms ]+)/i.exec(message);
+    if (m && dureeEnSecondes(m[1]) !== null) attente = dureeEnSecondes(m[1]);
+    for (const d of err.details || []) if (d && d.retryDelay) attente = parseFloat(d.retryDelay);
+    return { statut: r.status, message, code: String(err.code || err.status || err.type || ""), details, attente };
+  }
+
+  function classerErreur(e, avecExtras) {
+    const s = e.statut, m = `${e.message} ${e.code} ${e.details}`.toLowerCase();
+    if (s === 401 || /invalid.?api.?key|api key not valid|api_key_invalid|unauthenticated|unregistered callers/.test(m)) return "cle";
+    if (s === 429 || /rate.?limit|resource_exhausted/.test(m))
+      return /per ?day|perday|\(tpd\)|\(rpd\)|daily/.test(m) ? "limite_jour" : "limite";
+    if (avecExtras && s === 400 && /reasoning|thinking|include_reasoning|unknown name|unsupported|not supported|invalid.*(field|param)|property/.test(m)) return "parametre";
+    if (s === 404 || ((s === 400 || s === 403) && /model|modèle|decommission|terms/.test(m))) return "modele";
+    if (s === 403) return "cle";
+    if (s >= 500) return "service";
+    return "autre";
+  }
+
+  function erreurLisible(code, F, e) {
+    const det = e && e.message ? ` (${e.message.slice(0, 160)})` : "";
+    switch (code) {
+      case "cle": return `Clé ${F.nom} refusée : vérifie-la dans ⚙️ Réglages du Rédacteur (ou crée-en une sur ${F.aideCle}).`;
+      case "modele": return `Modèle refusé par ${F.nom}${det}.`;
+      case "limite": return `Limite gratuite de ${F.nom} atteinte pour cette minute : réessaie dans un instant.`;
+      case "limite_jour": return `Limite gratuite du jour atteinte chez ${F.nom}${e && e.attente ? ` (réessaie dans ${Math.ceil(e.attente / 60)} min)` : ""}. Tu peux passer sur l'autre fournisseur dans ⚙️ Réglages.`;
+      case "service": return `${F.nom} est en panne ou surchargé${det}. Réessaie dans un moment.`;
+      default: return `${F.nom} a répondu une erreur${det}.`;
+    }
+  }
+
+  // ---------- Appels ----------
+  function extrasGroq(modele) {
+    if (/gpt-oss/.test(modele)) return { reasoning_effort: "low", include_reasoning: false };
+    if (/qwen3|qwq/.test(modele)) return { reasoning_effort: "none", reasoning_format: "hidden" };
+    return null;
+  }
+  function extrasGemini(modele) {
+    if (/^gemini-2\.5/.test(modele)) return { thinkingBudget: 0 };
+    if (/^gemini/.test(modele)) return { thinkingLevel: "low" };
+    return null;
+  }
+  const nettoyer = t => String(t || "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+
+  async function requete(f, url, init, delai) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const minuteur = ctrl ? setTimeout(() => ctrl.abort(), delai) : null;
+    try {
+      return await f(url, Object.assign({ cache: "no-store", signal: ctrl ? ctrl.signal : undefined }, init));
+    } catch (e) {
+      if (e && e.name === "AbortError") throw new ErreurRedacteur("delai", "Pas de réponse dans le délai.");
+      throw new ErreurRedacteur("reseau", "Connexion impossible (" + (e && e.message || e) + ").");
+    } finally { if (minuteur) clearTimeout(minuteur); }
+  }
+
+  // Un appel, sans nouvel essai. opts : { fetch, extras, maxTokens, delai, essai }
+  async function appeler(fournisseur, cle, modele, systeme, utilisateur, opts = {}) {
+    const F = FOURNISSEURS[fournisseur];
+    if (!F) throw new ErreurRedacteur("autre", `Fournisseur inconnu : ${fournisseur}`);
+    const f = opts.fetch || racine.fetch.bind(racine);
+    const maxTokens = opts.maxTokens || (fournisseur === "gemini" ? 2048 : 900);   // réponse courte : ménage la limite par minute
+    let url, entetes, corps, extras = null;
+    if (fournisseur === "gemini") {
+      url = `${F.base}/models/${encodeURIComponent(modele)}:generateContent`;
+      entetes = { "Content-Type": "application/json", "x-goog-api-key": cle };
+      corps = { systemInstruction: { parts: [{ text: systeme }] }, contents: [{ role: "user", parts: [{ text: utilisateur }] }],
+                generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens } };
+      if (opts.extras !== false && (extras = extrasGemini(modele))) corps.generationConfig.thinkingConfig = extras;
+    } else {
+      url = `${F.base}/chat/completions`;
+      entetes = { "Content-Type": "application/json", "Authorization": "Bearer " + cle };
+      corps = { model: modele, messages: [{ role: "system", content: systeme }, { role: "user", content: utilisateur }],
+                temperature: 0.2, max_completion_tokens: maxTokens };
+      if (opts.extras !== false && (extras = extrasGroq(modele))) Object.assign(corps, extras);
+    }
+    const debut = Date.now();
+    const r = await requete(f, url, { method: "POST", headers: entetes, body: JSON.stringify(corps) }, opts.delai || 45000);
+    if (!r.ok) {
+      const e = await lireErreur(r);
+      const code = classerErreur(e, !!extras);
+      throw new ErreurRedacteur(code, erreurLisible(code, F, e), { statut: e.statut, attente: e.attente, brut: e.message });
+    }
+    const data = await r.json();
+    const ms = Date.now() - debut;
+    if (opts.essai) return { texte: "", modele, ms, tronque: false };
+    let texte = "", tronque = false;
+    if (fournisseur === "gemini") {
+      const c = (data.candidates || [])[0];
+      if (!c) {
+        const raison = data.promptFeedback && data.promptFeedback.blockReason;
+        throw new ErreurRedacteur(raison ? "bloque" : "vide", raison ? `Réponse bloquée par le filtre de Google (${raison}).` : "Réponse vide.");
+      }
+      texte = ((c.content && c.content.parts) || []).filter(p => !p.thought).map(p => p.text || "").join("");
+      tronque = c.finishReason === "MAX_TOKENS";
+      if (!texte.trim() && c.finishReason && c.finishReason !== "STOP" && !tronque)
+        throw new ErreurRedacteur("bloque", `Réponse bloquée par Google (${c.finishReason}).`);
+    } else {
+      const c = (data.choices || [])[0] || {};
+      texte = (c.message && c.message.content) || "";
+      tronque = c.finish_reason === "length";
+    }
+    texte = nettoyer(texte);
+    if (!texte) throw new ErreurRedacteur("vide", tronque ? "Réponse coupée avant d'être écrite (trop longue)." : "Réponse vide.");
+    return { texte, modele, ms, tronque };
+  }
+
+  // Avec les nouveaux essais utiles : sans les réglages de « réflexion » s'ils sont refusés, attente courte si limite par minute.
+  async function appelerAvecEssais(fournisseur, cle, modele, systeme, utilisateur, opts = {}) {
+    let extras = opts.extras !== false, attendu = false;
+    for (;;) {
+      try {
+        return await appeler(fournisseur, cle, modele, systeme, utilisateur, Object.assign({}, opts, { extras }));
+      } catch (e) {
+        if (e.code === "parametre" && extras) { extras = false; continue; }
+        if (e.code === "limite" && !attendu && !opts.essai && (e.attente || 5) <= 25) {
+          attendu = true;
+          const s = Math.ceil(e.attente || 5);
+          if (opts.surEtat) opts.surEtat(`⏸️ Limite par minute de ${FOURNISSEURS[fournisseur].nom} : nouvel essai dans ${s} s…`);
+          await new Promise(ok => setTimeout(ok, s * 1000 + 300));
+          continue;
+        }
+        throw e;
+      }
+    }
+  }
+
+  async function listerModeles(fournisseur, cle, opts = {}) {
+    const F = FOURNISSEURS[fournisseur], f = opts.fetch || racine.fetch.bind(racine);
+    const url = fournisseur === "gemini" ? `${F.base}/models?pageSize=200` : `${F.base}/models`;
+    const entetes = fournisseur === "gemini" ? { "x-goog-api-key": cle } : { "Authorization": "Bearer " + cle };
+    const r = await requete(f, url, { method: "GET", headers: entetes }, opts.delai || 20000);
+    if (!r.ok) {
+      const e = await lireErreur(r);
+      const code = classerErreur(e, false);
+      throw new ErreurRedacteur(code, erreurLisible(code, F, e), { statut: e.statut });
+    }
+    const data = await r.json();
+    if (fournisseur === "gemini")
+      return (data.models || []).filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes("generateContent"))
+        .map(m => String(m.name || "").replace(/^models\//, "")).filter(Boolean);
+    return (data.data || []).filter(m => m.active !== false).map(m => String(m.id || "")).filter(Boolean);
+  }
+
+  const versionDe = id => { const m = /(\d+(?:\.\d+)?)/.exec(String(id).replace(/^.*\//, "")); return m ? parseFloat(m[1]) : 0; };
+  function ordonnerCandidats(fournisseur, ids, impose = "") {
+    const F = FOURNISSEURS[fournisseur];
+    const dispo = [...new Set(ids)].filter(id => !F.exclus.test(id));
+    const ordre = [];
+    for (const motif of F.prefere)
+      ordre.push(...dispo.filter(id => motif.test(id) && !ordre.includes(id)).sort((a, b) => versionDe(b) - versionDe(a) || a.localeCompare(b)));
+    const liste = [...new Set([impose, ...ordre].filter(Boolean))];
+    return (liste.length ? liste : F.defauts).slice(0, NB_CANDIDATS);
+  }
+
+  // Choix automatique : la liste du fournisseur, puis un petit essai par modèle (certains sont listés mais refusés)
+  async function choisirModele(fournisseur, cle, opts = {}) {
+    let ids = [];
+    try { ids = await listerModeles(fournisseur, cle, opts); }
+    catch (e) { if (e.code === "cle" || e.code === "reseau") throw e; }
+    const refuses = [];
+    for (const m of ordonnerCandidats(fournisseur, ids, opts.impose)) {
+      if (opts.surEtat) opts.surEtat(`Essai du modèle ${m}…`);
+      try {
+        const r = await appelerAvecEssais(fournisseur, cle, m, "Réponds seulement : OK", "OK ?", Object.assign({}, opts, { essai: true, maxTokens: 16 }));
+        return { modele: m, ms: r.ms, refuses };
+      } catch (e) {
+        if (e.code === "cle" || e.code === "reseau") throw e;
+        refuses.push({ modele: m, raison: e.court });
+      }
+    }
+    throw new ErreurRedacteur("aucun_modele", `Aucun modèle de ${FOURNISSEURS[fournisseur].nom} n'accepte cette clé pour l'instant (`
+      + refuses.map(x => `${x.modele} : ${x.raison}`).join(" ; ") + "). Réessaie plus tard ou change de fournisseur.", { refuses });
+  }
+
+  // ---------- Lecture de la réponse : citations et chiffres ----------
+  // Unités ramenées à une forme commune (« 10 jours » = « 10 j ») ; le reste doit être identique
+  const CANON = [
+    [/^(?:j|jr|jrs|jours?)$/, "j"], [/^(?:h|hr|heures?)$/, "h"], [/^(?:mn|min|minutes?)$/, "min"], [/^(?:s|sec|secondes?)$/, "s"],
+    [/^(?:sem|semaines?)$/, "sem"], [/^(?:ans?|années?)$/, "an"], [/^(?:mois)$/, "mois"],
+    [/^(?:mcg|µg|μg|ug|microgrammes?)$/, "µg"], [/^(?:mg|milligrammes?)$/, "mg"], [/^(?:g|gr|grammes?)$/, "g"], [/^(?:kg|kilos?|kilogrammes?)$/, "kg"],
+    [/^(?:ml|millilitres?)$/, "ml"], [/^(?:l|litres?)$/, "l"], [/^(?:dl|cl|mmol|µmol|μmol|meq|mui|ui|u|ng|pg|mm|cm|m|km|bpm|mmhg|cmh2o)$/, null],
+    [/^(?:cp|cps|cpr|comprimés?)$/, "cp"], [/^(?:gélules?)$/, "gélule"], [/^(?:sachets?)$/, "sachet"], [/^(?:ampoules?)$/, "ampoule"],
+    [/^(?:flacons?)$/, "flacon"], [/^(?:gouttes?)$/, "goutte"], [/^(?:doses?)$/, "dose"], [/^(?:prises?)$/, "prise"], [/^(?:injections?)$/, "injection"],
+    [/^(?:x|×|fois)$/, "x"], [/^(?:%|pourcent|°c|°)$/, null],
+  ];
+  function canonUnite(u) {
+    const v = String(u).toLowerCase().replace(/μ/g, "µ");
+    for (const [re, c] of CANON) if (re.test(v)) return c || v;
+    return null;
+  }
+  // « 007 » = « 7 », « 1,50 » = « 1.5 »
+  const canonNombre = (ent, dec) => (ent.replace(/^0+(?=\d)/, "") + (dec.replace(/0+$/, "") ? "." + dec.replace(/0+$/, "") : ""));
+  const ESP = "[ \\u00a0\\u202f\\u2009]";
+  const RE_NB = new RegExp(`(?<![\\d.,])(\\d{1,3}(?:${ESP}\\d{3})+(?!\\d)|\\d+)((?:[.,]\\d+)?)`, "gu");
+  const RE_UNITE = new RegExp(`^${ESP}?(%|°C|°c|°|×|[µμ\\p{L}]+)`, "u");
+  const RE_SUITE = new RegExp(`^${ESP}?(?:\\/|par${ESP})${ESP}?(%|[µμ\\p{L}]+)`, "iu");   // « mg/kg/j », « 2 fois par jour »
+
+  // Les nombres d'un texte : { debut, fin, texte, nombre, cle (nombre + unités), cles (avec les débuts : « 6mg », « 6mg/j ») }
+  function nombresDe(texte) {
+    texte = String(texte);
+    const out = [];
+    for (const m of texte.matchAll(RE_NB)) {
+      const nombre = canonNombre(m[1].replace(/[^\d]/g, ""), m[2] ? m[2].slice(1) : "");
+      let fin = m.index + m[0].length;
+      const reste = texte.slice(fin, fin + 60), cles = [];
+      const u = RE_UNITE.exec(reste);
+      if (u && canonUnite(u[1])) {
+        const canons = [canonUnite(u[1])];
+        let pos = u[0].length;
+        for (let s; (s = RE_SUITE.exec(reste.slice(pos))) && canonUnite(s[1]);) { canons.push(canonUnite(s[1])); pos += s[0].length; }
+        for (let k = 1; k <= canons.length; k++) cles.push(nombre + canons.slice(0, k).join("/"));
+        fin += pos;
+      }
+      out.push({ debut: m.index, fin, texte: texte.slice(m.index, fin), nombre, cle: cles.length ? cles[cles.length - 1] : null, cles });
+    }
+    return out;
+  }
+
+  function indexSources(textes) {
+    const nombres = new Set(), cles = new Set();
+    for (const t of textes) for (const n of nombresDe(t)) { nombres.add(n.nombre); for (const c of n.cles) cles.add(c); }
+    return { nombres, cles };
+  }
+
+  // Remplace [1], [1, 3], [2-4], 【1】, [Extrait 2] par des espaces (mêmes positions) et renvoie les numéros cités
+  const RE_CITATION = /[[【]\s*(?:extraits?\s*)?(\d+(?:\s*(?:[,;]|[-–]|et)\s*\d+)*)\s*[\]】]/gi;
+  function numerosCites(groupe) {
+    const nums = [];
+    for (const part of groupe.split(/\s*(?:[,;]|et)\s*/)) {
+      const r = /^(\d+)\s*[-–]\s*(\d+)$/.exec(part);
+      if (r) { for (let k = +r[1]; k <= Math.min(+r[2], +r[1] + 20); k++) nums.push(k); }
+      else if (/^\d+$/.test(part)) nums.push(+part);
+    }
+    return nums;
+  }
+
+  // Découpe la réponse en lignes et morceaux (texte, citation, chiffre vérifié) pour l'affichage
+  function analyserReponse(texte, passages) {
+    const t = nettoyer(texte);
+    const aucune = /AUCUNE[_ ]?R[EÉ]PONSE/i.test(t.replace(/\*/g, ""));
+    const index = indexSources(passages.map(p => p.texte || ""));
+    const n = passages.length;
+    const lignes = [], cites = [], invalides = new Set(), douteux = [];
+    for (let brute of t.split(/\r?\n/)) {
+      let type = "p";
+      const puce = /^\s*(?:[-*•–]|\d{1,2}[.)])\s+/.exec(brute);
+      if (puce) { type = "li"; brute = brute.slice(puce[0].length); }
+      brute = brute.replace(/^\s*#{1,6}\s+/, "");
+      if (!brute.trim()) { lignes.push({ type: "vide", morceaux: [] }); continue; }
+      // repérer citations puis chiffres (hors citations)
+      const reperes = [];
+      for (const m of brute.matchAll(RE_CITATION)) {
+        const nums = numerosCites(m[1]);
+        for (const k of nums) {
+          if (k >= 1 && k <= n) { if (!cites.includes(k)) cites.push(k); } else invalides.add(k);
+        }
+        reperes.push({ debut: m.index, fin: m.index + m[0].length, type: "cite", nums });
+      }
+      let masque = brute;
+      for (const r of reperes) masque = masque.slice(0, r.debut) + " ".repeat(r.fin - r.debut) + masque.slice(r.fin);
+      for (const x of nombresDe(masque)) {
+        const ok = x.cle ? index.cles.has(x.cle) : index.nombres.has(x.nombre);
+        if (!ok) douteux.push(brute.slice(x.debut, x.fin));
+        reperes.push({ debut: x.debut, fin: x.fin, type: "chiffre", ok });
+      }
+      reperes.sort((a, b) => a.debut - b.debut);
+      const morceaux = [];
+      let i = 0;
+      for (const r of reperes) {
+        if (r.debut < i) continue;
+        if (r.debut > i) morceaux.push({ type: "texte", texte: brute.slice(i, r.debut) });
+        morceaux.push(r.type === "cite" ? { type: "cite", nums: r.nums } : { type: "chiffre", texte: brute.slice(r.debut, r.fin), ok: r.ok });
+        i = r.fin;
+      }
+      if (i < brute.length) morceaux.push({ type: "texte", texte: brute.slice(i) });
+      lignes.push({ type, morceaux });
+    }
+    return { aucune, lignes, cites, invalides: [...invalides], douteux: [...new Set(douteux)], sansSource: !aucune && !cites.length };
+  }
+
+  racine.Redacteur = {
+    FOURNISSEURS, CONSIGNES, SENTINELLE, ErreurRedacteur, messageUtilisateur, appeler, appelerAvecEssais, listerModeles,
+    ordonnerCandidats, choisirModele, analyserReponse, nombresDe, indexSources, canonUnite, classerErreur, dureeEnSecondes, nettoyer,
+  };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+/* REDACTEUR:FIN */
+</script>
 <script type="module">
 const CONFIG = {
   transformers: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
@@ -773,11 +1193,17 @@ const CONFIG = {
   pdfjsWorker: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.worker.min.mjs",
   dossierIndex: "index/",
   dossierPdf: "pdf/",
+  // Le Rédacteur : fournisseur « groq » ou « gemini », modèle "" = choix automatique (modifiables aussi dans ⚙️ Réglages de la page)
+  redacteur: { fournisseur: "groq", modele: "" },
 };
 const C = globalThis.Coeur;
-const VERSION_PAGE = 4;
+const VERSION_PAGE = 5;
+const R = globalThis.Redacteur;
 const $ = id => document.getElementById(id);
-const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0 };
+const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0,
+            reponse: null, ticketReponse: 0, attenteModele: null };
+let finModele = () => {};
+E.attenteModele = new Promise(ok => { finModele = ok; });
 const HTTP = /^https?:$/.test(location.protocol);
 
 // ---------- Indicateur d'état ----------
@@ -865,7 +1291,7 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
   $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · mis à jour le ${dateCourte(manifeste.cree_le)} · v${VERSION_PAGE}`;
   remplirInfos();
   remplirBibliotheque();
-  $("question").disabled = $("chercher").disabled = false;
+  $("question").disabled = $("chercher").disabled = $("repondre").disabled = false;
 }
 function dateCourte(d) {
   const m = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?/.exec(String(d || ""));
@@ -922,12 +1348,14 @@ async function chargerModele() {
     etat("✅ Prêt : recherche par le sens et par mots-clés" + (HTTP ? ", même hors connexion" : ""), null, "ok");
     $("verifier").disabled = false;
     remplirInfos();
-    if (E.derniere && E.derniere.mode === "mots") lancer(E.derniere.question, false);
+    finModele();
+    if (E.derniere && E.derniere.mode === "mots" && $("reponse").hidden) lancer(E.derniere.question, false);
   } catch (e) {
     console.error(e);
     E.echecModele = true;
     if (E.derniere) afficher(E.derniere);
     etat("⚠️ Moteur de sens indisponible (connexion ?) : recherche par mots-clés seulement. Recharge la page pour réessayer.", null, "erreur");
+    finModele();
   }
 }
 
@@ -979,6 +1407,8 @@ window.moteur = {
   sigles: question => C.siglesDansQuestion(question, E.sigles).map(x => ({ sigle: x.s, definition: x.def, fichier: E.docs[x.d].f, page: x.p })),
   formaterPourLLM: C.formaterPourLLM,
   pret: () => !!E.extracteur,
+  // Le Rédacteur (pour la future Voix) : remplit la question, rédige, renvoie { texte, sources… } ou { message } / { erreur }
+  repondre: async question => { $("question").value = String(question || ""); return repondre(); },
 };
 
 const lienPdf = f => CONFIG.dossierPdf + f.split("/").map(encodeURIComponent).join("/");
@@ -992,22 +1422,25 @@ function pdfPresent(f) {
   return pdfDispo.get(f);
 }
 
-async function lancer(question, majAdresse = true) {
+async function lancer(question, majAdresse = true, pourReponse = false) {
   const q = question.trim();
-  if (!q) return;
+  if (!q) return null;
+  if (!pourReponse) cacherReponse();
   const ticket = ++E.enCours;
   const rep = await rechercher(q);
-  if (ticket !== E.enCours || !rep) return;
+  if (ticket !== E.enCours || !rep) return null;
   E.derniere = rep;
   if (majAdresse && HTTP) history.replaceState(history.state, "", "?q=" + encodeURIComponent(q));
   afficher(rep);
   $("effacer").hidden = false;
+  return rep;
 }
 
 // ✕ : efface la question et les résultats (et l'adresse ?q=…, pour qu'un rechargement reparte de zéro)
 function effacer() {
   E.enCours++;
   E.derniere = null;
+  cacherReponse();
   $("question").value = "";
   $("resultats").innerHTML = "";
   $("avis").hidden = $("sigles").hidden = $("outils").hidden = $("effacer").hidden = true;
@@ -1055,7 +1488,7 @@ function afficher(rep) {
       const pages = r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
       const section = (r.section || "").split(" › ").filter(x => x.trim() !== d.titre.trim()).join(" › ");
       const pert = [r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`, r.rang_doc && `document n°${r.rang_doc}`].filter(Boolean).join(" · ");
-      return `<div class="carte">
+      return `<div class="carte" id="passage-${r.rang}">
         <div class="source"><span class="rang">${r.rang}</span><span><b>${pages}</b>${section ? " · " + C.echapper(section) : ""}</span></div>
         <p class="extrait">${C.extrait(r.texte, qa)}</p>
         <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
@@ -1093,6 +1526,226 @@ $("copier-llm").addEventListener("click", async () => {
   const ok = await copier(contexte(E.derniere));
   $("copier-llm").textContent = ok ? "✅ Copié" : "❌ Copie impossible";
   setTimeout(() => { $("copier-llm").textContent = "📋 Copier pour un LLM"; }, 1800);
+});
+
+// ---------- Rédacteur : réglages (gardés seulement sur cet appareil) ----------
+const CLE_STOCKAGE = "rebecca.redacteur.v1";
+let reglagesMemoire = null;
+function lireReglages() {
+  let r = null;
+  try { r = JSON.parse(localStorage.getItem(CLE_STOCKAGE) || "null"); } catch (e) {}
+  r = r || reglagesMemoire || {};
+  return { fournisseur: R.FOURNISSEURS[r.fournisseur] ? r.fournisseur : CONFIG.redacteur.fournisseur, cles: r.cles || {}, modeles: r.modeles || {}, auto: r.auto || {} };
+}
+function ecrireReglages(r) {
+  reglagesMemoire = r;
+  try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(r)); return true; } catch (e) { return false; }
+}
+const modeleImpose = (r, f) => String(r.modeles[f] || (f === CONFIG.redacteur.fournisseur ? CONFIG.redacteur.modele : "") || "").trim();
+function remplirChampsReglages(f) {
+  const r = lireReglages();
+  $("r-fournisseur").value = f || r.fournisseur;
+  f = $("r-fournisseur").value;
+  $("r-cle").value = r.cles[f] || "";
+  $("r-modele").value = r.modeles[f] || "";
+  $("r-modele").placeholder = r.auto[f] ? `automatique (dernier choix : ${r.auto[f].modele})` : "automatique";
+}
+$("reglages").addEventListener("toggle", () => { if ($("reglages").open) remplirChampsReglages(); });
+$("r-fournisseur").addEventListener("change", () => { remplirChampsReglages($("r-fournisseur").value); $("r-etat").textContent = ""; });
+$("r-cle").addEventListener("input", () => {        // une clé « gsk_… » est une clé Groq, « AIza… » une clé Gemini
+  const v = $("r-cle").value.trim();
+  for (const [f, F] of Object.entries(R.FOURNISSEURS)) if (F.prefixeCle.test(v)) $("r-fournisseur").value = f;
+});
+$("r-enregistrer").addEventListener("click", async () => {
+  const r = lireReglages(), f = $("r-fournisseur").value, F = R.FOURNISSEURS[f];
+  const cle = $("r-cle").value.trim(), modele = $("r-modele").value.trim();
+  r.fournisseur = f; r.modeles[f] = modele; delete r.auto[f];
+  if (cle) r.cles[f] = cle; else delete r.cles[f];
+  ecrireReglages(r);
+  if (!cle) { $("r-etat").textContent = `Colle d'abord ta clé ${F.nom}.`; return; }
+  $("r-enregistrer").disabled = true;
+  $("r-etat").textContent = "Test en cours…";
+  try {
+    const choix = await R.choisirModele(f, cle, { impose: modele, surEtat: t => { $("r-etat").textContent = t; } });
+    const r2 = lireReglages();
+    r2.auto[f] = { modele: choix.modele, le: Date.now() };
+    let note = "";
+    if (modele && choix.modele !== modele) {
+      r2.modeles[f] = ""; $("r-modele").value = "";
+      note = ` Le modèle « ${C.echapper(modele)} » est refusé : choix automatique à la place.`;
+    }
+    const garde = ecrireReglages(r2);
+    const refus = choix.refuses.filter(x => x.modele !== modele).map(x => `${C.echapper(x.modele)} (${x.raison})`);
+    $("r-etat").innerHTML = `✅ ${F.nom} répond avec <b>${C.echapper(choix.modele)}</b>.${note}`
+      + (refus.length ? ` Modèles listés mais refusés : ${refus.join(", ")}.` : "")
+      + (garde ? " Clé gardée sur cet appareil." : " ⚠️ Mémoire du navigateur indisponible (navigation privée ?) : clé gardée jusqu'à la fermeture de la page.");
+    remplirChampsReglages(f);
+  } catch (e) {
+    $("r-etat").textContent = "❌ " + (e.message || e);
+  } finally { $("r-enregistrer").disabled = false; }
+});
+$("r-oublier").addEventListener("click", () => {
+  const r = lireReglages(), f = $("r-fournisseur").value;
+  delete r.cles[f]; delete r.auto[f];
+  ecrireReglages(r);
+  $("r-cle").value = "";
+  $("r-etat").textContent = `Clé ${R.FOURNISSEURS[f].nom} effacée de cet appareil.`;
+});
+
+// ---------- Rédacteur : la réponse ----------
+const pdfOk = new Map();
+function cacherReponse() {
+  E.ticketReponse++;
+  E.reponse = null;
+  $("reponse").hidden = true;
+}
+function montrerReponse({ attente, message, erreur }) {
+  $("reponse").hidden = false;
+  $("r-meta").textContent = "";
+  $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
+  $("r-corps").innerHTML = attente ? `<p class="r-attente">${C.echapper(attente.replace(/…$/, ""))}</p>`
+    : erreur ? `<p style="color:var(--erreur)">⚠️ ${C.echapper(erreur)}</p>` : `<p>${C.echapper(message)}</p>`;
+  return attente ? null : erreur ? { erreur } : { message };
+}
+
+async function rediger(rep, f, cle, reg, surEtat) {
+  const impose = modeleImpose(reg, f), F = R.FOURNISSEURS[f];
+  let modele = impose || (reg.auto[f] && reg.auto[f].modele) || "", nouveauChoix = false;
+  const message = R.messageUtilisateur(contexte(rep));
+  for (;;) {
+    if (!modele) {
+      surEtat("Choix du modèle");
+      modele = (await R.choisirModele(f, cle, { surEtat })).modele;
+      nouveauChoix = true;
+      const r2 = lireReglages(); r2.auto[f] = { modele, le: Date.now() }; ecrireReglages(r2);
+    }
+    try {
+      surEtat(`Rédaction par ${F.nom}`);
+      const res = await R.appelerAvecEssais(f, cle, modele, R.CONSIGNES, message, { surEtat });
+      return Object.assign(res, { fournisseur: f, question: rep.question, analyse: R.analyserReponse(res.texte, rep.resultats) });
+    } catch (e) {
+      if (e.code === "modele" && !impose && !nouveauChoix) { modele = ""; continue; }   // modèle retiré entre-temps : nouveau choix
+      if (e.code === "modele" && impose) e.message += " Vide le champ « Modèle » dans ⚙️ Réglages pour un choix automatique.";
+      throw e;
+    }
+  }
+}
+
+async function repondre() {
+  const q = $("question").value.trim();
+  if (!q) { $("question").focus(); return null; }
+  $("question").blur();
+  const reg = lireReglages(), f = reg.fournisseur, F = R.FOURNISSEURS[f], cle = reg.cles[f];
+  if (!cle) {
+    $("reglages").open = true;
+    remplirChampsReglages(f);
+    $("r-etat").textContent = `Pour les réponses rédigées : colle ici ta clé ${F.nom} (gratuite : ${F.aideCle}), puis « Enregistrer et tester ».`;
+    $("reglages").scrollIntoView({ behavior: "smooth", block: "start" });
+    return { message: "clé manquante" };
+  }
+  const ticket = ++E.ticketReponse;
+  const encore = () => ticket === E.ticketReponse;
+  montrerReponse({ attente: "Recherche des passages" });
+  if (!E.extracteur && !E.echecModele) {
+    montrerReponse({ attente: "Attente du moteur de sens (premier chargement)" });
+    await E.attenteModele;
+  }
+  if (!encore()) return null;
+  let rep = E.derniere;
+  if (!rep || rep.question !== q || (rep.mode === "mots" && E.extracteur)) rep = await lancer(q, true, true);
+  if (!encore() || !rep) return null;
+  if (!rep.resultats.length) return montrerReponse({ message: "📭 Aucun passage trouvé : pas de réponse possible." });
+  if (rep.confiance === "faible")
+    return montrerReponse({ message: "🤔 Rien ne correspond vraiment à ta question dans les documents : pas de réponse rédigée, pour ne rien inventer. Les passages les plus proches sont ci-dessous." });
+  if (navigator.onLine === false)
+    return montrerReponse({ message: "📵 Pas de connexion : la réponse rédigée a besoin d'internet. Les passages ci-dessous restent consultables." });
+  try {
+    const res = await rediger(rep, f, cle, reg, t => { if (encore()) montrerReponse({ attente: t }); });
+    if (!encore()) return null;
+    E.reponse = res;
+    afficherReponse(res, rep);
+    const a = res.analyse;
+    return { question: q, texte: res.texte, aucune: a.aucune, douteux: a.douteux, fournisseur: f, modele: res.modele,
+             sources: a.cites.map(n => { const r = rep.resultats[n - 1]; return { n, titre: r.titre, fichier: r.fichier, page: r.page }; }) };
+  } catch (e) {
+    if (!encore()) return null;
+    return montrerReponse({ erreur: e.message || String(e) });
+  }
+}
+$("repondre").addEventListener("click", () => repondre());
+
+function rendreMorceaux(morceaux, rep) {
+  const html = morceaux.map(m => {
+    if (m.type === "texte") return C.echapper(m.texte);
+    if (m.type === "chiffre") return m.ok ? C.echapper(m.texte) : `<mark class="douteux" title="Pas retrouvé tel quel dans les passages">${C.echapper(m.texte)}</mark>`;
+    return m.nums.map(n => {
+      const r = rep.resultats[n - 1];
+      if (!r) return `<a class="cite invalide" title="Pas d'extrait n° ${n}">${n}?</a>`;
+      return `<a class="cite" data-cite="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener" title="${C.echapper(r.titre)}, p. ${r.page}">${n}</a>`;
+    }).join("");
+  }).join("");
+  return html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*\*/g, "");
+}
+
+function afficherReponse(res, rep) {
+  const a = res.analyse, F = R.FOURNISSEURS[res.fournisseur];
+  $("reponse").hidden = false;
+  $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`;
+  if (a.aucune) {
+    $("r-corps").innerHTML = "<p>📭 Les passages trouvés ne contiennent pas la réponse à cette question : Rebecca préfère ne rien inventer. Vérifie les passages ci-dessous ou reformule.</p>";
+    $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
+    return;
+  }
+  let html = "", liste = false;
+  for (const l of a.lignes) {
+    if (l.type !== "li" && liste) { html += "</ul>"; liste = false; }
+    if (l.type === "vide") continue;
+    const contenu = rendreMorceaux(l.morceaux, rep);
+    if (l.type === "li") { if (!liste) { html += "<ul>"; liste = true; } html += `<li>${contenu}</li>`; }
+    else html += `<p>${contenu}</p>`;
+  }
+  if (liste) html += "</ul>";
+  $("r-corps").innerHTML = html;
+  const alertes = [];
+  if (a.douteux.length) alertes.push(`⚠️ Non retrouvé tel quel dans les passages : ${a.douteux.map(x => `« ${C.echapper(x)} »`).join(", ")}. Vérifie dans le document avant d'utiliser.`);
+  if (a.invalides.length) alertes.push(`⚠️ Source citée qui n'existe pas : ${a.invalides.map(n => `[${n}]`).join(", ")}.`);
+  if (a.sansSource) alertes.push("⚠️ Aucune source citée : vérifie dans les passages ci-dessous.");
+  if (res.tronque) alertes.push("⚠️ Réponse coupée (trop longue).");
+  $("r-alertes").innerHTML = alertes.map(x => `<div>${x}</div>`).join("");
+  $("r-alertes").hidden = !alertes.length;
+  $("r-sources").innerHTML = a.cites.map(n => {
+    const r = rep.resultats[n - 1];
+    const pages = r.page_fin && r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
+    return `<div class="r-source"><a class="cite" data-cite="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener">${n}</a>
+      <span class="r-doc"><b>${C.echapper(r.titre)}</b> · ${pages}</span>
+      <button class="secondaire" type="button" data-voir-r="${n}" hidden>Voir la page ${r.page}</button>
+      <a class="bouton secondaire" data-pdf-r="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener" hidden>PDF ↗</a></div>`;
+  }).join("");
+  $("r-sources").hidden = !a.cites.length;
+  $("r-pied").hidden = false;
+  for (const n of a.cites) {
+    const r = rep.resultats[n - 1];
+    pdfPresent(r.fichier).then(ok => {
+      pdfOk.set(r.fichier, ok);
+      if (ok) $("r-sources").querySelectorAll(`[data-voir-r="${n}"], [data-pdf-r="${n}"]`).forEach(x => { x.hidden = false; });
+    });
+  }
+}
+
+function allerAuPassage(n) {
+  const el = document.getElementById("passage-" + n);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("surligne");
+  setTimeout(() => el.classList.remove("surligne"), 2200);
+}
+$("reponse").addEventListener("click", ev => {
+  const a = ev.target.closest("a.cite[data-cite], [data-voir-r]");
+  if (!a || !E.derniere) return;
+  const n = Number(a.dataset.cite || a.dataset.voirR), r = E.derniere.resultats[n - 1];
+  if (!r) return;
+  if (a.dataset.voirR || pdfOk.get(r.fichier)) { ev.preventDefault(); ouvrirVisionneuse(r.fichier, r.page); }
+  else if (pdfOk.get(r.fichier) === false || !HTTP) { ev.preventDefault(); allerAuPassage(n); }
 });
 
 // ---------- Visionneuse PDF ----------
