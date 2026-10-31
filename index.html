@@ -36,6 +36,8 @@ button, .bouton { font: inherit; font-size: .95rem; border: 0; border-radius: 10
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button:not(.secondaire), :root:not([data-theme="light"]) .bouton:not(.secondaire) { color: #08201d; } }
 button.secondaire, .bouton.secondaire { background: var(--accent-doux); color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
+button[hidden] { display: none; }
+input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
 .etat { margin: 6px 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-doux); font-size: .92rem; }
 .etat.erreur { background: transparent; border: 1.5px solid var(--erreur); color: var(--erreur); }
 .etat.ok { background: transparent; color: var(--doux); padding: 2px 2px 6px; }
@@ -103,7 +105,8 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   </header>
 
   <form id="formulaire" role="search" autocomplete="off">
-    <input id="question" type="search" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
+    <input id="question" type="search" autocomplete="off" name="rebecca-q" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
+    <button id="effacer" class="secondaire" type="button" aria-label="Effacer la recherche" hidden>✕</button>
     <button id="chercher" type="submit" disabled>Chercher</button>
   </form>
 
@@ -239,7 +242,10 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   function estNombre(t) { return RE_NOMBRE.test(t); }
 
   // Renvoie la liste des termes (avec répétitions) d'un texte.
+  // Sigles en majuscules finissant par S (MERS, SARS…) : gardés tels quels (sinon « MERS » deviendrait « mer »)
+  const RE_SIGLE_S = /(?<![\p{L}\p{N}])[A-Z]{2,6}S(?![\p{L}\p{N}])/gu;
   function analyser(texte, question = false) {
+    const intacts = new Set((String(texte).normalize("NFKC").match(RE_SIGLE_S) || []).map(x => x.toLowerCase()));
     const s = prenormaliser(texte, question);
     const bruts = s.match(RE_MOT) || [];
     const termes = [];
@@ -254,7 +260,7 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
       for (let t of dev) {
         if (MOTS_VIDES.has(t)) continue;
         if (t.length === 1 && !/[0-9]/.test(t)) continue;
-        termes.push(raciner(t));
+        termes.push(intacts.has(t) ? t : raciner(t));
       }
     }
     return termes;
@@ -320,6 +326,8 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     "BMR, bactérie multirésistante, SARM, BLSE",
     "tuberculose, BK, bacille de Koch, mycobactérie",
     "Covid, coronavirus, SARSCoV2",
+    "MERS, MERSCoV",
+    "précautions complémentaires, mesures renforcées",
     "grippe, influenza"
   ];
   function preparerFamilles(liste) {
@@ -375,6 +383,8 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     const termes = analyser(question, true);
     const poids = new Map();
     for (const t of termes) poids.set(t, 1);
+    // « mers » tapé en minuscules : on cherche aussi le sigle MERS
+    if (index) for (const t of termes) { const u = t + "s"; if (!poids.has(u) && index.postings.has(u) && /^[a-z]+$/.test(t)) poids.set(u, 1); }
     const corrections = [];
     if (index) {
       for (const t of [...poids.keys()]) {
@@ -463,9 +473,11 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   }
 
   // Rang de chaque document (1 = le plus probable, 0 = aucun indice), par fusion des rangs mots-clés et sens.
-  function classerDocuments(scoresMots, scoresSens, k = 10) {
+  // scoresTitre : les mots de la question présents dans le titre (« MERS » → la fiche MERS-CoV)
+  function classerDocuments(scoresMots, scoresSens, k = 10, scoresTitre = null) {
     const n = scoresMots.length, score = new Float64Array(n);
     classer(scoresMots, n, true).forEach((d, i) => { score[d] += 1 / (k + i + 1); });
+    if (scoresTitre) classer(scoresTitre, n, true).forEach((d, i) => { score[d] += 1 / (k + i + 1); });
     if (scoresSens) classer(scoresSens, n, false).forEach((d, i) => { score[d] += 1 / (k + i + 1); });
     const rang = new Int32Array(n);
     classer(score, n, true).forEach((d, i) => { rang[d] = i + 1; });
@@ -527,7 +539,8 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     let rangDoc = null;
     if (etat.bm25Docs) {
       const ss = vecteurQ && etat.vecteursDocs ? scoresVecteurs(etat.vecteursDocs, etat.dim, vecteurQ) : null;
-      rangDoc = classerDocuments(scoresBM25Poids(etat.bm25Docs, prep.poids), ss, R.kDocs);
+      const st = etat.bm25Titres ? scoresBM25Poids(etat.bm25Titres, new Map([...prep.poids].filter(([, w]) => w >= 0.8))) : null;
+      rangDoc = classerDocuments(scoresBM25Poids(etat.bm25Docs, prep.poids), ss, R.kDocs, st);
     }
     const classement = fusionnerDocs(listeSens, listeMots, etat.docDe, rangDoc, R.poidsDoc, 60, R.retenus);
     const groupes = grouper(classement, etat.docDe, R.parDoc, R.total);
@@ -762,6 +775,7 @@ const CONFIG = {
   dossierPdf: "pdf/",
 };
 const C = globalThis.Coeur;
+const VERSION_PAGE = 4;
 const $ = id => document.getElementById(id);
 const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0 };
 const HTTP = /^https?:$/.test(location.protocol);
@@ -841,13 +855,14 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
   E.etat = {
     bm25: C.construireBM25(E.morceaux.map(m => `${m.s} ${E.docs[m.d].titre} ${m.t}`)),
     bm25Docs: C.construireBM25(E.docs.map(C.texteDocument)),
+    bm25Titres: C.construireBM25(E.docs.map(d => d.titre || "")),
     vecteurs: E.vecteurs, dim: E.dim, vecteursDocs,
     docDe: Int32Array.from(E.morceaux, m => m.d),
     familles: C.preparerFamilles(donnees.familles || C.FAMILLES_DEFAUT),
     sigles: E.sigles,
     reglages: reglagesDepuis(manifeste.recherche),
   };
-  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · mis à jour le ${dateCourte(manifeste.cree_le)}`;
+  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · mis à jour le ${dateCourte(manifeste.cree_le)} · v${VERSION_PAGE}`;
   remplirInfos();
   remplirBibliotheque();
   $("question").disabled = $("chercher").disabled = false;
@@ -904,7 +919,7 @@ async function chargerModele() {
       },
     });
     await E.extracteur(m.prefixe_question + "test", { pooling: "mean", normalize: true });
-    etat("✅ Prêt : recherche par le sens et par mots-clés" + (HTTP ? " (fonctionne aussi hors connexion)" : ""), null, "ok");
+    etat("✅ Prêt : recherche par le sens et par mots-clés" + (HTTP ? ", même hors connexion" : ""), null, "ok");
     $("verifier").disabled = false;
     remplirInfos();
     if (E.derniere && E.derniere.mode === "mots") lancer(E.derniere.question, false);
@@ -986,7 +1001,24 @@ async function lancer(question, majAdresse = true) {
   E.derniere = rep;
   if (majAdresse && HTTP) history.replaceState(history.state, "", "?q=" + encodeURIComponent(q));
   afficher(rep);
+  $("effacer").hidden = false;
 }
+
+// ✕ : efface la question et les résultats (et l'adresse ?q=…, pour qu'un rechargement reparte de zéro)
+function effacer() {
+  E.enCours++;
+  E.derniere = null;
+  $("question").value = "";
+  $("resultats").innerHTML = "";
+  $("avis").hidden = $("sigles").hidden = $("outils").hidden = $("effacer").hidden = true;
+  if (HTTP) history.replaceState(history.state, "", location.pathname);
+}
+$("effacer").addEventListener("click", () => { effacer(); $("question").focus(); });
+$("question").addEventListener("search", () => { if (!$("question").value) effacer(); });
+$("question").addEventListener("input", () => {
+  if (!$("question").value && E.derniere) effacer();
+  else $("effacer").hidden = !$("question").value && !E.derniere;
+});
 
 const TYPES = { protocole: "Protocole", fiche: "Fiche", recommandation: "Recommandation", note: "Note", formation: "Formation", document: "Document" };
 function infosDocument(d) {
@@ -1009,7 +1041,7 @@ function afficher(rep) {
   $("avis").hidden = !avis.length;
   $("avis").innerHTML = avis.join("");
   $("outils").hidden = !resultats.length;
-  $("mode").textContent = E.extracteur ? "🧠 Recherche par le sens et par mots-clés"
+  $("mode").textContent = E.extracteur ? ""
     : E.echecModele ? "🔤 Mots-clés seulement (moteur de sens indisponible)" : "🔤 Mots-clés seulement — mis à jour quand le modèle sera prêt";
   if (!resultats.length) {
     ol.innerHTML = `<li class="vide">Aucun passage trouvé${E.extracteur ? "" : " par mots-clés (essaie d'autres mots, ou attends le chargement du modèle)"}.</li>`;
