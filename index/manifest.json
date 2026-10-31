@@ -1,7 +1,7 @@
 {
  "format": 2,
- "version": "91efba3167ae",
- "cree_le": "2026-10-31 16:54",
+ "version": "33e589f9fab9",
+ "cree_le": "2026-10-31 16:57",
  "fuseau": "Europe/Paris",
  "modele": {
   "id": "Xenova/multilingual-e5-small",
@@ -35,7 +35,7 @@
   "total": 6,
   "poids_doc": 0.01,
   "k_docs": 10,
-  "seuil_sens": null,
+  "seuil_sens": 0.8713,
   "marge_absents": 0
  },
  "morceaux": "chunks.json",
