@@ -44,7 +44,20 @@ button:disabled { opacity: .5; cursor: default; }
 .barre.indetermine > div { width: 35%; animation: glisse 1.2s infinite ease-in-out; }
 @keyframes glisse { from { margin-left: -35%; } to { margin-left: 100%; } }
 .outils { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; color: var(--doux); font-size: .88rem; flex-wrap: wrap; }
-ol.resultats { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+ol.resultats { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; }
+.groupe { display: grid; gap: 8px; }
+.doc { display: grid; gap: 1px; padding: 0 4px; }
+.doc-titre { font-weight: 700; font-size: 1.02rem; overflow-wrap: anywhere; }
+.doc-infos { font-size: .82rem; color: var(--doux); overflow-wrap: anywhere; }
+.passages { display: grid; gap: 8px; border-left: 3px solid var(--accent-doux); padding-left: 8px; }
+.avis { border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: .95rem; display: grid; gap: 4px; background: var(--carte); border: 1px solid var(--bord); }
+.avis[hidden] { display: none; }
+.avis .faible { color: var(--erreur); }
+ul.biblio { list-style: none; padding: 0; margin: 4px 0 10px; display: grid; gap: 8px; }
+ul.biblio li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--bord); padding-bottom: 8px; }
+ul.biblio .b-texte { min-width: 0; overflow-wrap: anywhere; }
+ul.biblio .b-texte span { display: block; font-size: .82rem; color: var(--doux); }
+ul.biblio a { flex: none; font-size: .88rem; color: var(--accent); }
 .carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 14px; box-shadow: var(--ombre); }
 .source { display: flex; gap: 10px; align-items: baseline; font-size: .9rem; color: var(--doux); }
 .rang { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-doux); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: .85rem; }
@@ -101,7 +114,7 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
 
   <div id="secours" class="carte" hidden>
     <p style="margin-top:0"><b>Index introuvable.</b> Cette page doit être ouverte depuis un site (voir le mode d'emploi), avec le dossier <code>index/</code> à côté d'elle.</p>
-    <p class="petit">Pour tester sur un ordinateur, tu peux aussi choisir ici les fichiers du dossier <code>index/</code> (manifest.json, chunks.json, embeddings.bin, verif.json) :</p>
+    <p class="petit">Pour tester sur un ordinateur, tu peux aussi choisir ici les fichiers du dossier <code>index/</code> (manifest.json, chunks.json, embeddings.bin, docs.bin, verif.json) :</p>
     <input id="fichiers-index" type="file" multiple accept=".json,.bin">
   </div>
 
@@ -110,15 +123,21 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     <button id="copier-llm" class="secondaire" type="button">📋 Copier pour un LLM</button>
   </div>
   <div id="sigles" class="sigles" hidden></div>
+  <div id="avis" class="avis" hidden></div>
   <ol id="resultats" class="resultats" aria-live="polite"></ol>
+
+  <details id="biblio" class="infos">
+    <summary id="biblio-titre">📚 Bibliothèque</summary>
+    <ul id="biblio-liste" class="biblio"></ul>
+  </details>
 
   <details id="infos" class="infos">
     <summary>ℹ️ Infos et vérification</summary>
-    <div id="infos-docs"></div>
+    <p id="infos-index" class="petit"></p>
     <p id="infos-modele" class="petit"></p>
     <p><button id="verifier" class="secondaire" type="button" disabled>Vérifier le modèle</button></p>
     <div id="verif-resultat" class="petit"></div>
-    <p class="petit">Pour un futur chatbot : <code>await moteur.contexteLLM("ta question")</code> renvoie les 5 passages (et les sigles définis) prêts à donner à un LLM ; <code>await moteur.rechercher("ta question")</code> renvoie les résultats bruts.</p>
+    <p class="petit">Pour un futur chatbot : <code>await moteur.contexteLLM("ta question")</code> renvoie les passages trouvés (avec leur document, les sigles et l'avertissement « rien ne correspond ») prêts à donner à un LLM ; <code>await moteur.rechercher("ta question")</code> renvoie les résultats bruts, regroupés par document.</p>
   </details>
 </div>
 
@@ -261,58 +280,133 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     return { postings, longueurs, moyenne: total / Math.max(1, textes.length), n: textes.length, k1, b };
   }
 
-  // ---------- Synonymes du soin : un mot de la question cherche aussi ses proches (poids 0,5) ----------
-  const FAMILLES = [
-    "précaution prévention protection protéger isolement isoler",
-    "traitement traiter thérapeutique médicament soigner soin",
-    "transmission transmettre transmet contamination contaminer contagion contagiosité contagieux contagieuse",
-    "symptôme signe clinique manifestation",
-    "diagnostic diagnostiquer dépistage dépister examen test analyse",
-    "posologie dose dosage",
-    "vaccin vaccination vacciner",
-    "soignant personnel professionnel",
-    "décès mortalité létalité mortel",
-    "grave sévère gravité sévérité",
-    "enfant pédiatrie pédiatrique nourrisson",
-    "enceinte grossesse",
-    "désinfection désinfecter nettoyage décontamination détersion bionettoyage",
-    "déchet DASRI",
-    "masque FFP2 APR",
-    "moustique vecteur vectoriel antivectorielle piqûre",
-    "fièvre température fébrile",
-    "hôpital hospitalisation hospitaliser hospitalisé",
-    "alerte alerter signalement signaler déclaration déclarer",
-    "contact exposé exposition"
+  // ---------- Synonymes : un mot (ou une expression) de la question cherche aussi ses équivalents (poids 0,5) ----------
+  // Une famille = des équivalents séparés par des virgules. Une expression (« fièvre hémorragique ») ne compte
+  // que si tous ses mots sont dans la question. L'Atelier peut remplacer cette liste (onglet « Synonymes » du catalogue).
+  const FAMILLES_DEFAUT = [
+    "précaution, prévention, protection, protéger, isolement, isoler",
+    "traitement, traiter, thérapeutique, médicament, soigner, soin",
+    "transmission, transmettre, transmet, contamination, contaminer, contagion, contagiosité, contagieux, contagieuse",
+    "symptôme, signe, clinique, manifestation",
+    "diagnostic, diagnostiquer, dépistage, dépister, examen, test, analyse",
+    "posologie, dose, dosage",
+    "vaccin, vaccination, vacciner",
+    "soignant, personnel, professionnel",
+    "décès, mortalité, létalité, mortel",
+    "grave, sévère, gravité, sévérité",
+    "enfant, pédiatrie, pédiatrique, nourrisson",
+    "enceinte, grossesse",
+    "nettoyage, nettoyer, bionettoyage, entretien, ménage, désinfection, désinfecter, désinfectant, décontamination, décontaminer, détersion",
+    "déchet, DASRI",
+    "masque, FFP2, APR",
+    "moustique, vecteur, vectoriel, antivectorielle, piqûre",
+    "fièvre, température, fébrile",
+    "hôpital, hospitalisation, hospitaliser, hospitalisé",
+    "alerte, alerter, signalement, signaler, déclaration, déclarer",
+    "contact, exposé, exposition",
+    "FHV, fièvre hémorragique, Ebola, Marburg, Lassa, Crimée Congo, CCHF",
+    "chambre, box, secteur",
+    "protocole, procédure, conduite à tenir, CAT, mode opératoire",
+    "habillage, déshabillage, EPI, équipement de protection individuelle, tenue",
+    "prélèvement, prélever, échantillon",
+    "transport, transporter, transfert, transférer, acheminement",
+    "quarantaine, isolement, éviction, confinement",
+    "hygiène des mains, friction, hydroalcoolique, SHA, PHA, lavage des mains",
+    "AES, accident d'exposition au sang, exposition au sang",
+    "PCC, précautions complémentaires contact",
+    "PCA, précautions complémentaires air",
+    "PCG, précautions complémentaires gouttelettes",
+    "BHRe, bactérie hautement résistante, EPC, ERG, carbapénémase",
+    "BMR, bactérie multirésistante, SARM, BLSE",
+    "tuberculose, BK, bacille de Koch, mycobactérie",
+    "Covid, coronavirus, SARSCoV2",
+    "grippe, influenza"
   ];
-  let PROCHES = null;
-  function proches() {
-    if (PROCHES) return PROCHES;
-    PROCHES = new Map();
-    for (const f of FAMILLES) {
-      const termes = [...new Set(f.split(" ").flatMap(m => analyser(m)))];
-      for (const t of termes) {
-        if (!PROCHES.has(t)) PROCHES.set(t, new Set());
-        for (const u of termes) if (u !== t) PROCHES.get(t).add(u);
+  function preparerFamilles(liste) {
+    return (liste || []).map(f => String(f).split(",").map(x => [...new Set(analyser(x))]).filter(t => t.length))
+      .filter(f => f.length > 1);
+  }
+  let FAMILLES_PRETES = null;
+  function famillesDefaut() { return FAMILLES_PRETES || (FAMILLES_PRETES = preparerFamilles(FAMILLES_DEFAUT)); }
+
+  // ---------- Fautes de frappe : distance entre deux mots (une lettre en trop, en moins, changée ou inversée) ----------
+  function distance(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let avant = null, prec = [];
+    for (let j = 0; j <= b.length; j++) prec.push(j);
+    for (let i = 1; i <= a.length; i++) {
+      const cour = [i];
+      let mini = i;
+      for (let j = 1; j <= b.length; j++) {
+        let v = Math.min(prec[j] + 1, cour[j - 1] + 1, prec[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, avant[j - 2] + 1);
+        cour.push(v);
+        if (v < mini) mini = v;
+      }
+      if (mini > max) return max + 1;
+      avant = prec; prec = cour;
+    }
+    return prec[b.length];
+  }
+  const RE_CORRIGEABLE = /^[a-z]{5,}$/;
+  function corriger(t, index) {
+    const max = 1;   // une seule faute : au-delà, trop de vrais mots seraient « corrigés » à tort
+    let meilleur = null, md = max + 1, mdf = 0;
+    for (const [u, p] of index.postings) {
+      if (u[0] !== t[0] || !RE_CORRIGEABLE.test(u) || Math.abs(u.length - t.length) > max) continue;
+      const d = distance(t, u, max);
+      if (d > max) continue;
+      const df = p.length / 2;
+      if (d < md || (d === md && (df > mdf || (df === mdf && u < meilleur)))) { meilleur = u; md = d; mdf = df; }
+    }
+    return meilleur;
+  }
+
+  // Mots de question qu'on ne signale pas comme « absents des documents »
+  const IGNORES_ABSENTS = new Set(analyser(
+    "signifie signifient veut veulent dire définition définir acronyme sigle abréviation explique expliquer explication " +
+    "donne donner liste lister décrire décris résume résumer montre montrer cherche chercher trouve trouver " +
+    "document documents fiche fiches passage page pages savoir connaître"));
+
+  // Termes cherchés et leur poids : ceux de la question (1), mots corrigés (0,8), équivalents (0,5).
+  // Renvoie aussi les corrections faites et les mots absents de tous les documents.
+  function termesRecherche(question, index = null, familles = null) {
+    familles = familles || famillesDefaut();
+    const termes = analyser(question, true);
+    const poids = new Map();
+    for (const t of termes) poids.set(t, 1);
+    const corrections = [];
+    if (index) {
+      for (const t of [...poids.keys()]) {
+        if (index.postings.has(t) || !RE_CORRIGEABLE.test(t)) continue;
+        const c = corriger(t, index);
+        if (c && !poids.has(c)) { poids.set(c, 0.8); corrections.push([t, c]); }
       }
     }
-    return PROCHES;
-  }
-
-  // Termes cherchés et leur poids : ceux de la question (1), leurs proches (0,5)
-  function termesRecherche(question) {
-    const poids = new Map();
-    const termes = analyser(question, true);
-    for (const t of termes) poids.set(t, 1);
-    for (const t of termes) {
-      const pr = proches().get(t);
-      if (pr) for (const u of [...pr].sort()) if (!poids.has(u)) poids.set(u, 0.5);
+    const connus = new Set(poids.keys()), couverts = new Set();
+    for (const f of familles) {
+      const touche = f.map(item => item.every(t => connus.has(t)));
+      if (touche.indexOf(true) < 0) continue;
+      const ajout = new Set();
+      f.forEach((item, i) => { for (const t of item) (touche[i] ? couverts : ajout).add(t); });
+      for (const t of [...ajout].sort()) if (!poids.has(t)) poids.set(t, 0.5);
     }
-    return poids;
+    const absents = [];
+    if (index) {
+      const corriges = new Set(corrections.map(c => c[0]));
+      // mots écrits tels quels (« transmet-elle » compte comme « transmet » + « elle »)
+      for (const t of new Set(analyser(String(question).replace(/-/g, " ")))) {
+        if (index.postings.has(t) || corriges.has(t) || couverts.has(t) || IGNORES_ABSENTS.has(t)) continue;
+        if (t.length < 3 || t.indexOf("_") >= 0 || estNombre(t) || estUnite(t)) continue;
+        absents.push(t);
+      }
+    }
+    return { poids, corrections, absents };
   }
 
-  function scoresBM25(index, question) {
+  function scoresBM25Poids(index, poids) {
     const scores = new Float64Array(index.n);
-    for (const [t, w] of termesRecherche(question)) {
+    for (const [t, w] of poids) {
       const p = index.postings.get(t);
       if (!p) continue;
       const df = p.length / 2;
@@ -324,6 +418,9 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
       }
     }
     return scores;
+  }
+  function scoresBM25(index, question, familles = null) {
+    return scoresBM25Poids(index, termesRecherche(question, index, familles).poids);
   }
 
   // Indices triés par score décroissant (égalité : plus petit indice d'abord), scores > 0 seulement si demandé.
@@ -356,6 +453,91 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     return ids.slice(0, limite).map(d => ({ id: d, score: score.get(d), rangSens: rv.get(d) || null, rangMots: rm.get(d) || null }));
   }
 
+  // ---------- Recherche en deux temps : d'abord les documents, puis les passages ----------
+  function nomLisible(f) { return String(f || "").replace(/\.pdf$/i, "").replace(/[_-]+/g, " ").trim(); }
+
+  // Ce qui décrit un document (son titre compte triple) : sert à repérer LE bon document.
+  function texteDocument(d) {
+    const t = d.titre || "";
+    return [t, t, t, d.sous_titre || "", d.type || "", (d.sections || []).join(" "), (d.sujets || []).join(" "), nomLisible(d.f)].join(" ");
+  }
+
+  // Rang de chaque document (1 = le plus probable, 0 = aucun indice), par fusion des rangs mots-clés et sens.
+  function classerDocuments(scoresMots, scoresSens, k = 10) {
+    const n = scoresMots.length, score = new Float64Array(n);
+    classer(scoresMots, n, true).forEach((d, i) => { score[d] += 1 / (k + i + 1); });
+    if (scoresSens) classer(scoresSens, n, false).forEach((d, i) => { score[d] += 1 / (k + i + 1); });
+    const rang = new Int32Array(n);
+    classer(score, n, true).forEach((d, i) => { rang[d] = i + 1; });
+    return rang;
+  }
+
+  // Fusion des passages (RRF) + petit bonus selon le rang de leur document.
+  function fusionnerDocs(listeVec, listeMots, docDe, rangDoc, poidsDoc = 0.01, k = 60, limite = 8) {
+    const score = new Map(), rv = new Map(), rm = new Map();
+    listeVec.forEach((d, i) => { rv.set(d, i + 1); score.set(d, (score.get(d) || 0) + 1 / (k + i + 1)); });
+    listeMots.forEach((d, i) => { rm.set(d, i + 1); score.set(d, (score.get(d) || 0) + 1 / (k + i + 1)); });
+    if (rangDoc) for (const [d, s] of score) { const r = rangDoc[docDe[d]]; if (r > 0) score.set(d, s + poidsDoc / (1 + r)); }
+    const ids = [...score.keys()];
+    ids.sort((a, b) => (score.get(b) - score.get(a)) || (a - b));
+    return ids.slice(0, limite).map(d => ({ id: d, score: score.get(d), rangSens: rv.get(d) || null, rangMots: rm.get(d) || null,
+                                           rangDoc: rangDoc ? rangDoc[docDe[d]] || null : null }));
+  }
+
+  // Regroupe par document : au plus `parDoc` passages par document, `total` au plus, dans l'ordre du meilleur passage.
+  function grouper(classement, docDe, parDoc = 3, total = 6) {
+    const pris = [], compte = new Map();
+    for (const r of classement) {
+      const d = docDe[r.id], c = compte.get(d) || 0;
+      if (c >= parDoc) continue;
+      compte.set(d, c + 1);
+      pris.push(r);
+      if (pris.length >= total) break;
+    }
+    const groupes = [], ou = new Map();
+    for (const r of pris) {
+      const d = docDe[r.id];
+      if (!ou.has(d)) { ou.set(d, groupes.length); groupes.push({ doc: d, passages: [] }); }
+      groupes[ou.get(d)].passages.push(r);
+    }
+    return groupes;
+  }
+
+  const REGLAGES = { candidats: 50, retenus: 8, parDoc: 3, total: 6, poidsDoc: 0.01, kDocs: 10, seuilSens: null, margeAbsents: 0 };
+
+  // Étape 1 : la question analysée (sigles, mots, corrections, équivalents)
+  function preparerQuestion(etat, question) {
+    const q = String(question || "").trim();
+    const sigles = siglesDansQuestion(q, etat.sigles || []);
+    const qx = developperQuestion(q, sigles);
+    const t = termesRecherche(qx, etat.bm25, etat.familles);
+    return { question: q, qx, sigles, poids: t.poids, corrections: t.corrections, absents: t.absents };
+  }
+
+  // Étape 2 : documents puis passages. vecteurQ = empreinte de sens de la question (null : mots-clés seulement).
+  function chercher(etat, prep, vecteurQ) {
+    const R = Object.assign({}, REGLAGES, etat.reglages || {});
+    const listeMots = classer(scoresBM25Poids(etat.bm25, prep.poids), R.candidats, true);
+    let listeSens = [], meilleurSens = null;
+    if (vecteurQ) {
+      const s = scoresVecteurs(etat.vecteurs, etat.dim, vecteurQ);
+      listeSens = classer(s, R.candidats, false);
+      if (listeSens.length) meilleurSens = s[listeSens[0]];
+    }
+    let rangDoc = null;
+    if (etat.bm25Docs) {
+      const ss = vecteurQ && etat.vecteursDocs ? scoresVecteurs(etat.vecteursDocs, etat.dim, vecteurQ) : null;
+      rangDoc = classerDocuments(scoresBM25Poids(etat.bm25Docs, prep.poids), ss, R.kDocs);
+    }
+    const classement = fusionnerDocs(listeSens, listeMots, etat.docDe, rangDoc, R.poidsDoc, 60, R.retenus);
+    const groupes = grouper(classement, etat.docDe, R.parDoc, R.total);
+    // « rien ne correspond » : aucun mot-clé trouvé, ou sens trop faible (un peu plus exigeant si un mot de la question est absent)
+    const seuil = R.seuilSens === null || R.seuilSens === undefined ? null : R.seuilSens + ((prep.absents || []).length ? R.margeAbsents || 0 : 0);
+    const faible = !listeMots.length || (meilleurSens !== null && seuil !== null && meilleurSens < seuil);
+    return { classement, groupes, listeSens, listeMots, rangDoc, meilleurSens, confiance: faible ? "faible" : "normale",
+             mode: vecteurQ ? "hybride" : "mots" };
+  }
+
   // ---------- Sigles (repérés dans les listes de sigles des documents) ----------
   const RE_DEFINITION = /signifi|veu(?:t|lent) dire|c ?est quoi|definition|defini|qu ?est[ -]ce qu|acronyme|sigle|abreviation/;
 
@@ -383,14 +565,25 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   }
 
   // ---------- Surlignage ----------
-  function analyserQuestion(question) {
-    const termes = analyser(question, true);
+  // termes de la question (+ mots corrigés) ; rarete : poids de chaque terme (les mots rares comptent plus pour l'extrait)
+  function analyserQuestion(question, extra = [], rarete = null) {
+    const termes = analyser(question, true).concat(extra || []);
     const ensemble = new Set(termes);
     const bigrammes = new Set(termes.filter(t => t.indexOf("_") > 0));
     const dansBigramme = new Set();
     for (const bg of bigrammes) for (const x of bg.split("_")) { dansBigramme.add(x); for (const y of x.split("/")) dansBigramme.add(y); }
     const seuls = new Set(termes.filter(t => (estNombre(t) || estUnite(t)) && !dansBigramme.has(t)));
-    return { ensemble, bigrammes, seuls };
+    return { ensemble, bigrammes, seuls, rarete };
+  }
+
+  function rareteTermes(index, termes) {
+    const r = new Map();
+    for (const t of termes) {
+      const p = index && index.postings.get(t);
+      const df = p ? p.length / 2 : 0;
+      r.set(t, p ? Math.log(1 + (index.n - df + 0.5) / (df + 0.5)) : 0);
+    }
+    return r;
   }
 
   const RE_MOT_AFFICHE = /[\p{L}\p{N}µ%]+(?:[.,/'’\-][\p{L}\p{N}µ%]+)*/gu;
@@ -405,14 +598,15 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     RE_MOT_AFFICHE.lastIndex = 0;
     let m;
     while ((m = RE_MOT_AFFICHE.exec(texte))) mots.push({ d: m.index, f: m.index + m[0].length, t: analyser(m[0]) });
-    const marques = new Array(mots.length).fill(false);
+    const marques = new Array(mots.length).fill(false), poids = new Array(mots.length).fill(1);
+    const valeur = t => (qa.rarete && qa.rarete.has(t) ? qa.rarete.get(t) : 1);
     for (let i = 0; i < mots.length; i++) {
       const toks = mots[i].t;
       for (const t of toks) {
         if (!qa.ensemble.has(t)) continue;
-        if (t.indexOf("_") > 0) { marques[i] = true; break; }
-        if (estNombre(t) || estUnite(t)) { if (qa.seuls.has(t)) { marques[i] = true; break; } continue; }
-        marques[i] = true; break;
+        if (t.indexOf("_") > 0) { marques[i] = true; poids[i] = valeur(t); break; }
+        if (estNombre(t) || estUnite(t)) { if (qa.seuls.has(t)) { marques[i] = true; poids[i] = valeur(t); break; } continue; }
+        marques[i] = true; poids[i] = valeur(t); break;
       }
       // « 5 mg » écrit en deux mots
       if (i + 1 < mots.length && toks.length && toks.every(estNombre)) {
@@ -420,11 +614,11 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
         const entre = texte.slice(mots[i].f, suivant.d);
         if (/^\s{0,2}$/.test(entre) && suivant.t.length) {
           const bg = toks[toks.length - 1] + "_" + suivant.t[0];
-          if (qa.bigrammes.has(bg)) { marques[i] = true; marques[i + 1] = true; }
+          if (qa.bigrammes.has(bg)) { marques[i] = true; marques[i + 1] = true; poids[i] = poids[i + 1] = valeur(bg); }
         }
       }
     }
-    return mots.filter((_, i) => marques[i]).map(x => [x.d, x.f]);
+    return mots.map((x, i) => [x.d, x.f, poids[i]]).filter((_, i) => marques[i]);
   }
 
   function surligner(texte, qa) {
@@ -455,7 +649,7 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
     return sortie.join(" ").replace(/ ·$/, "");
   }
 
-  // Extrait d'environ `longueur` caractères centré sur la zone la plus riche en mots trouvés.
+  // Extrait d'environ `longueur` caractères centré sur la zone la plus riche en mots trouvés (les mots rares comptent plus).
   function extrait(md, qa, longueur = 320) {
     const texte = versTexteSimple(md);
     if (texte.length <= longueur) return surligner(texte, qa);
@@ -465,7 +659,8 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
       let meilleur = -1;
       for (const [d] of pos) {
         const s = Math.max(0, d - 60);
-        const n = pos.filter(([x, y]) => x >= s && y <= s + longueur).length;
+        let n = 0;
+        for (const [x, y, w] of pos) if (x >= s && y <= s + longueur) n += w;
         if (n > meilleur) { meilleur = n; debut = s; }
       }
     }
@@ -518,22 +713,41 @@ pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radi
   }
 
   // ---------- Format prêt pour un LLM ----------
-  function formaterPourLLM(question, resultats, sigles = []) {
+  const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  // « 2024-07-18 » → « 18/07/2024 » ; « 2024-07 » → « juillet 2024 »
+  function formaterDate(d) {
+    const m = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(String(d || ""));
+    if (!m) return String(d || "");
+    if (m[3]) return `${m[3]}/${m[2]}/${m[1]}`;
+    if (m[2]) return `${MOIS[Number(m[2]) - 1] || m[2]} ${m[1]}`;
+    return m[1];
+  }
+  function decrireDocument(r) {
+    const infos = [r.type, r.date ? formaterDate(r.date) : ""].filter(Boolean).join(", ");
+    return `« ${r.titre || nomLisible(r.fichier)} »` + (infos ? ` (${infos})` : "");
+  }
+
+  // extra : { confiance: "faible" | "normale", absents: [mots] }
+  function formaterPourLLM(question, resultats, sigles = [], extra = {}) {
     let s = `Question : ${question}\n`;
     if (sigles.length) s += "Sigles : " + sigles.map(x => `${x.s} = ${x.def}`).join(" ; ") + "\n";
+    if (extra.absents && extra.absents.length) s += "Mots absents de tous les documents : " + extra.absents.join(", ") + "\n";
+    if (extra.confiance === "faible") s += "Attention : aucun extrait ne semble répondre directement à la question. Si c'est le cas, dis-le au lieu d'inventer.\n";
     s += `\nExtraits des documents (du plus pertinent au moins pertinent) :\n`;
     resultats.forEach((r, i) => {
       const pages = r.page_fin && r.page_fin !== r.page ? `pages ${r.page}-${r.page_fin}` : `page ${r.page}`;
-      s += `\n[${i + 1}] Source : ${r.fichier} — ${pages}` + (r.section ? ` — section « ${r.section} »` : "") + "\n";
+      s += `\n[${i + 1}] Document : ${decrireDocument(r)} — fichier ${r.fichier} — ${pages}` + (r.section ? ` — section « ${r.section} »` : "") + "\n";
       s += r.texte.trim() + "\n";
     });
     return s;
   }
 
   racine.Coeur = {
-    normaliserModele, prenormaliser, analyser, construireBM25, scoresBM25, scoresVecteurs, classer,
-    fusionner, analyserQuestion, reperer, surligner, extrait, versTexteSimple, rendreMarkdown,
-    echapper, formaterPourLLM, estUnite, estNombre, preparerSigles, siglesDansQuestion, developperQuestion, termesRecherche
+    normaliserModele, prenormaliser, analyser, construireBM25, scoresBM25, scoresBM25Poids, scoresVecteurs, classer,
+    fusionner, analyserQuestion, rareteTermes, reperer, surligner, extrait, versTexteSimple, rendreMarkdown,
+    echapper, formaterPourLLM, formaterDate, decrireDocument, estUnite, estNombre, preparerSigles, siglesDansQuestion,
+    developperQuestion, termesRecherche, FAMILLES_DEFAUT, preparerFamilles, distance, corriger, nomLisible, texteDocument,
+    classerDocuments, fusionnerDocs, grouper, REGLAGES, preparerQuestion, chercher
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* COEUR:FIN */
@@ -546,12 +760,10 @@ const CONFIG = {
   pdfjsWorker: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.worker.min.mjs",
   dossierIndex: "index/",
   dossierPdf: "pdf/",
-  nbResultats: 5,
-  candidats: 50,
 };
 const C = globalThis.Coeur;
 const $ = id => document.getElementById(id);
-const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, bm25: null, extracteur: null, derniere: null, enCours: 0 };
+const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0 };
 const HTTP = /^https?:$/.test(location.protocol);
 
 // ---------- Indicateur d'état ----------
@@ -608,18 +820,41 @@ function demiVersFloat(octets) {
   return out;
 }
 
-function installerIndex(manifeste, donnees, octets) {
+// Réglages de recherche écrits par l'Atelier (noms Python → noms de la page)
+function reglagesDepuis(r = {}) {
+  const t = { candidats: r.candidats, retenus: r.retenus, parDoc: r.par_doc, total: r.total, poidsDoc: r.poids_doc, kDocs: r.k_docs,
+              seuilSens: r.seuil_sens === undefined ? null : r.seuil_sens, margeAbsents: r.marge_absents };
+  for (const k of Object.keys(t)) if (t[k] === undefined) delete t[k];
+  return t;
+}
+
+function installerIndex(manifeste, donnees, octets, octetsDocs) {
   E.manifeste = manifeste;
   E.docs = donnees.docs;
   E.morceaux = donnees.morceaux;
   E.sigles = C.preparerSigles(donnees.sigles);
   E.dim = manifeste.embeddings.dim;
   E.vecteurs = demiVersFloat(octets);
-  if (E.vecteurs.length !== E.morceaux.length * E.dim) throw new Error("index incohérent (vecteurs et textes ne correspondent pas) : relance l'étape 6 de l'atelier");
-  E.bm25 = C.construireBM25(E.morceaux.map(m => `${m.s} ${E.docs[m.d].titre} ${m.t}`));
-  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · ${E.morceaux.length} passages · index du ${manifeste.cree_le}`;
+  if (E.vecteurs.length !== E.morceaux.length * E.dim) throw new Error("index incohérent (vecteurs et textes ne correspondent pas) : relance ▶ Mettre à jour Rebecca");
+  let vecteursDocs = octetsDocs ? demiVersFloat(octetsDocs) : null;
+  if (vecteursDocs && vecteursDocs.length !== E.docs.length * E.dim) vecteursDocs = null;
+  E.etat = {
+    bm25: C.construireBM25(E.morceaux.map(m => `${m.s} ${E.docs[m.d].titre} ${m.t}`)),
+    bm25Docs: C.construireBM25(E.docs.map(C.texteDocument)),
+    vecteurs: E.vecteurs, dim: E.dim, vecteursDocs,
+    docDe: Int32Array.from(E.morceaux, m => m.d),
+    familles: C.preparerFamilles(donnees.familles || C.FAMILLES_DEFAUT),
+    sigles: E.sigles,
+    reglages: reglagesDepuis(manifeste.recherche),
+  };
+  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · mis à jour le ${dateCourte(manifeste.cree_le)}`;
   remplirInfos();
+  remplirBibliotheque();
   $("question").disabled = $("chercher").disabled = false;
+}
+function dateCourte(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?/.exec(String(d || ""));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` + (m[4] ? ` à ${m[4]} h ${m[5]}` : "") : String(d || "");
 }
 
 async function chargerIndex() {
@@ -628,7 +863,9 @@ async function chargerIndex() {
   const progres = (r, t) => etat(`Chargement de l'index : ${mo(r)}`, Math.min(99, 100 * r / t));
   const donnees = JSON.parse(new TextDecoder().decode(await telecharger(CONFIG.dossierIndex + manifeste.morceaux, progres)));
   const octets = await telecharger(CONFIG.dossierIndex + manifeste.embeddings.fichier, progres);
-  installerIndex(manifeste, donnees, octets);
+  let octetsDocs = null;
+  if (manifeste.docs_vecteurs) { try { octetsDocs = await telecharger(CONFIG.dossierIndex + manifeste.docs_vecteurs.fichier); } catch (e) { console.warn(e); } }
+  installerIndex(manifeste, donnees, octets, octetsDocs);
 }
 
 $("fichiers-index").addEventListener("change", async ev => {
@@ -637,7 +874,8 @@ $("fichiers-index").addEventListener("change", async ev => {
   try {
     if (!f["manifest.json"] || !f["chunks.json"] || !f["embeddings.bin"]) throw new Error("il faut au moins manifest.json, chunks.json et embeddings.bin");
     const manifeste = JSON.parse(await f["manifest.json"].text());
-    installerIndex(manifeste, JSON.parse(await f["chunks.json"].text()), new Uint8Array(await f["embeddings.bin"].arrayBuffer()));
+    installerIndex(manifeste, JSON.parse(await f["chunks.json"].text()), new Uint8Array(await f["embeddings.bin"].arrayBuffer()),
+                   f["docs.bin"] ? new Uint8Array(await f["docs.bin"].arrayBuffer()) : null);
     E.verifLocale = f["verif.json"] ? JSON.parse(await f["verif.json"].text()) : null;
     $("secours").hidden = true;
     etat("Index chargé. Recherche par mots-clés prête.", null, "ok");
@@ -673,36 +911,56 @@ async function chargerModele() {
   } catch (e) {
     console.error(e);
     E.echecModele = true;
-    if (E.derniere) afficher(E.derniere.question, E.derniere.resultats);
+    if (E.derniere) afficher(E.derniere);
     etat("⚠️ Moteur de sens indisponible (connexion ?) : recherche par mots-clés seulement. Recharge la page pour réessayer.", null, "erreur");
   }
 }
 
 // ---------- Recherche ----------
-async function rechercher(question, k = CONFIG.nbResultats) {
-  const q = String(question || "").trim();
-  if (!q || !E.bm25) return [];
-  const qx = C.developperQuestion(q, C.siglesDansQuestion(q, E.sigles));
-  const listeMots = C.classer(C.scoresBM25(E.bm25, qx), CONFIG.candidats, true);
-  let fusion, mode = "mots";
-  if (E.extracteur) {
-    const sortie = await E.extracteur(E.manifeste.modele.prefixe_question + C.normaliserModele(qx), { pooling: "mean", normalize: true });
-    const listeSens = C.classer(C.scoresVecteurs(E.vecteurs, E.dim, sortie.data), CONFIG.candidats, false);
-    fusion = C.fusionner(listeSens, listeMots, 60, k);
-    mode = "hybride";
-  } else {
-    fusion = listeMots.slice(0, k).map((id, i) => ({ id, score: null, rangSens: null, rangMots: i + 1 }));
+// Mot tel que tu l'as écrit (« l'hantavirsu » → « hantavirsu ») ou tel qu'il est écrit dans les documents
+const RE_MOT_VU = /[\p{L}\p{N}µ%]+(?:[.,/'’\-][\p{L}\p{N}µ%]+)*/gu;
+function motVu(texte, terme, question = false) {
+  for (const m of String(texte).matchAll(RE_MOT_VU)) {
+    if (C.analyser(m[0], question).indexOf(terme) >= 0) return m[0].replace(/^[a-zà-ÿ]{1,2}['’]/i, "");
   }
-  return fusion.map((f, i) => {
-    const m = E.morceaux[f.id], d = E.docs[m.d];
-    return { rang: i + 1, id: f.id, fichier: d.f, titre: d.titre, page: m.p, page_fin: m.pf, section: m.s, texte: m.t,
-             rang_sens: f.rangSens, rang_mots: f.rangMots, mode };
+  return null;
+}
+function motDesDocuments(terme) {
+  const p = E.etat.bm25.postings.get(terme);
+  return (p && motVu(E.morceaux[p[0]].t, terme)) || terme;
+}
+
+// La recherche complète : documents puis passages, regroupés par document
+async function rechercher(question) {
+  const q = String(question || "").trim();
+  if (!q || !E.etat) return null;
+  const prep = C.preparerQuestion(E.etat, q);
+  let v = null;
+  if (E.extracteur) v = (await E.extracteur(E.manifeste.modele.prefixe_question + C.normaliserModele(prep.qx), { pooling: "mean", normalize: true })).data;
+  const r = C.chercher(E.etat, prep, v);
+  let k = 0;
+  const documents = r.groupes.map(g => {
+    const d = E.docs[g.doc];
+    return { fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", pages: d.pages,
+             passages: g.passages.map(p => {
+               const m = E.morceaux[p.id];
+               return { rang: ++k, id: p.id, fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", page: m.p, page_fin: m.pf,
+                        section: m.s, texte: m.t, rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc };
+             }) };
   });
+  return { question: q, mode: r.mode, confiance: r.confiance, sens: r.meilleurSens, documents,
+           resultats: documents.flatMap(d => d.passages), sigles: prep.sigles,
+           corrections: prep.corrections.map(([a, b]) => ({ ecrit: motVu(q, a, true) || a, cherche: motDesDocuments(b), terme: b })),
+           absents: prep.absents.map(t => motVu(q, t, true) || t) };
+}
+
+function contexte(rep) {
+  return rep ? C.formaterPourLLM(rep.question, rep.resultats, rep.sigles, { confiance: rep.confiance, absents: rep.absents }) : "";
 }
 
 window.moteur = {
   rechercher,
-  contexteLLM: async (question, k = CONFIG.nbResultats) => C.formaterPourLLM(question, await rechercher(question, k), C.siglesDansQuestion(question, E.sigles)),
+  contexteLLM: async question => contexte(await rechercher(question)),
   sigles: question => C.siglesDansQuestion(question, E.sigles).map(x => ({ sigle: x.s, definition: x.def, fichier: E.docs[x.d].f, page: x.p })),
   formaterPourLLM: C.formaterPourLLM,
   pret: () => !!E.extracteur,
@@ -723,39 +981,60 @@ async function lancer(question, majAdresse = true) {
   const q = question.trim();
   if (!q) return;
   const ticket = ++E.enCours;
-  const resultats = await rechercher(q);
-  if (ticket !== E.enCours) return;
-  E.derniere = { question: q, resultats, mode: resultats[0] ? resultats[0].mode : (E.extracteur ? "hybride" : "mots") };
+  const rep = await rechercher(q);
+  if (ticket !== E.enCours || !rep) return;
+  E.derniere = rep;
   if (majAdresse && HTTP) history.replaceState(history.state, "", "?q=" + encodeURIComponent(q));
-  afficher(q, resultats);
+  afficher(rep);
 }
 
-function afficher(q, resultats) {
-  const qa = C.analyserQuestion(q), ol = $("resultats");
-  const sigles = C.siglesDansQuestion(q, E.sigles);
-  $("sigles").hidden = !sigles.length;
-  $("sigles").innerHTML = sigles.map(x => `<div>📖 <b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${C.echapper(E.docs[x.d].f)}, p. ${x.p}</span></div>`).join("");
+const TYPES = { protocole: "Protocole", fiche: "Fiche", recommandation: "Recommandation", note: "Note", formation: "Formation", document: "Document" };
+function infosDocument(d) {
+  return [TYPES[d.type] || (d.type ? d.type[0].toUpperCase() + d.type.slice(1) : ""), d.date ? C.formaterDate(d.date) : ""].filter(Boolean).join(" · ");
+}
+
+function afficher(rep) {
+  const resultats = rep.resultats, ol = $("resultats");
+  const termes = C.analyser(rep.question, true).concat(rep.corrections.map(c => c.terme));
+  const qa = C.analyserQuestion(rep.question, rep.corrections.map(c => c.terme), C.rareteTermes(E.etat.bm25, termes));
+  $("sigles").hidden = !rep.sigles.length;
+  $("sigles").innerHTML = rep.sigles.map(x => `<div>📖 <b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${C.echapper(E.docs[x.d].titre)}, p. ${x.p}</span></div>`).join("");
+  const avis = [];
+  if (resultats.length && rep.confiance === "faible")
+    avis.push(`<div class="faible">🤔 <b>Rien ne correspond vraiment</b> à ta question dans les documents. Voici quand même les passages les plus proches : vérifie-les.</div>`);
+  if (rep.absents.length)
+    avis.push(`<div>∅ Absent de tous les documents : ${rep.absents.map(x => `« ${C.echapper(x)} »`).join(", ")}</div>`);
+  if (rep.corrections.length)
+    avis.push(`<div>🔤 Cherché aussi : ${rep.corrections.map(c => `« ${C.echapper(c.cherche)} » (pour « ${C.echapper(c.ecrit)} »)`).join(", ")}</div>`);
+  $("avis").hidden = !avis.length;
+  $("avis").innerHTML = avis.join("");
   $("outils").hidden = !resultats.length;
-  $("mode").textContent = E.extracteur ? "🧠 Recherche hybride (sens + mots-clés)"
+  $("mode").textContent = E.extracteur ? "🧠 Recherche par le sens et par mots-clés"
     : E.echecModele ? "🔤 Mots-clés seulement (moteur de sens indisponible)" : "🔤 Mots-clés seulement — mis à jour quand le modèle sera prêt";
   if (!resultats.length) {
     ol.innerHTML = `<li class="vide">Aucun passage trouvé${E.extracteur ? "" : " par mots-clés (essaie d'autres mots, ou attends le chargement du modèle)"}.</li>`;
     return;
   }
-  ol.innerHTML = resultats.map((r, i) => {
-    const pages = r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
-    const pert = [r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`].filter(Boolean).join(" · ");
-    return `<li class="carte">
-      <div class="source"><span class="rang">${i + 1}</span><span>📄 <b>${C.echapper(r.fichier)}</b> · ${pages}${r.section ? " · " + C.echapper(r.section) : ""}</span></div>
-      <p class="extrait">${C.extrait(r.texte, qa)}</p>
-      <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
-      <div class="actions" hidden data-i="${i}">
-        <button type="button" data-voir="${i}">Voir la page ${r.page}</button>
-        <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF ↗</a>
-      </div>
-      ${pert ? `<div class="pertinence">Trouvé par : ${pert}</div>` : ""}
-    </li>`;
-  }).join("");
+  ol.innerHTML = rep.documents.map(d => `<li class="groupe">
+    <div class="doc"><span class="doc-titre">📄 ${C.echapper(d.titre)}</span>
+      <span class="doc-infos">${C.echapper([infosDocument(d), d.fichier].filter(Boolean).join(" · "))}</span></div>
+    <div class="passages">${d.passages.map(r => {
+      const i = r.rang - 1;
+      const pages = r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
+      const section = (r.section || "").split(" › ").filter(x => x.trim() !== d.titre.trim()).join(" › ");
+      const pert = [r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`, r.rang_doc && `document n°${r.rang_doc}`].filter(Boolean).join(" · ");
+      return `<div class="carte">
+        <div class="source"><span class="rang">${r.rang}</span><span><b>${pages}</b>${section ? " · " + C.echapper(section) : ""}</span></div>
+        <p class="extrait">${C.extrait(r.texte, qa)}</p>
+        <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
+        <div class="actions" hidden data-i="${i}">
+          <button type="button" data-voir="${i}">Voir la page ${r.page}</button>
+          <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF ↗</a>
+        </div>
+        ${pert ? `<div class="pertinence">Trouvé par : ${pert}</div>` : ""}
+      </div>`;
+    }).join("")}</div>
+  </li>`).join("");
   resultats.forEach((r, i) => pdfPresent(r.fichier).then(ok => {
     const a = ol.querySelector(`.actions[data-i="${i}"]`);
     if (ok && a) a.hidden = false;
@@ -779,7 +1058,7 @@ async function copier(texte) {
 }
 $("copier-llm").addEventListener("click", async () => {
   if (!E.derniere) return;
-  const ok = await copier(C.formaterPourLLM(E.derniere.question, E.derniere.resultats, C.siglesDansQuestion(E.derniere.question, E.sigles)));
+  const ok = await copier(contexte(E.derniere));
   $("copier-llm").textContent = ok ? "✅ Copié" : "❌ Copie impossible";
   setTimeout(() => { $("copier-llm").textContent = "📋 Copier pour un LLM"; }, 1800);
 });
@@ -848,11 +1127,25 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "ArrowRight") $("v-suiv").click();
 });
 
+// ---------- Bibliothèque ----------
+function remplirBibliotheque() {
+  const tri = E.docs.map((d, i) => i).sort((a, b) => E.docs[a].titre.localeCompare(E.docs[b].titre, "fr", { sensitivity: "base" }));
+  $("biblio-titre").textContent = `📚 Bibliothèque (${E.docs.length} document${E.docs.length > 1 ? "s" : ""})`;
+  $("biblio-liste").innerHTML = tri.map(i => {
+    const d = E.docs[i];
+    const infos = [infosDocument(d), `${d.pages} page${d.pages > 1 ? "s" : ""}`, d.f].filter(Boolean).join(" · ");
+    return `<li><div class="b-texte"><b>${C.echapper(d.titre)}</b><span>${C.echapper(infos)}</span></div>`
+      + (HTTP ? `<a target="_blank" rel="noopener" href="${lienPdf(d.f)}">Ouvrir ↗</a>` : "") + "</li>";
+  }).join("");
+}
+
 // ---------- Infos et vérification ----------
 function remplirInfos() {
   if (!E.manifeste) return;
   const m = E.manifeste.modele;
-  $("infos-docs").innerHTML = "<ul>" + E.docs.map(d => `<li>${C.echapper(d.f)} — ${d.pages} pages, ${d.n} passages</li>`).join("") + "</ul>";
+  const r = E.manifeste.recherche || {};
+  $("infos-index").textContent = `Index du ${dateCourte(E.manifeste.cree_le)} (heure de Paris) : ${E.docs.length} documents, ${E.morceaux.length} passages. `
+    + (r.seuil_sens != null ? `Signal « rien ne correspond » réglé (seuil ${r.seuil_sens}).` : "Signal « rien ne correspond » pas encore réglé (🧪 Tester dans l'Atelier).");
   const alerte = E.manifeste.transformers_js && E.manifeste.transformers_js !== CONFIG.versionTransformers
     ? ` ⚠️ L'atelier a utilisé transformers.js ${E.manifeste.transformers_js}, cette page ${CONFIG.versionTransformers}.` : "";
   $("infos-modele").textContent = `Modèle : ${m.id} (version ${m.revision.slice(0, 7)}, ${m.dtype}), ${E.dim} dimensions — ${E.extracteur ? "chargé ✅" : "non chargé"}.${alerte}`;
