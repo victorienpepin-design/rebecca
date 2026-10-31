@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e7069">
+<title>Rebecca</title>
+<style>
+:root {
+  --fond: #f6f7f5; --carte: #ffffff; --texte: #1d2321; --doux: #5d6a66; --bord: #dde3e0;
+  --accent: #0e7069; --accent-doux: #e2f1ee; --marque: #ffe58a; --erreur: #a33b2b; --ombre: 0 1px 2px rgba(0,0,0,.06);
+}
+:root:not([data-theme="light"]) { color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #121615; --carte: #1b2120; --texte: #e6ebe9; --doux: #9aa8a3; --bord: #2c3533;
+    --accent: #4fc2b5; --accent-doux: #1d3431; --marque: #6b5a12; --erreur: #ff8f7a; --ombre: none;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #121615; --carte: #1b2120; --texte: #e6ebe9; --doux: #9aa8a3; --bord: #2c3533;
+  --accent: #4fc2b5; --accent-doux: #1d3431; --marque: #6b5a12; --erreur: #ff8f7a; --ombre: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body.bloque { overflow: hidden; }
+.page { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; }
+header h1 { font-size: 1.35rem; margin: 8px 0 2px; letter-spacing: -.01em; }
+header p { margin: 0 0 14px; color: var(--doux); font-size: .9rem; }
+form { display: flex; gap: 8px; position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; }
+input[type=search] { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; padding: 12px 14px; border: 1.5px solid var(--bord); border-radius: 12px; background: var(--carte); color: var(--texte); }
+input[type=search]:focus { outline: none; border-color: var(--accent); }
+button, .bouton { font: inherit; font-size: .95rem; border: 0; border-radius: 10px; padding: 10px 14px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+:root[data-theme="dark"] button:not(.secondaire), :root[data-theme="dark"] .bouton:not(.secondaire) { color: #08201d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button:not(.secondaire), :root:not([data-theme="light"]) .bouton:not(.secondaire) { color: #08201d; } }
+button.secondaire, .bouton.secondaire { background: var(--accent-doux); color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+.etat { margin: 6px 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-doux); font-size: .92rem; }
+.etat.erreur { background: transparent; border: 1.5px solid var(--erreur); color: var(--erreur); }
+.etat.ok { background: transparent; color: var(--doux); padding: 2px 2px 6px; }
+.barre { height: 6px; background: var(--bord); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.barre > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.barre.indetermine > div { width: 35%; animation: glisse 1.2s infinite ease-in-out; }
+@keyframes glisse { from { margin-left: -35%; } to { margin-left: 100%; } }
+.outils { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; color: var(--doux); font-size: .88rem; flex-wrap: wrap; }
+ol.resultats { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 14px; box-shadow: var(--ombre); }
+.source { display: flex; gap: 10px; align-items: baseline; font-size: .9rem; color: var(--doux); }
+.rang { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-doux); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: .85rem; }
+.source b { color: var(--texte); font-weight: 600; word-break: break-word; }
+.extrait { margin: 10px 0 6px; overflow-wrap: anywhere; }
+mark { background: var(--marque); color: inherit; border-radius: 3px; padding: 0 2px; }
+details.complet summary { cursor: pointer; color: var(--accent); font-size: .9rem; padding: 6px 0; }
+.md { font-size: .95rem; overflow-wrap: anywhere; }
+.md .titre-md { font-weight: 700; margin: 10px 0 4px; }
+.tableau { overflow-x: auto; margin: 8px 0; -webkit-overflow-scrolling: touch; }
+.tableau table { border-collapse: collapse; font-size: .88rem; min-width: 100%; }
+.tableau th, .tableau td { border: 1px solid var(--bord); padding: 5px 8px; text-align: left; vertical-align: top; }
+.tableau th { background: var(--accent-doux); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.actions[hidden] { display: none; }
+.pertinence { font-size: .78rem; color: var(--doux); margin-top: 6px; }
+.sigles { background: var(--accent-doux); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: .95rem; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.sigles[hidden] { display: none; }
+.vide { text-align: center; color: var(--doux); padding: 24px 8px; }
+details.infos { margin-top: 28px; background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 4px 14px; }
+details.infos summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+details.infos ul { padding-left: 18px; margin: 6px 0; }
+.petit { font-size: .85rem; color: var(--doux); }
+pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radius: 8px; font-size: .82rem; }
+#secours { margin: 10px 0; }
+.visionneuse { position: fixed; inset: 0; background: var(--fond); z-index: 50; display: flex; flex-direction: column; }
+.visionneuse[hidden] { display: none; }
+.v-barre { padding: 6px 8px; border-bottom: 1px solid var(--bord); background: var(--carte); display: grid; gap: 6px; }
+.v-ligne { display: flex; align-items: center; gap: 6px; }
+.v-barre .titre { flex: 1; min-width: 0; font-size: .9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v-barre button, .v-barre .bouton { padding: 6px 12px; min-height: 40px; }
+#v-ouvrir { margin-left: auto; }
+#v-etat { font-size: .88rem; color: var(--doux); margin: 0 4px; }
+.v-zone { flex: 1; overflow: auto; padding: 8px; text-align: center; -webkit-overflow-scrolling: touch; }
+.v-zone canvas { background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.2); max-width: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>🔎 Rebecca</h1>
+    <p id="sous-titre">Recherche dans les protocoles, référentiels et fiches</p>
+  </header>
+
+  <form id="formulaire" role="search" autocomplete="off">
+    <input id="question" type="search" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
+    <button id="chercher" type="submit" disabled>Chercher</button>
+  </form>
+
+  <div id="etat" class="etat" role="status" aria-live="polite">
+    <span id="etat-texte">Démarrage…</span>
+    <div id="etat-barre" class="barre indetermine"><div></div></div>
+  </div>
+
+  <div id="secours" class="carte" hidden>
+    <p style="margin-top:0"><b>Index introuvable.</b> Cette page doit être ouverte depuis un site (voir le mode d'emploi), avec le dossier <code>index/</code> à côté d'elle.</p>
+    <p class="petit">Pour tester sur un ordinateur, tu peux aussi choisir ici les fichiers du dossier <code>index/</code> (manifest.json, chunks.json, embeddings.bin, verif.json) :</p>
+    <input id="fichiers-index" type="file" multiple accept=".json,.bin">
+  </div>
+
+  <div id="outils" class="outils" hidden>
+    <span id="mode"></span>
+    <button id="copier-llm" class="secondaire" type="button">📋 Copier pour un LLM</button>
+  </div>
+  <div id="sigles" class="sigles" hidden></div>
+  <ol id="resultats" class="resultats" aria-live="polite"></ol>
+
+  <details id="infos" class="infos">
+    <summary>ℹ️ Infos et vérification</summary>
+    <div id="infos-docs"></div>
+    <p id="infos-modele" class="petit"></p>
+    <p><button id="verifier" class="secondaire" type="button" disabled>Vérifier le modèle</button></p>
+    <div id="verif-resultat" class="petit"></div>
+    <p class="petit">Pour un futur chatbot : <code>await moteur.contexteLLM("ta question")</code> renvoie les 5 passages (et les sigles définis) prêts à donner à un LLM ; <code>await moteur.rechercher("ta question")</code> renvoie les résultats bruts.</p>
+  </details>
+</div>
+
+<div id="visionneuse" class="visionneuse" hidden>
+  <div class="v-barre">
+    <div class="v-ligne"><span id="v-titre" class="titre"></span><button id="v-fermer" type="button" aria-label="Fermer">✕ Fermer</button></div>
+    <div class="v-ligne">
+      <button id="v-prec" class="secondaire" type="button" aria-label="Page précédente">◀</button>
+      <span id="v-etat"></span>
+      <button id="v-suiv" class="secondaire" type="button" aria-label="Page suivante">▶</button>
+      <button id="v-moins" class="secondaire" type="button" aria-label="Réduire">−</button>
+      <button id="v-plus" class="secondaire" type="button" aria-label="Agrandir">+</button>
+      <a id="v-ouvrir" class="bouton secondaire" target="_blank" rel="noopener">Ouvrir ↗</a>
+    </div>
+  </div>
+  <div id="v-zone" class="v-zone"><canvas id="v-canvas"></canvas></div>
+</div>
+
+<script>
+/* COEUR:DEBUT — fonctions de recherche pures (testables, aussi portées en Python dans le notebook) */
+(function (racine) {
+  "use strict";
+
+  // ---------- Texte donné au modèle (identique à normaliser_modele() en Python) ----------
+  const ESPACES = /[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+/g;
+  function normaliserModele(t) {
+    return String(t).normalize("NFKC").replace(ESPACES, " ").replace(/^ +| +$/g, "");
+  }
+
+  // ---------- Analyse des mots pour BM25 (identique à analyser() en Python) ----------
+  const MOTS_VIDES = new Set((
+    "a au aux avec ce ces cet cette c d dans de des du elle elles en est et etre eu " +
+    "il ils j je l la le les leur leurs lui m ma mais me meme mes moi mon n ne ni nos notre nous " +
+    "on ou par pas pour qu que quel quelle quelles quels qui quoi s sa sans se ses si son sont sur " +
+    "t ta te tes toi ton tu un une vos votre vous y comment combien quand faut doit dois peut peux " +
+    "fait faire avoir ont est-ce estce cela ca ici"
+  ).split(" "));
+  const UNITES = new Set((
+    "mg g kg ug ng ml l dl cl ui u meq mmol mol umol h min mn s sec j jour jours sem mois an ans " +
+    "mm cm m mmhg cmh2o pct gtt goutte gouttes cp cpr comprime comprimes amp ampoule ampoules fl " +
+    "flacon flacons dose doses unite unites kcal mosm"
+  ).split(" "));
+    const RE_MOT = /[a-z0-9]+(?:[./-][a-z0-9]+)*/g;
+  const RE_NOMBRE = /^\d+(?:\.\d+)?$/;
+
+  // Sigle suivi d'une lettre : « ESR N » donne aussi « ESRN » (dans une question, « esr n » aussi)
+  const MAJ = "A-Z\u00c0-\u00d6\u00d8-\u00de", MIN = "a-z\u00df-\u00f6\u00f8-\u00ff";
+  const ALN = "A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff0-9", LET = ALN + "'\u2019";
+  const RE_SIGLE = new RegExp(`(^|[^${ALN}])([${MAJ}]{2,})[ \\-]([${MAJ}])(?![${LET}])`, "g");
+  const RE_SIGLE_Q = new RegExp(`(^|[^${ALN}])([${MIN}]{2,5})[ \\-]([b-xz])(?![${LET}])`, "g");
+
+  function prenormaliser(s, question = false) {
+    s = String(s).normalize("NFKC").replace(RE_SIGLE, "$1$2 $2$3");
+    if (question) s = s.replace(RE_SIGLE_Q, "$1$2 $2$3");
+    s = s.toLowerCase();
+    s = s.replace(/[\u00b5\u03bc]/g, "u").replace(/\u03b3/g, "ug").replace(/\u0153/g, "oe").replace(/\u00e6/g, "ae");
+    s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    s = s.replace(/\bmcg\b/g, "ug");
+    s = s.replace(/%/g, " pct ");
+    s = s.replace(/(\d),(?=\d)/g, "$1.");          // 0,5 -> 0.5
+    s = s.replace(/(\d)\.(\d)0(?![0-9])/g, "$1.$2").replace(/(\d)\.00?(?![0-9])/g, "$1");   // 0.90 -> 0.9 ; 2.0 -> 2
+    s = s.replace(/(\d) (?=\d{3}(?!\d))/g, "$1");   // 1 000 -> 1000
+    s = s.replace(/(\d)(?=[a-z])/g, "$1 ");          // 5mg -> 5 mg
+    return s;
+  }
+
+  function developper(brut, sortie) {
+    if (brut.indexOf("-") >= 0) {
+      const parts = brut.split("-").filter(Boolean);
+      const colle = parts.join("");
+      if (colle.indexOf("/") < 0 && colle.indexOf(".") < 0 && !parts.every(x => /^[0-9]+$/.test(x))) sortie.push(colle);
+      for (const p of parts) developper(p, sortie);
+      return;
+    }
+    if (brut.indexOf("/") >= 0) {
+      sortie.push(brut);
+      for (const p of brut.split("/")) if (p) developper(p, sortie);
+      return;
+    }
+    if (brut.indexOf(".") >= 0) {
+      const segs = brut.split(".").filter(Boolean);
+      if (segs.length === 2 && segs.every(x => /^\d+$/.test(x))) sortie.push(brut);
+      else if (segs.length > 1 && segs.every(x => /^[a-z]$/.test(x))) sortie.push(segs.join(""));
+      else for (const x of segs) developper(x, sortie);
+      return;
+    }
+    sortie.push(brut);
+  }
+
+  function raciner(t) {
+    if (/[0-9/._]/.test(t)) return t;
+    if (t.length >= 5 && t.endsWith("aux")) t = t.slice(0, -3) + "al";
+    else if (t.length >= 4 && (t.endsWith("s") || t.endsWith("x")) && !t.endsWith("ss")) t = t.slice(0, -1);
+    if (t.length >= 5 && t.endsWith("ee")) t = t.slice(0, -1);
+    return t;
+  }
+
+  function estUnite(t) { return UNITES.has(t) || (t.indexOf("/") > 0 && /^[a-z]/.test(t)); }
+  function estNombre(t) { return RE_NOMBRE.test(t); }
+
+  // Renvoie la liste des termes (avec répétitions) d'un texte.
+  function analyser(texte, question = false) {
+    const s = prenormaliser(texte, question);
+    const bruts = s.match(RE_MOT) || [];
+    const termes = [];
+    let precedent = null;
+    for (const brut of bruts) {
+      const dev = [];
+      developper(brut, dev);
+      const principal = dev.length ? dev[0] : "";
+      if (precedent !== null && estUnite(principal)) termes.push(precedent + "_" + principal);
+      const dernier = brut.split("-").pop();
+      precedent = estNombre(brut) ? brut : (brut.indexOf("-") >= 0 && estNombre(dernier) ? dernier : null);
+      for (let t of dev) {
+        if (MOTS_VIDES.has(t)) continue;
+        if (t.length === 1 && !/[0-9]/.test(t)) continue;
+        termes.push(raciner(t));
+      }
+    }
+    return termes;
+  }
+
+  // ---------- BM25 ----------
+  function construireBM25(textes, k1 = 1.2, b = 0.75) {
+    const postings = new Map();   // terme -> [doc, tf, doc, tf, ...]
+    const longueurs = new Float32Array(textes.length);
+    let total = 0;
+    textes.forEach((texte, d) => {
+      const termes = analyser(texte);
+      longueurs[d] = termes.length;
+      total += termes.length;
+      const tf = new Map();
+      for (const t of termes) tf.set(t, (tf.get(t) || 0) + 1);
+      for (const [t, n] of tf) {
+        let p = postings.get(t);
+        if (!p) { p = []; postings.set(t, p); }
+        p.push(d, n);
+      }
+    });
+    return { postings, longueurs, moyenne: total / Math.max(1, textes.length), n: textes.length, k1, b };
+  }
+
+  function scoresBM25(index, question) {
+    const scores = new Float64Array(index.n);
+    const vus = new Set();
+    for (const t of analyser(question, true)) {
+      if (vus.has(t)) continue;
+      vus.add(t);
+      const p = index.postings.get(t);
+      if (!p) continue;
+      const df = p.length / 2;
+      const idf = Math.log(1 + (index.n - df + 0.5) / (df + 0.5));
+      for (let i = 0; i < p.length; i += 2) {
+        const d = p[i], tf = p[i + 1];
+        const norme = index.k1 * (1 - index.b + index.b * index.longueurs[d] / index.moyenne);
+        scores[d] += idf * tf * (index.k1 + 1) / (tf + norme);
+      }
+    }
+    return scores;
+  }
+
+  // Indices triés par score décroissant (égalité : plus petit indice d'abord), scores > 0 seulement si demandé.
+  function classer(scores, limite, positifsSeulement) {
+    const idx = [];
+    for (let i = 0; i < scores.length; i++) if (!positifsSeulement || scores[i] > 0) idx.push(i);
+    idx.sort((a, b) => (scores[b] - scores[a]) || (a - b));
+    return idx.slice(0, limite);
+  }
+
+  function scoresVecteurs(vecteurs, dim, q) {
+    const n = vecteurs.length / dim;
+    const scores = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0;
+      const o = i * dim;
+      for (let j = 0; j < dim; j++) s += vecteurs[o + j] * q[j];
+      scores[i] = s;
+    }
+    return scores;
+  }
+
+  // Fusion par rangs réciproques (RRF). rangs commencent à 1.
+  function fusionner(listeVec, listeMots, k = 60, limite = 5) {
+    const score = new Map(), rv = new Map(), rm = new Map();
+    listeVec.forEach((d, i) => { rv.set(d, i + 1); score.set(d, (score.get(d) || 0) + 1 / (k + i + 1)); });
+    listeMots.forEach((d, i) => { rm.set(d, i + 1); score.set(d, (score.get(d) || 0) + 1 / (k + i + 1)); });
+    const ids = [...score.keys()];
+    ids.sort((a, b) => (score.get(b) - score.get(a)) || (a - b));
+    return ids.slice(0, limite).map(d => ({ id: d, score: score.get(d), rangSens: rv.get(d) || null, rangMots: rm.get(d) || null }));
+  }
+
+  // ---------- Sigles (repérés dans les listes de sigles des documents) ----------
+  const RE_DEFINITION = /signifi|veu(?:t|lent) dire|c ?est quoi|definition|defini|qu ?est[ -]ce qu|acronyme|sigle|abreviation/;
+
+  function preparerSigles(liste) {
+    return (liste || []).map(x => Object.assign({}, x, { cle: analyser(x.s) })).filter(x => x.cle.length);
+  }
+
+  // Sigles définis présents dans la question (les plus précis d'abord, 3 au plus)
+  function siglesDansQuestion(question, sigles) {
+    const q = new Set(analyser(question, true));
+    const t = sigles.filter(x => x.cle.every(k => q.has(k)));
+    const vus = new Set();
+    return t.filter(x => !t.some(y => y !== x && y.cle.length > x.cle.length && x.cle.every(k => y.cle.indexOf(k) >= 0)))
+      .filter(x => { const c = x.s.toUpperCase() + "|" + x.def.toLowerCase(); if (vus.has(c)) return false; vus.add(c); return true; })
+      .slice(0, 3);
+  }
+
+  // « Que signifie ESR N ? » ou « ESR N » seul : on ajoute la définition à la question cherchée
+  function developperQuestion(question, trouves) {
+    if (!trouves.length) return question;
+    const qn = prenormaliser(question).replace(/[^a-z0-9 ]+/g, " ");
+    const reste = analyser(question, true).filter(t => !trouves.some(x => x.cle.indexOf(t) >= 0));
+    if (reste.length && !RE_DEFINITION.test(qn)) return question;
+    return question + " (" + trouves.map(x => x.s + " : " + x.def).join(" ; ") + ")";
+  }
+
+  // ---------- Surlignage ----------
+  function analyserQuestion(question) {
+    const termes = analyser(question, true);
+    const ensemble = new Set(termes);
+    const bigrammes = new Set(termes.filter(t => t.indexOf("_") > 0));
+    const dansBigramme = new Set();
+    for (const bg of bigrammes) for (const x of bg.split("_")) { dansBigramme.add(x); for (const y of x.split("/")) dansBigramme.add(y); }
+    const seuls = new Set(termes.filter(t => (estNombre(t) || estUnite(t)) && !dansBigramme.has(t)));
+    return { ensemble, bigrammes, seuls };
+  }
+
+  const RE_MOT_AFFICHE = /[\p{L}\p{N}µ%]+(?:[.,/'’\-][\p{L}\p{N}µ%]+)*/gu;
+
+  function echapper(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // Positions [debut, fin] des mots à surligner dans un texte.
+  function reperer(texte, qa) {
+    const mots = [];
+    RE_MOT_AFFICHE.lastIndex = 0;
+    let m;
+    while ((m = RE_MOT_AFFICHE.exec(texte))) mots.push({ d: m.index, f: m.index + m[0].length, t: analyser(m[0]) });
+    const marques = new Array(mots.length).fill(false);
+    for (let i = 0; i < mots.length; i++) {
+      const toks = mots[i].t;
+      for (const t of toks) {
+        if (!qa.ensemble.has(t)) continue;
+        if (t.indexOf("_") > 0) { marques[i] = true; break; }
+        if (estNombre(t) || estUnite(t)) { if (qa.seuls.has(t)) { marques[i] = true; break; } continue; }
+        marques[i] = true; break;
+      }
+      // « 5 mg » écrit en deux mots
+      if (i + 1 < mots.length && toks.length && toks.every(estNombre)) {
+        const suivant = mots[i + 1];
+        const entre = texte.slice(mots[i].f, suivant.d);
+        if (/^\s{0,2}$/.test(entre) && suivant.t.length) {
+          const bg = toks[toks.length - 1] + "_" + suivant.t[0];
+          if (qa.bigrammes.has(bg)) { marques[i] = true; marques[i + 1] = true; }
+        }
+      }
+    }
+    return mots.filter((_, i) => marques[i]).map(x => [x.d, x.f]);
+  }
+
+  function surligner(texte, qa) {
+    const pos = reperer(texte, qa);
+    let html = "", dernier = 0;
+    for (const [d, f] of pos) {
+      html += echapper(texte.slice(dernier, d)) + "<mark>" + echapper(texte.slice(d, f)) + "</mark>";
+      dernier = f;
+    }
+    return html + echapper(texte.slice(dernier));
+  }
+
+  // Markdown -> texte simple sur une ligne (pour l'extrait)
+  function versTexteSimple(md) {
+    const sortie = [];
+    for (let ligne of String(md).split("\n")) {
+      ligne = ligne.trim();
+      if (!ligne) continue;
+      if (/^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(ligne)) continue;
+      if (ligne.startsWith("|")) {
+        const cellules = ligne.replace(/^\||\|$/g, "").split("|").map(c => c.trim()).filter(Boolean);
+        sortie.push(cellules.join(" │ ") + " ·");
+        continue;
+      }
+      const titre = /^#{1,6}\s+/.test(ligne);
+      sortie.push(ligne.replace(/^#{1,6}\s+/, "").replace(/\*\*/g, "") + (titre ? " ·" : ""));
+    }
+    return sortie.join(" ").replace(/ ·$/, "");
+  }
+
+  // Extrait d'environ `longueur` caractères centré sur la zone la plus riche en mots trouvés.
+  function extrait(md, qa, longueur = 320) {
+    const texte = versTexteSimple(md);
+    if (texte.length <= longueur) return surligner(texte, qa);
+    const pos = reperer(texte, qa);
+    let debut = 0;
+    if (pos.length) {
+      let meilleur = -1;
+      for (const [d] of pos) {
+        const s = Math.max(0, d - 60);
+        const n = pos.filter(([x, y]) => x >= s && y <= s + longueur).length;
+        if (n > meilleur) { meilleur = n; debut = s; }
+      }
+    }
+    let fin = Math.min(texte.length, debut + longueur);
+    if (debut > 0) { const e = texte.indexOf(" ", debut); if (e > 0 && e < debut + 30) debut = e + 1; }
+    if (fin < texte.length) { const e = texte.lastIndexOf(" ", fin); if (e > debut + longueur / 2) fin = e; }
+    return (debut > 0 ? "… " : "") + surligner(texte.slice(debut, fin), qa) + (fin < texte.length ? " …" : "");
+  }
+
+  // Petit rendu markdown (titres, tableaux, listes, gras) avec surlignage.
+  function rendreMarkdown(md, qa) {
+    const ligneHtml = s => s.split(/(\*\*[^*]+\*\*)/).map(p =>
+      p.startsWith("**") && p.endsWith("**") && p.length > 4 ? "<b>" + surligner(p.slice(2, -2), qa) + "</b>" : surligner(p, qa)).join("");
+    const lignes = String(md).split("\n");
+    let html = "", i = 0;
+    while (i < lignes.length) {
+      const l = lignes[i].trim();
+      if (!l) { i++; continue; }
+      if (l.startsWith("|")) {
+        const rangs = [];
+        while (i < lignes.length && lignes[i].trim().startsWith("|")) { rangs.push(lignes[i].trim()); i++; }
+        const cellules = r => r.replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+        const estSep = r => cellules(r).every(c => /^:?-{2,}:?$/.test(c));
+        const donnees = rangs.filter(r => !estSep(r));
+        const avecEntete = rangs.length > 1 && estSep(rangs[1]);
+        html += '<div class="tableau"><table>';
+        donnees.forEach((r, k) => {
+          const tag = avecEntete && k === 0 ? "th" : "td";
+          html += "<tr>" + cellules(r).map(c => `<${tag}>${ligneHtml(c)}</${tag}>`).join("") + "</tr>";
+        });
+        html += "</table></div>";
+        continue;
+      }
+      const t = l.match(/^(#{1,6})\s+(.*)$/);
+      if (t) { html += `<p class="titre-md">${ligneHtml(t[2])}</p>`; i++; continue; }
+      if (/^([-*•]|\d+[.)])\s+/.test(l)) {
+        html += "<ul>";
+        while (i < lignes.length && /^([-*•]|\d+[.)])\s+/.test(lignes[i].trim())) {
+          html += "<li>" + ligneHtml(lignes[i].trim().replace(/^([-*•]|\d+[.)])\s+/, "")) + "</li>"; i++;
+        }
+        html += "</ul>";
+        continue;
+      }
+      const para = [];
+      while (i < lignes.length && lignes[i].trim() && !/^(\||#{1,6}\s|[-*•]\s|\d+[.)]\s)/.test(lignes[i].trim())) { para.push(lignes[i].trim()); i++; }
+      if (!para.length) { para.push(l); i++; }
+      html += "<p>" + para.map(ligneHtml).join("<br>") + "</p>";
+    }
+    return html;
+  }
+
+  // ---------- Format prêt pour un LLM ----------
+  function formaterPourLLM(question, resultats, sigles = []) {
+    let s = `Question : ${question}\n`;
+    if (sigles.length) s += "Sigles : " + sigles.map(x => `${x.s} = ${x.def}`).join(" ; ") + "\n";
+    s += `\nExtraits des documents (du plus pertinent au moins pertinent) :\n`;
+    resultats.forEach((r, i) => {
+      const pages = r.page_fin && r.page_fin !== r.page ? `pages ${r.page}-${r.page_fin}` : `page ${r.page}`;
+      s += `\n[${i + 1}] Source : ${r.fichier} — ${pages}` + (r.section ? ` — section « ${r.section} »` : "") + "\n";
+      s += r.texte.trim() + "\n";
+    });
+    return s;
+  }
+
+  racine.Coeur = {
+    normaliserModele, prenormaliser, analyser, construireBM25, scoresBM25, scoresVecteurs, classer,
+    fusionner, analyserQuestion, reperer, surligner, extrait, versTexteSimple, rendreMarkdown,
+    echapper, formaterPourLLM, estUnite, estNombre, preparerSigles, siglesDansQuestion, developperQuestion
+  };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+/* COEUR:FIN */
+</script>
+<script type="module">
+const CONFIG = {
+  transformers: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
+  versionTransformers: "3.8.1",
+  pdfjs: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.min.mjs",
+  pdfjsWorker: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.worker.min.mjs",
+  dossierIndex: "index/",
+  dossierPdf: "pdf/",
+  nbResultats: 5,
+  candidats: 50,
+};
+const C = globalThis.Coeur;
+const $ = id => document.getElementById(id);
+const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, bm25: null, extracteur: null, derniere: null, enCours: 0 };
+const HTTP = /^https?:$/.test(location.protocol);
+
+// ---------- Indicateur d'état ----------
+function etat(texte, pourcent = null, genre = "charge") {
+  $("etat").className = "etat" + (genre === "charge" ? "" : " " + genre);
+  $("etat-texte").textContent = texte;
+  const barre = $("etat-barre");
+  barre.hidden = genre !== "charge";
+  barre.classList.toggle("indetermine", pourcent === null);
+  barre.firstElementChild.style.width = pourcent === null ? "" : Math.min(100, pourcent) + "%";
+}
+const mo = n => (n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: n < 1e7 ? 1 : 0 }) + " Mo";
+
+// ---------- Hors connexion ----------
+async function preparerHorsLigne() {
+  if (!HTTP || !("serviceWorker" in navigator)) return;
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  try {
+    await navigator.serviceWorker.register("sw.js");
+    if (!navigator.serviceWorker.controller) {
+      await new Promise(ok => { navigator.serviceWorker.addEventListener("controllerchange", ok, { once: true }); setTimeout(ok, 3000); });
+    }
+  } catch (e) { /* sw.js absent : la page marche quand même en ligne */ }
+}
+
+// ---------- Index ----------
+async function telecharger(url, surProgres) {
+  const r = await fetch(url, { cache: "no-cache" });
+  if (!r.ok) throw new Error(`${url} : erreur ${r.status}`);
+  const total = Number(r.headers.get("content-length")) || 0;
+  if (!r.body || !total || !surProgres) return new Uint8Array(await r.arrayBuffer());
+  const lecteur = r.body.getReader(), parts = [];
+  let recu = 0;
+  for (;;) {
+    const { done, value } = await lecteur.read();
+    if (done) break;
+    parts.push(value); recu += value.length; surProgres(recu, total);
+  }
+  const tout = new Uint8Array(recu);
+  let o = 0;
+  for (const p of parts) { tout.set(p, o); o += p.length; }
+  return tout;
+}
+
+function demiVersFloat(octets) {
+  const u = new Uint16Array(octets.buffer, octets.byteOffset, octets.byteLength >> 1);
+  const table = new Float32Array(65536);
+  for (let h = 0; h < 65536; h++) {
+    const s = h & 0x8000 ? -1 : 1, e = (h >> 10) & 31, f = h & 1023;
+    table[h] = e === 0 ? s * 2 ** -14 * (f / 1024) : e === 31 ? (f ? NaN : s * Infinity) : s * 2 ** (e - 15) * (1 + f / 1024);
+  }
+  const out = new Float32Array(u.length);
+  for (let i = 0; i < u.length; i++) out[i] = table[u[i]];
+  return out;
+}
+
+function installerIndex(manifeste, donnees, octets) {
+  E.manifeste = manifeste;
+  E.docs = donnees.docs;
+  E.morceaux = donnees.morceaux;
+  E.sigles = C.preparerSigles(donnees.sigles);
+  E.dim = manifeste.embeddings.dim;
+  E.vecteurs = demiVersFloat(octets);
+  if (E.vecteurs.length !== E.morceaux.length * E.dim) throw new Error("index incohérent (vecteurs et textes ne correspondent pas) : relance l'étape 6 de l'atelier");
+  E.bm25 = C.construireBM25(E.morceaux.map(m => `${m.s} ${E.docs[m.d].titre} ${m.t}`));
+  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · ${E.morceaux.length} passages · index du ${manifeste.cree_le}`;
+  remplirInfos();
+  $("question").disabled = $("chercher").disabled = false;
+}
+
+async function chargerIndex() {
+  etat("Chargement de l'index…");
+  const manifeste = JSON.parse(new TextDecoder().decode(await telecharger(CONFIG.dossierIndex + "manifest.json")));
+  const progres = (r, t) => etat(`Chargement de l'index : ${mo(r)}`, Math.min(99, 100 * r / t));
+  const donnees = JSON.parse(new TextDecoder().decode(await telecharger(CONFIG.dossierIndex + manifeste.morceaux, progres)));
+  const octets = await telecharger(CONFIG.dossierIndex + manifeste.embeddings.fichier, progres);
+  installerIndex(manifeste, donnees, octets);
+}
+
+$("fichiers-index").addEventListener("change", async ev => {
+  const f = {};
+  for (const x of ev.target.files) f[x.name] = x;
+  try {
+    if (!f["manifest.json"] || !f["chunks.json"] || !f["embeddings.bin"]) throw new Error("il faut au moins manifest.json, chunks.json et embeddings.bin");
+    const manifeste = JSON.parse(await f["manifest.json"].text());
+    installerIndex(manifeste, JSON.parse(await f["chunks.json"].text()), new Uint8Array(await f["embeddings.bin"].arrayBuffer()));
+    E.verifLocale = f["verif.json"] ? JSON.parse(await f["verif.json"].text()) : null;
+    $("secours").hidden = true;
+    etat("Index chargé. Recherche par mots-clés prête.", null, "ok");
+    chargerModele();
+  } catch (e) { etat("Fichiers refusés : " + e.message, null, "erreur"); }
+});
+
+// ---------- Modèle ----------
+async function chargerModele() {
+  const m = E.manifeste.modele;
+  etat("Recherche par mots-clés prête. Chargement du moteur de sens…");
+  try {
+    const T = await import(CONFIG.transformers);
+    T.env.allowLocalModels = false;
+    const fichiers = new Map();
+    E.extracteur = await T.pipeline("feature-extraction", m.id, {
+      dtype: m.dtype || "q8",
+      revision: m.revision,
+      progress_callback: p => {
+        if (p.status === "progress" && p.total) {
+          fichiers.set(p.file, [p.loaded, p.total]);
+          let l = 0, t = 0;
+          for (const [a, b] of fichiers.values()) { l += a; t += b; }
+          if (t > 2e6) etat(`Mots-clés prêts. Téléchargement du modèle (une seule fois) : ${Math.floor(100 * l / t)} % — ${mo(l)} / ${mo(t)}`, 100 * l / t);
+        } else if (p.status === "ready") etat("Préparation du modèle…");
+      },
+    });
+    await E.extracteur(m.prefixe_question + "test", { pooling: "mean", normalize: true });
+    etat("✅ Prêt : recherche par le sens et par mots-clés" + (HTTP ? " (fonctionne aussi hors connexion)" : ""), null, "ok");
+    $("verifier").disabled = false;
+    remplirInfos();
+    if (E.derniere && E.derniere.mode === "mots") lancer(E.derniere.question, false);
+  } catch (e) {
+    console.error(e);
+    E.echecModele = true;
+    if (E.derniere) afficher(E.derniere.question, E.derniere.resultats);
+    etat("⚠️ Moteur de sens indisponible (connexion ?) : recherche par mots-clés seulement. Recharge la page pour réessayer.", null, "erreur");
+  }
+}
+
+// ---------- Recherche ----------
+async function rechercher(question, k = CONFIG.nbResultats) {
+  const q = String(question || "").trim();
+  if (!q || !E.bm25) return [];
+  const qx = C.developperQuestion(q, C.siglesDansQuestion(q, E.sigles));
+  const listeMots = C.classer(C.scoresBM25(E.bm25, qx), CONFIG.candidats, true);
+  let fusion, mode = "mots";
+  if (E.extracteur) {
+    const sortie = await E.extracteur(E.manifeste.modele.prefixe_question + C.normaliserModele(qx), { pooling: "mean", normalize: true });
+    const listeSens = C.classer(C.scoresVecteurs(E.vecteurs, E.dim, sortie.data), CONFIG.candidats, false);
+    fusion = C.fusionner(listeSens, listeMots, 60, k);
+    mode = "hybride";
+  } else {
+    fusion = listeMots.slice(0, k).map((id, i) => ({ id, score: null, rangSens: null, rangMots: i + 1 }));
+  }
+  return fusion.map((f, i) => {
+    const m = E.morceaux[f.id], d = E.docs[m.d];
+    return { rang: i + 1, id: f.id, fichier: d.f, titre: d.titre, page: m.p, page_fin: m.pf, section: m.s, texte: m.t,
+             rang_sens: f.rangSens, rang_mots: f.rangMots, mode };
+  });
+}
+
+window.moteur = {
+  rechercher,
+  contexteLLM: async (question, k = CONFIG.nbResultats) => C.formaterPourLLM(question, await rechercher(question, k), C.siglesDansQuestion(question, E.sigles)),
+  sigles: question => C.siglesDansQuestion(question, E.sigles).map(x => ({ sigle: x.s, definition: x.def, fichier: E.docs[x.d].f, page: x.p })),
+  formaterPourLLM: C.formaterPourLLM,
+  pret: () => !!E.extracteur,
+};
+
+const lienPdf = f => CONFIG.dossierPdf + f.split("/").map(encodeURIComponent).join("/");
+const pdfDispo = new Map();
+function pdfPresent(f) {
+  if (!pdfDispo.has(f)) pdfDispo.set(f, (async () => {
+    if (!HTTP) return false;
+    try { const r = await fetch(lienPdf(f), { method: "HEAD", cache: "no-cache" }); if (r.ok) return true; } catch (e) {}
+    try { return !!(await caches.match(new URL(lienPdf(f), location.href).href, { ignoreVary: true })); } catch (e) { return false; }
+  })());
+  return pdfDispo.get(f);
+}
+
+async function lancer(question, majAdresse = true) {
+  const q = question.trim();
+  if (!q) return;
+  const ticket = ++E.enCours;
+  const resultats = await rechercher(q);
+  if (ticket !== E.enCours) return;
+  E.derniere = { question: q, resultats, mode: resultats[0] ? resultats[0].mode : (E.extracteur ? "hybride" : "mots") };
+  if (majAdresse && HTTP) history.replaceState(history.state, "", "?q=" + encodeURIComponent(q));
+  afficher(q, resultats);
+}
+
+function afficher(q, resultats) {
+  const qa = C.analyserQuestion(q), ol = $("resultats");
+  const sigles = C.siglesDansQuestion(q, E.sigles);
+  $("sigles").hidden = !sigles.length;
+  $("sigles").innerHTML = sigles.map(x => `<div>📖 <b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${C.echapper(E.docs[x.d].f)}, p. ${x.p}</span></div>`).join("");
+  $("outils").hidden = !resultats.length;
+  $("mode").textContent = E.extracteur ? "🧠 Recherche hybride (sens + mots-clés)"
+    : E.echecModele ? "🔤 Mots-clés seulement (moteur de sens indisponible)" : "🔤 Mots-clés seulement — mis à jour quand le modèle sera prêt";
+  if (!resultats.length) {
+    ol.innerHTML = `<li class="vide">Aucun passage trouvé${E.extracteur ? "" : " par mots-clés (essaie d'autres mots, ou attends le chargement du modèle)"}.</li>`;
+    return;
+  }
+  ol.innerHTML = resultats.map((r, i) => {
+    const pages = r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
+    const pert = [r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`].filter(Boolean).join(" · ");
+    return `<li class="carte">
+      <div class="source"><span class="rang">${i + 1}</span><span>📄 <b>${C.echapper(r.fichier)}</b> · ${pages}${r.section ? " · " + C.echapper(r.section) : ""}</span></div>
+      <p class="extrait">${C.extrait(r.texte, qa)}</p>
+      <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
+      <div class="actions" hidden data-i="${i}">
+        <button type="button" data-voir="${i}">Voir la page ${r.page}</button>
+        <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF ↗</a>
+      </div>
+      ${pert ? `<div class="pertinence">Trouvé par : ${pert}</div>` : ""}
+    </li>`;
+  }).join("");
+  resultats.forEach((r, i) => pdfPresent(r.fichier).then(ok => {
+    const a = ol.querySelector(`.actions[data-i="${i}"]`);
+    if (ok && a) a.hidden = false;
+  }));
+}
+
+$("formulaire").addEventListener("submit", ev => { ev.preventDefault(); $("question").blur(); lancer($("question").value); });
+$("resultats").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-voir]");
+  if (!b || !E.derniere) return;
+  const r = E.derniere.resultats[Number(b.dataset.voir)];
+  ouvrirVisionneuse(r.fichier, r.page);
+});
+
+async function copier(texte) {
+  try { await navigator.clipboard.writeText(texte); return true; } catch (e) {
+    const t = document.createElement("textarea");
+    t.value = texte; document.body.appendChild(t); t.select();
+    const ok = document.execCommand("copy"); t.remove(); return ok;
+  }
+}
+$("copier-llm").addEventListener("click", async () => {
+  if (!E.derniere) return;
+  const ok = await copier(C.formaterPourLLM(E.derniere.question, E.derniere.resultats, C.siglesDansQuestion(E.derniere.question, E.sigles)));
+  $("copier-llm").textContent = ok ? "✅ Copié" : "❌ Copie impossible";
+  setTimeout(() => { $("copier-llm").textContent = "📋 Copier pour un LLM"; }, 1800);
+});
+
+// ---------- Visionneuse PDF ----------
+const V = { pdfjs: null, doc: null, fichier: null, page: 1, zoom: 1, rendu: null };
+async function ouvrirVisionneuse(fichier, page) {
+  $("visionneuse").hidden = false;
+  document.body.classList.add("bloque");
+  if (!history.state || !history.state.visionneuse) history.pushState({ visionneuse: true }, "");
+  $("v-titre").textContent = fichier;
+  $("v-ouvrir").href = `${lienPdf(fichier)}#page=${page}`;
+  $("v-etat").textContent = "Chargement…";
+  try {
+    if (!V.pdfjs) {
+      V.pdfjs = await import(CONFIG.pdfjs);
+      V.pdfjs.GlobalWorkerOptions.workerSrc = CONFIG.pdfjsWorker;
+    }
+    if (V.fichier !== fichier) {
+      if (V.doc) V.doc.destroy();
+      V.doc = null; V.fichier = null;
+      V.doc = await V.pdfjs.getDocument({ url: lienPdf(fichier), disableRange: true, disableStream: true }).promise;
+      V.fichier = fichier;
+    }
+    V.page = Math.min(Math.max(1, page), V.doc.numPages);
+    V.zoom = 1;
+    await dessinerPage();
+  } catch (e) {
+    console.error(e);
+    $("v-etat").textContent = "Affichage impossible ici : utilise « Ouvrir ↗ ».";
+  }
+}
+async function dessinerPage() {
+  if (!V.doc) return;
+  const p = await V.doc.getPage(V.page);
+  const base = p.getViewport({ scale: 1 });
+  const largeur = Math.max(200, $("v-zone").clientWidth - 16);
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const vp = p.getViewport({ scale: (largeur / base.width) * V.zoom * ratio });
+  const c = $("v-canvas");
+  if (V.rendu) { V.rendu.cancel(); V.rendu = null; }
+  c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+  c.style.width = Math.floor(vp.width / ratio) + "px"; c.style.height = Math.floor(vp.height / ratio) + "px";
+  $("v-etat").textContent = `Page ${V.page} / ${V.doc.numPages}`;
+  $("v-ouvrir").href = `${lienPdf(V.fichier)}#page=${V.page}`;
+  const tache = p.render({ canvasContext: c.getContext("2d"), canvas: c, viewport: vp });
+  V.rendu = tache;
+  try { await tache.promise; } catch (e) { if (e && e.name !== "RenderingCancelledException") throw e; }
+}
+function fermerVisionneuse(depuisHistorique = false) {
+  if ($("visionneuse").hidden) return;
+  $("visionneuse").hidden = true;
+  document.body.classList.remove("bloque");
+  if (!depuisHistorique && history.state && history.state.visionneuse) history.back();
+}
+$("v-fermer").onclick = () => fermerVisionneuse();
+$("v-prec").onclick = () => { if (V.doc && V.page > 1) { V.page--; dessinerPage(); } };
+$("v-suiv").onclick = () => { if (V.doc && V.page < V.doc.numPages) { V.page++; dessinerPage(); } };
+$("v-plus").onclick = () => { V.zoom = Math.min(4, V.zoom * 1.25); dessinerPage(); };
+$("v-moins").onclick = () => { V.zoom = Math.max(0.5, V.zoom / 1.25); dessinerPage(); };
+window.addEventListener("popstate", () => fermerVisionneuse(true));
+document.addEventListener("keydown", ev => {
+  if ($("visionneuse").hidden) return;
+  if (ev.key === "Escape") fermerVisionneuse();
+  if (ev.key === "ArrowLeft") $("v-prec").click();
+  if (ev.key === "ArrowRight") $("v-suiv").click();
+});
+
+// ---------- Infos et vérification ----------
+function remplirInfos() {
+  if (!E.manifeste) return;
+  const m = E.manifeste.modele;
+  $("infos-docs").innerHTML = "<ul>" + E.docs.map(d => `<li>${C.echapper(d.f)} — ${d.pages} pages, ${d.n} passages</li>`).join("") + "</ul>";
+  const alerte = E.manifeste.transformers_js && E.manifeste.transformers_js !== CONFIG.versionTransformers
+    ? ` ⚠️ L'atelier a utilisé transformers.js ${E.manifeste.transformers_js}, cette page ${CONFIG.versionTransformers}.` : "";
+  $("infos-modele").textContent = `Modèle : ${m.id} (version ${m.revision.slice(0, 7)}, ${m.dtype}), ${E.dim} dimensions — ${E.extracteur ? "chargé ✅" : "non chargé"}.${alerte}`;
+}
+
+$("verifier").addEventListener("click", async () => {
+  const out = $("verif-resultat"), m = E.manifeste.modele;
+  out.textContent = "Calcul en cours…";
+  try {
+    const v = E.verifLocale || JSON.parse(new TextDecoder().decode(await telecharger(CONFIG.dossierIndex + "verif.json")));
+    let entrees = 0, ids = 0, cosMin = 1, ecart = 0;
+    for (const t of v.textes) {
+      const entree = (t.type === "query" ? m.prefixe_question : m.prefixe_passage) + C.normaliserModele(t.texte);
+      if (entree === t.entree) entrees++;
+      const mes = Array.from(E.extracteur.tokenizer.encode(t.entree));
+      if (mes.length === t.ids.length && mes.every((x, i) => x === t.ids[i])) ids++;
+      const a = (await E.extracteur(t.entree, { pooling: "mean", normalize: true })).data, b = t.vecteur;
+      let pa = 0, na = 0, nb = 0;
+      for (let i = 0; i < b.length; i++) { pa += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; ecart = Math.max(ecart, Math.abs(a[i] - b[i])); }
+      cosMin = Math.min(cosMin, pa / Math.sqrt(na * nb));
+    }
+    const n = v.textes.length, memeVersion = v.revision === m.revision;
+    const base = memeVersion && entrees === n && ids === n;
+    const verdict = base && cosMin >= 0.9999 ? "✅ <b>Identique à Colab</b> (aux arrondis de calcul près)"
+      : base && cosMin >= 0.999 ? "✅ <b>Équivalent à Colab</b> (écarts d'arrondi minimes, sans effet sur la recherche)"
+      : "❌ <b>Différence détectée</b> : relance les étapes 4 à 6 de l'atelier";
+    out.innerHTML = `${verdict}<br>
+      Même version du modèle : ${memeVersion ? "oui" : "non"} · Textes préparés à l'identique : ${entrees}/${n} · Tokens identiques : ${ids}/${n}<br>
+      Similarité cosinus minimale : ${cosMin.toFixed(7)} · écart max : ${ecart.toExponential(1)}`;
+  } catch (e) {
+    out.textContent = "Vérification impossible : " + e.message + " (verif.json manquant ? lance l'étape 5 puis 6 de l'atelier).";
+  }
+});
+
+// ---------- Démarrage ----------
+(async () => {
+  await preparerHorsLigne();
+  try {
+    await chargerIndex();
+  } catch (e) {
+    console.error(e);
+    etat(HTTP ? "Index introuvable : vérifie que le dossier index/ est bien à côté de la page." : "Page ouverte comme simple fichier : l'index ne peut pas être lu automatiquement.", null, "erreur");
+    $("secours").hidden = false;
+    return;
+  }
+  etat("Recherche par mots-clés prête. Chargement du moteur de sens…");
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) { $("question").value = q; lancer(q, false); }
+  chargerModele();
+})();
+</script>
+</body>
+</html>

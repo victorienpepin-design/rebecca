@@ -1,0 +1,27 @@
+{
+ "format": 1,
+ "version": "f2f46779c775",
+ "cree_le": "2026-10-31 11:32",
+ "modele": {
+  "id": "Xenova/multilingual-e5-small",
+  "revision": "97cb8f96eaed1a1f0dac821239943e854fce9c36",
+  "dtype": "q8",
+  "fichier": "onnx/model_quantized.onnx",
+  "onnx_sha256": "f80102d3f2a1229f387d3c81909990d8945513e347b0eab049f7de3c6f98c193",
+  "dim": 384,
+  "prefixe_question": "query: ",
+  "prefixe_passage": "passage: ",
+  "pooling": "mean",
+  "normalize": true
+ },
+ "transformers_js": "3.8.1",
+ "embeddings": {
+  "fichier": "embeddings.bin",
+  "format": "float16",
+  "n": 206,
+  "dim": 384
+ },
+ "morceaux": "chunks.json",
+ "nb_docs": 6,
+ "nb_morceaux": 206
+}
