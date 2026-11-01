@@ -3,165 +3,244 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e7069">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icones/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icones/icone-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rebecca">
 <title>Rebecca</title>
 <style>
 :root {
-  --fond: #f6f7f5; --carte: #ffffff; --texte: #1d2321; --doux: #5d6a66; --bord: #dde3e0;
-  --accent: #0e7069; --accent-doux: #e2f1ee; --marque: #ffe58a; --erreur: #a33b2b; --ombre: 0 1px 2px rgba(0,0,0,.06);
+  --fond: #f4f6f5; --carte: #ffffff; --carte-2: #f8faf9; --texte: #16201d; --doux: #5b6b66; --bord: #e1e7e4; --bord-fort: #cfd8d4;
+  --accent: #0f766e; --accent-fort: #0b5f58; --accent-doux: #e3f2ef; --sur-accent: #ffffff; --marque: #fde68a;
+  --erreur: #b42318; --erreur-doux: #fdecea; --ok: #15803d;
+  --ombre: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .06); --rayon: 14px;
 }
 :root:not([data-theme="light"]) { color-scheme: light dark; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --fond: #121615; --carte: #1b2120; --texte: #e6ebe9; --doux: #9aa8a3; --bord: #2c3533;
-    --accent: #4fc2b5; --accent-doux: #1d3431; --marque: #6b5a12; --erreur: #ff8f7a; --ombre: none;
+    --fond: #0f1413; --carte: #171d1c; --carte-2: #1c2322; --texte: #e7ecea; --doux: #98a7a2; --bord: #29312f; --bord-fort: #36403d;
+    --accent: #5eead4; --accent-fort: #99f6e4; --accent-doux: #16302c; --sur-accent: #04201c; --marque: #6b5a12;
+    --erreur: #ff8a7a; --erreur-doux: #3a1c18; --ok: #6ee7a0; --ombre: none;
   }
 }
 :root[data-theme="dark"] {
-  --fond: #121615; --carte: #1b2120; --texte: #e6ebe9; --doux: #9aa8a3; --bord: #2c3533;
-  --accent: #4fc2b5; --accent-doux: #1d3431; --marque: #6b5a12; --erreur: #ff8f7a; --ombre: none;
+  --fond: #0f1413; --carte: #171d1c; --carte-2: #1c2322; --texte: #e7ecea; --doux: #98a7a2; --bord: #29312f; --bord-fort: #36403d;
+  --accent: #5eead4; --accent-fort: #99f6e4; --accent-doux: #16302c; --sur-accent: #04201c; --marque: #6b5a12;
+  --erreur: #ff8a7a; --erreur-doux: #3a1c18; --ok: #6ee7a0; --ombre: none;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
 body.bloque { overflow: hidden; }
-.page { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; }
-header h1 { font-size: 1.35rem; margin: 8px 0 2px; letter-spacing: -.01em; }
-header p { margin: 0 0 14px; color: var(--doux); font-size: .9rem; }
+.ico { width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.2em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ico.tourne { animation: tourne 1s linear infinite; }
+@keyframes tourne { to { transform: rotate(360deg); } }
+.page { max-width: 760px; margin: 0 auto; padding: 16px 16px 56px; }
+header { display: flex; align-items: center; gap: 12px; margin: 10px 0 16px; }
+.logo { width: 42px; height: 42px; border-radius: 12px; background: var(--accent); color: var(--sur-accent); display: grid; place-items: center; flex: none; box-shadow: var(--ombre); }
+.logo .ico { width: 24px; height: 24px; }
+header h1 { font-size: 1.4rem; line-height: 1.15; margin: 0; letter-spacing: -.02em; font-weight: 700; }
+header p { margin: 2px 0 0; color: var(--doux); font-size: .86rem; }
 form { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; }
-form .champ { display: flex; gap: 8px; flex: 1 1 300px; min-width: 0; }
+form .champ { display: flex; gap: 8px; flex: 1 1 300px; min-width: 0; position: relative; }
+form .champ > .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--doux); pointer-events: none; }
 form .boutons { display: flex; gap: 8px; flex: 0 0 auto; }
 @media (max-width: 599px) {
   form { position: static; }
   form .boutons { flex: 1 1 100%; }
   form .boutons button { flex: 1; justify-content: center; }
 }
-input[type=search] { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; padding: 12px 14px; border: 1.5px solid var(--bord); border-radius: 12px; background: var(--carte); color: var(--texte); }
-input[type=search]:focus { outline: none; border-color: var(--accent); }
-button, .bouton { font: inherit; font-size: .95rem; border: 0; border-radius: 10px; padding: 10px 14px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
-:root[data-theme="dark"] button:not(.secondaire), :root[data-theme="dark"] .bouton:not(.secondaire) { color: #08201d; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button:not(.secondaire), :root:not([data-theme="light"]) .bouton:not(.secondaire) { color: #08201d; } }
-button.secondaire, .bouton.secondaire { background: var(--accent-doux); color: var(--accent); }
+input[type=search] { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; padding: 12px 14px 12px 42px; min-height: 50px; border: 1px solid var(--bord-fort); border-radius: var(--rayon); background: var(--carte); color: var(--texte); box-shadow: var(--ombre); }
+input[type=search]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-doux); }
+input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+button, .bouton { font: inherit; font-size: .95rem; font-weight: 600; border: 1px solid transparent; border-radius: 12px; padding: 10px 16px; background: var(--accent); color: var(--sur-accent);
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; transition: background .15s, border-color .15s, transform .05s; }
+button:hover:not(:disabled), .bouton:hover { background: var(--accent-fort); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible, .bouton:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent-doux); outline-offset: 2px; }
+button.secondaire, .bouton.secondaire { background: var(--carte); color: var(--texte); border-color: var(--bord-fort); }
+button.secondaire:hover:not(:disabled), .bouton.secondaire:hover { background: var(--carte-2); border-color: var(--accent); }
+button.carre { width: 50px; min-height: 50px; padding: 0; border-radius: var(--rayon); }
+button.carre .ico { width: 20px; height: 20px; }
 button:disabled { opacity: .5; cursor: default; }
 button[hidden] { display: none; }
-input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
-.etat { margin: 6px 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-doux); font-size: .92rem; }
-.etat.erreur { background: transparent; border: 1.5px solid var(--erreur); color: var(--erreur); }
-.etat.ok { background: transparent; color: var(--doux); padding: 2px 2px 6px; }
-.barre { height: 6px; background: var(--bord); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.etat { margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-doux); font-size: .9rem; display: grid; gap: 6px; }
+.etat-ligne { display: flex; gap: 8px; align-items: flex-start; }
+.etat-ligne .ico { margin-top: .15em; }
+.etat.erreur { background: var(--erreur-doux); color: var(--erreur); }
+.etat.ok { background: transparent; color: var(--doux); padding: 0 2px 6px; }
+.etat.ok .ico { color: var(--ok); }
+.barre { height: 4px; background: var(--bord); border-radius: 2px; overflow: hidden; }
 .barre > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .barre.indetermine > div { width: 35%; animation: glisse 1.2s infinite ease-in-out; }
 @keyframes glisse { from { margin-left: -35%; } to { margin-left: 100%; } }
-.outils { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; color: var(--doux); font-size: .88rem; flex-wrap: wrap; }
-ol.resultats { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; }
-.groupe { display: grid; gap: 8px; }
-.doc { display: grid; gap: 1px; padding: 0 4px; }
-.doc-titre { font-weight: 700; font-size: 1.02rem; overflow-wrap: anywhere; }
-.doc-infos { font-size: .82rem; color: var(--doux); overflow-wrap: anywhere; }
-.passages { display: grid; gap: 8px; border-left: 3px solid var(--accent-doux); padding-left: 8px; }
-.avis { border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: .95rem; display: grid; gap: 4px; background: var(--carte); border: 1px solid var(--bord); }
-.avis[hidden] { display: none; }
-.avis .faible { color: var(--erreur); }
+.outils { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; color: var(--doux); font-size: .86rem; }
+.outils[hidden] { display: none; }
+ol.resultats { list-style: none; padding: 0; margin: 0; display: grid; gap: 22px; }
+.groupe { display: grid; gap: 10px; }
+.doc { display: grid; gap: 2px; padding: 0 2px; }
+.doc-titre { font-weight: 700; font-size: 1.02rem; overflow-wrap: anywhere; display: flex; gap: 8px; align-items: flex-start; }
+.doc-titre .ico { color: var(--accent); margin-top: .15em; }
+.doc-infos { font-size: .8rem; color: var(--doux); overflow-wrap: anywhere; padding-left: 26px; }
+.passages { display: grid; gap: 10px; }
+.avis, .sigles { border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: .92rem; display: grid; gap: 6px; background: var(--carte); border: 1px solid var(--bord); overflow-wrap: anywhere; }
+.avis[hidden], .sigles[hidden] { display: none; }
+.avis > div, .sigles > div { display: flex; gap: 8px; align-items: flex-start; }
+.avis .ico, .sigles .ico { margin-top: .2em; color: var(--doux); }
+.avis .faible, .avis .faible .ico { color: var(--erreur); }
+.sigles { background: var(--accent-doux); border-color: transparent; }
+.sigles .ico { color: var(--accent); }
 ul.biblio { list-style: none; padding: 0; margin: 4px 0 10px; display: grid; gap: 8px; }
-ul.biblio li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--bord); padding-bottom: 8px; }
+ul.biblio li { display: flex; gap: 10px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--bord); padding-bottom: 8px; }
 ul.biblio .b-texte { min-width: 0; overflow-wrap: anywhere; }
-ul.biblio .b-texte span { display: block; font-size: .82rem; color: var(--doux); }
-ul.biblio a { flex: none; font-size: .88rem; color: var(--accent); }
-.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 14px; box-shadow: var(--ombre); }
-.source { display: flex; gap: 10px; align-items: baseline; font-size: .9rem; color: var(--doux); }
-.rang { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-doux); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: .85rem; }
+ul.biblio .b-texte span { display: block; font-size: .8rem; color: var(--doux); }
+ul.biblio a { flex: none; font-size: .86rem; color: var(--accent); display: inline-flex; gap: 4px; align-items: center; text-decoration: none; font-weight: 600; }
+.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 14px; box-shadow: var(--ombre); }
+.source { display: flex; gap: 10px; align-items: baseline; font-size: .88rem; color: var(--doux); }
+.rang { flex: none; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: var(--accent-doux); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: .8rem; }
 .source b { color: var(--texte); font-weight: 600; word-break: break-word; }
 .extrait { margin: 10px 0 6px; overflow-wrap: anywhere; }
 mark { background: var(--marque); color: inherit; border-radius: 3px; padding: 0 2px; }
-details.complet summary { cursor: pointer; color: var(--accent); font-size: .9rem; padding: 6px 0; }
-.md { font-size: .95rem; overflow-wrap: anywhere; }
+details.complet summary { cursor: pointer; color: var(--accent); font-size: .88rem; font-weight: 600; padding: 6px 0; }
+.md { font-size: .94rem; overflow-wrap: anywhere; }
 .md .titre-md { font-weight: 700; margin: 10px 0 4px; }
 .tableau { overflow-x: auto; margin: 8px 0; -webkit-overflow-scrolling: touch; }
-.tableau table { border-collapse: collapse; font-size: .88rem; min-width: 100%; }
+.tableau table { border-collapse: collapse; font-size: .86rem; min-width: 100%; }
 .tableau th, .tableau td { border: 1px solid var(--bord); padding: 5px 8px; text-align: left; vertical-align: top; }
 .tableau th { background: var(--accent-doux); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .actions[hidden] { display: none; }
-.pertinence { font-size: .78rem; color: var(--doux); margin-top: 6px; }
-.sigles { background: var(--accent-doux); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: .95rem; display: grid; gap: 4px; overflow-wrap: anywhere; }
-.sigles[hidden] { display: none; }
+.actions button, .actions .bouton { min-height: 40px; padding: 8px 14px; font-size: .9rem; }
+.pertinence { font-size: .76rem; color: var(--doux); margin-top: 8px; }
 .vide { text-align: center; color: var(--doux); padding: 24px 8px; }
-details.infos { margin-top: 28px; background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 4px 14px; }
-details.infos summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+details.infos { margin-top: 16px; background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 2px 14px; box-shadow: var(--ombre); }
+details.infos summary { cursor: pointer; padding: 12px 0; font-weight: 650; display: flex; align-items: center; gap: 10px; list-style: none; }
+details.infos summary::-webkit-details-marker { display: none; }
+details.infos summary .ico { color: var(--accent); }
+details.infos summary .fleche { margin-left: auto; color: var(--doux); transition: transform .2s; }
+details.infos[open] summary .fleche { transform: rotate(180deg); }
 details.infos ul { padding-left: 18px; margin: 6px 0; }
-.petit { font-size: .85rem; color: var(--doux); }
+.petit { font-size: .84rem; color: var(--doux); }
 pre { white-space: pre-wrap; background: var(--fond); padding: 10px; border-radius: 8px; font-size: .82rem; }
 #secours { margin: 10px 0; }
 .visionneuse { position: fixed; inset: 0; background: var(--fond); z-index: 50; display: flex; flex-direction: column; }
 .visionneuse[hidden] { display: none; }
-.v-barre { padding: 6px 8px; border-bottom: 1px solid var(--bord); background: var(--carte); display: grid; gap: 6px; }
-.v-ligne { display: flex; align-items: center; gap: 6px; }
+.v-barre { padding: 8px; border-bottom: 1px solid var(--bord); background: var(--carte); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.v-ligne { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .v-barre .titre { flex: 1; min-width: 0; font-size: .9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .v-barre button, .v-barre .bouton { padding: 6px 12px; min-height: 40px; }
 #v-ouvrir { margin-left: auto; }
-#v-etat { font-size: .88rem; color: var(--doux); margin: 0 4px; }
+#v-etat { font-size: .86rem; color: var(--doux); margin: 0 4px; }
 .v-zone { flex: 1; overflow: auto; padding: 8px; text-align: center; -webkit-overflow-scrolling: touch; }
 .v-zone canvas { background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.2); max-width: none; }
-.reponse { margin: 6px 0 14px; border: 1.5px solid var(--accent); display: grid; gap: 8px; }
+.reponse { margin: 6px 0 16px; padding: 16px; display: grid; gap: 10px; border-color: color-mix(in srgb, var(--accent) 35%, var(--bord)); }
 .reponse[hidden] { display: none; }
-.r-tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.r-corps { overflow-wrap: anywhere; }
+.r-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.r-tete > b { display: inline-flex; align-items: center; gap: 8px; font-size: 1.02rem; }
+.r-tete > b .ico { color: var(--accent); }
+.r-corps { overflow-wrap: anywhere; font-size: 1.02rem; }
 .r-corps p { margin: 0 0 8px; }
 .r-corps ul { margin: 0 0 8px; padding-left: 20px; }
 .r-corps li { margin: 3px 0; }
-.r-attente { color: var(--doux); }
+.r-corps .r-message { display: flex; gap: 10px; align-items: flex-start; }
+.r-corps .r-message .ico { margin-top: .2em; color: var(--doux); }
+.r-corps .r-message.erreur, .r-corps .r-message.erreur .ico { color: var(--erreur); }
+.r-attente { color: var(--doux); display: flex; align-items: center; gap: 8px; }
 .r-attente::after { content: ""; display: inline-block; width: 1em; text-align: left; animation: points 1.2s steps(4) infinite; }
 @keyframes points { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
-a.cite { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; margin: 0 1px; border-radius: 11px; background: var(--accent-doux);
-  color: var(--accent); font-size: .78rem; font-weight: 700; text-decoration: none; vertical-align: 2px; }
+a.cite { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin: 0 1px; border-radius: 11px; background: var(--accent-doux);
+  color: var(--accent); font-size: .76rem; font-weight: 700; text-decoration: none; vertical-align: 2px; }
 a.cite.invalide { background: transparent; border: 1px solid var(--erreur); color: var(--erreur); }
 mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px dotted var(--erreur); border-radius: 0; padding: 0; font-weight: 600; }
-.r-alertes { display: grid; gap: 4px; font-size: .9rem; color: var(--erreur); }
+.r-alertes { display: grid; gap: 6px; font-size: .88rem; color: var(--erreur); background: var(--erreur-doux); border-radius: 10px; padding: 8px 10px; }
+.r-alertes > div { display: flex; gap: 8px; align-items: flex-start; }
+.r-alertes .ico { margin-top: .15em; }
 .r-alertes[hidden], .r-sources[hidden], .r-pied[hidden] { display: none; }
-.r-sources { display: grid; gap: 6px; border-top: 1px solid var(--bord); padding-top: 8px; font-size: .88rem; }
-.r-source { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.r-sources { display: grid; gap: 8px; border-top: 1px solid var(--bord); padding-top: 10px; font-size: .86rem; }
+.r-source { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .r-source .r-doc { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; color: var(--doux); }
 .r-source .r-doc b { color: var(--texte); font-weight: 600; }
-.r-source a, .r-source button { font-size: .85rem; }
-.r-source button { min-height: 32px; padding: 4px 10px; }
+.r-source button, .r-source .bouton { min-height: 34px; padding: 4px 12px; font-size: .84rem; }
 .r-pied { margin: 0; }
-.reglages { display: grid; gap: 10px; padding: 4px 0 12px; }
-.reglages label { display: grid; gap: 4px; font-size: .9rem; color: var(--doux); }
-.reglages input, .reglages select { font: inherit; font-size: 16px; padding: 10px 12px; border: 1.5px solid var(--bord); border-radius: 10px; background: var(--carte); color: var(--texte); min-width: 0; }
-.reglages input:focus, .reglages select:focus { outline: none; border-color: var(--accent); }
-.reglages label[hidden] { display: none; }
-.reglages label.case { display: flex; align-items: center; gap: 8px; color: var(--texte); }
-.reglages label.case input { width: 22px; height: 22px; padding: 0; }
-.reglages .titre-reglage { margin: 8px 0 0; padding-top: 10px; border-top: 1px solid var(--bord); font-weight: 600; }
-#dicter.ecoute { background: var(--erreur); color: #fff; animation: pulse 1.2s infinite; }
-@keyframes pulse { 50% { opacity: .6; } }
-.r-tete #r-ecouter { margin-left: auto; min-height: 36px; padding: 4px 12px; font-size: .88rem; }
-#r-voix { margin: 0; }
+.r-tete #r-ecouter { margin-left: auto; min-height: 36px; padding: 4px 12px; font-size: .86rem; }
+#r-voix { margin: 0; display: flex; gap: 8px; align-items: center; }
 #r-voix[hidden] { display: none; }
+#dicter.ecoute { background: var(--erreur); border-color: var(--erreur); color: #fff; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .65; } }
+.reglages { display: grid; gap: 12px; padding: 4px 0 14px; }
+.reglages label { display: grid; gap: 4px; font-size: .88rem; color: var(--doux); }
+.reglages label[hidden] { display: none; }
+.reglages input, .reglages select { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--bord-fort); border-radius: 10px; background: var(--carte); color: var(--texte); min-width: 0; }
+.reglages input:focus, .reglages select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-doux); }
+.reglages label.case { display: flex; align-items: center; gap: 10px; color: var(--texte); font-size: .95rem; }
+.reglages label.case input { width: 22px; height: 22px; padding: 0; accent-color: var(--accent); }
+.reglages .titre-reglage { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid var(--bord); font-weight: 650; display: flex; gap: 8px; align-items: center; color: var(--texte); }
+.reglages .titre-reglage .ico { color: var(--accent); }
+.statut { display: flex; gap: 8px; align-items: flex-start; }
+.statut .ico { margin-top: .15em; }
+.statut.ok .ico { color: var(--ok); }
+.statut.ko, .statut.ko .ico { color: var(--erreur); }
 .carte.surligne { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
+<!-- Icônes Lucide (licence ISC, https://lucide.dev), intégrées pour fonctionner hors connexion -->
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></symbol>
+<symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></symbol>
+<symbol id="i-loader-circle" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-volume-2" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></symbol>
+<symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></symbol>
+<symbol id="i-circle-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-search-x" viewBox="0 0 24 24"><path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></symbol>
+<symbol id="i-book-open-text" viewBox="0 0 24 24"><path d="M12 5v16"/><path d="M16 13h2"/><path d="M16 9h2"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/><path d="M6 13h2"/><path d="M6 9h2"/></symbol>
+<symbol id="i-circle-slash" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="9" x2="15" y1="15" y2="9"/></symbol>
+<symbol id="i-spell-check" viewBox="0 0 24 24"><path d="m20 15-5.5 5.5L12 18"/><path d="m4 16 6-12 5.115 10.23"/><path d="M6 12h8"/></symbol>
+<symbol id="i-circle-pause" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></symbol>
+<symbol id="i-text-search" viewBox="0 0 24 24"><path d="M21 5H3"/><path d="M10 12H3"/><path d="M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></symbol>
+<symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+</svg>
 <div class="page">
   <header>
-    <h1>🔎 Rebecca</h1>
-    <p id="sous-titre">Recherche dans les protocoles, référentiels et fiches</p>
+    <div class="logo"><svg class="ico" aria-hidden="true"><use href="#i-book-open-text"></use></svg></div>
+    <div><h1 id="titre">Rebecca</h1>
+    <p id="sous-titre">Recherche dans les protocoles, référentiels et fiches</p></div>
   </header>
 
   <form id="formulaire" role="search" autocomplete="off">
     <div class="champ">
-      <input id="question" type="search" autocomplete="off" name="rebecca-q" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
-      <button id="effacer" class="secondaire" type="button" aria-label="Effacer la recherche" hidden>✕</button>
-      <button id="dicter" class="secondaire" type="button" aria-label="Dicter la question" hidden>🎤</button>
+      <svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg>
+      <input id="question" type="search" autocomplete="off" name="rebecca-q" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="send" aria-label="Recherche" disabled>
+      <button id="effacer" class="secondaire carre" type="button" aria-label="Effacer la recherche" hidden><svg class="ico" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      <button id="dicter" class="secondaire carre" type="button" aria-label="Dicter la question" hidden><svg class="ico" aria-hidden="true"><use href="#i-mic"></use></svg></button>
     </div>
     <div class="boutons">
-      <button id="chercher" class="secondaire" type="submit" disabled>🔎 Chercher</button>
-      <button id="repondre" type="button" disabled>✍️ Répondre</button>
+      <button id="chercher" class="secondaire" type="button" disabled><svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg>Chercher</button>
+      <button id="repondre" type="button" disabled><svg class="ico" aria-hidden="true"><use href="#i-sparkles"></use></svg>Répondre</button>
     </div>
   </form>
 
   <div id="etat" class="etat" role="status" aria-live="polite">
-    <span id="etat-texte">Démarrage…</span>
+    <span class="etat-ligne"><span id="etat-ico"></span><span id="etat-texte">Démarrage…</span></span>
     <div id="etat-barre" class="barre indetermine"><div></div></div>
   </div>
 
@@ -172,7 +251,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   </div>
 
   <section id="reponse" class="carte reponse" hidden aria-live="polite">
-    <div class="r-tete"><b>✍️ Réponse</b><span id="r-meta" class="petit"></span><button id="r-ecouter" class="secondaire" type="button" hidden>🔊 Écouter</button></div>
+    <div class="r-tete"><b><svg class="ico" aria-hidden="true"><use href="#i-sparkles"></use></svg>Réponse</b><span id="r-meta" class="petit"></span><button id="r-ecouter" class="secondaire" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-volume-2"></use></svg>Écouter</button></div>
     <p id="r-voix" class="petit" hidden></p>
     <div id="r-corps" class="r-corps"></div>
     <div id="r-alertes" class="r-alertes" hidden></div>
@@ -188,12 +267,12 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   <ol id="resultats" class="resultats" aria-live="polite"></ol>
 
   <details id="biblio" class="infos">
-    <summary id="biblio-titre">📚 Bibliothèque</summary>
+    <summary><svg class="ico" aria-hidden="true"><use href="#i-library"></use></svg><span id="biblio-titre">Bibliothèque</span><svg class="ico fleche" aria-hidden="true"><use href="#i-chevron-down"></use></svg></summary>
     <ul id="biblio-liste" class="biblio"></ul>
   </details>
 
   <details id="reglages" class="infos">
-    <summary>⚙️ Réglages (Rédacteur et voix)</summary>
+    <summary><svg class="ico" aria-hidden="true"><use href="#i-settings"></use></svg>Réglages (Rédacteur et voix)<svg class="ico fleche" aria-hidden="true"><use href="#i-chevron-down"></use></svg></summary>
     <div class="reglages">
       <p id="r-relais" class="petit" style="margin:0"></p>
       <label>Fournisseur à régler
@@ -212,19 +291,23 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       <p class="petit" style="margin:0">Quand un fournisseur atteint sa limite, Rebecca passe tout seule au modèle ou au fournisseur suivant.
         Les clés restent <b>seulement sur cet appareil</b>, dans ce navigateur : elles ne sont jamais envoyées sur le site, seulement au fournisseur, avec ta question et les passages.
         Sur iPhone/iPad, Rebecca ajoutée à l'écran d'accueil a sa propre mémoire : colle les clés une fois dedans. Safari peut les oublier après 7 jours sans ouvrir Rebecca.</p>
-      <p class="titre-reglage">🔊 Voix</p>
+      <p class="titre-reglage"><svg class="ico" aria-hidden="true"><use href="#i-volume-2"></use></svg>Voix</p>
       <label class="case"><input id="vx-auto" type="checkbox"> Lire les réponses à voix haute</label>
+      <label>Voix
+        <select id="vx-moteur"><option value="piper">Ta voix (Piper, sur l'appareil)</option><option value="gemini">Gemini (cloud, en option)</option></select></label>
+      <label id="vx-gemini-l">Voix Gemini
+        <select id="vx-gemini"></select></label>
       <label>Réglage de la voix
         <select id="vx-reglage"><option value="fluide">Fluide</option><option value="origine">D'origine</option></select></label>
       <label>Vitesse
         <select id="vx-vitesse"><option value="1.15">Lente</option><option value="1">Normale</option><option value="0.9">Rapide</option></select></label>
-      <div class="actions"><button id="vx-essai" class="secondaire" type="button">▶︎ Essayer la voix</button></div>
+      <div class="actions"><button id="vx-essai" class="secondaire" type="button"><svg class="ico" aria-hidden="true"><use href="#i-play"></use></svg>Essayer la voix</button></div>
       <p id="vx-etat" class="petit" style="margin:0"></p>
     </div>
   </details>
 
   <details id="infos" class="infos">
-    <summary>ℹ️ Infos et vérification</summary>
+    <summary><svg class="ico" aria-hidden="true"><use href="#i-info"></use></svg>Infos et vérification<svg class="ico fleche" aria-hidden="true"><use href="#i-chevron-down"></use></svg></summary>
     <p id="infos-index" class="petit"></p>
     <p id="infos-modele" class="petit"></p>
     <p><button id="verifier" class="secondaire" type="button" disabled>Vérifier le modèle</button></p>
@@ -235,14 +318,14 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 
 <div id="visionneuse" class="visionneuse" hidden>
   <div class="v-barre">
-    <div class="v-ligne"><span id="v-titre" class="titre"></span><button id="v-fermer" type="button" aria-label="Fermer">✕ Fermer</button></div>
+    <div class="v-ligne"><span id="v-titre" class="titre"></span><button id="v-fermer" type="button" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-x"></use></svg>Fermer</button></div>
     <div class="v-ligne">
-      <button id="v-prec" class="secondaire" type="button" aria-label="Page précédente">◀</button>
+      <button id="v-prec" class="secondaire" type="button" aria-label="Page précédente"><svg class="ico" aria-hidden="true"><use href="#i-chevron-left"></use></svg></button>
       <span id="v-etat"></span>
-      <button id="v-suiv" class="secondaire" type="button" aria-label="Page suivante">▶</button>
-      <button id="v-moins" class="secondaire" type="button" aria-label="Réduire">−</button>
-      <button id="v-plus" class="secondaire" type="button" aria-label="Agrandir">+</button>
-      <a id="v-ouvrir" class="bouton secondaire" target="_blank" rel="noopener">Ouvrir ↗</a>
+      <button id="v-suiv" class="secondaire" type="button" aria-label="Page suivante"><svg class="ico" aria-hidden="true"><use href="#i-chevron-right"></use></svg></button>
+      <button id="v-moins" class="secondaire" type="button" aria-label="Réduire"><svg class="ico" aria-hidden="true"><use href="#i-zoom-out"></use></svg></button>
+      <button id="v-plus" class="secondaire" type="button" aria-label="Agrandir"><svg class="ico" aria-hidden="true"><use href="#i-zoom-in"></use></svg></button>
+      <a id="v-ouvrir" class="bouton secondaire" target="_blank" rel="noopener">Ouvrir<svg class="ico" aria-hidden="true"><use href="#i-external-link"></use></svg></a>
     </div>
   </div>
   <div id="v-zone" class="v-zone"><canvas id="v-canvas"></canvas></div>
@@ -978,7 +1061,7 @@ Règles :
   function erreurLisible(code, F, e) {
     const det = e && e.message ? ` (${e.message.slice(0, 160)})` : "";
     switch (code) {
-      case "cle": return `Clé ${F.nom} refusée : vérifie-la dans ⚙️ Réglages du Rédacteur. ${F.aideCle}.`;
+      case "cle": return `Clé ${F.nom} refusée : vérifie-la dans les réglages du Rédacteur. ${F.aideCle}.`;
       case "modele": return `Modèle refusé par ${F.nom}${det}.`;
       case "limite": return `Limite de ${F.nom} atteinte pour cette minute.`;
       case "limite_jour": return `Limite du jour atteinte chez ${F.nom}${e && e.attente ? ` (de nouveau possible dans ${Math.ceil(e.attente / 60)} min)` : ""}.`;
@@ -996,7 +1079,7 @@ Règles :
   const sansBarre = u => String(u || "").trim().replace(/\/+$/, "");
   function baseDe(F, opts) {
     const b = sansBarre(opts.base || F.base);
-    if (!b) throw new ErreurRedacteur("sans_adresse", `Indique l'adresse du serveur pour « ${F.nom} » dans ⚙️ Réglages du Rédacteur.`);
+    if (!b) throw new ErreurRedacteur("sans_adresse", `Indique l'adresse du serveur pour « ${F.nom} » dans les réglages du Rédacteur.`);
     return b;
   }
   function entetesDe(F, cle) {
@@ -1084,7 +1167,7 @@ Règles :
         if (e.code === "limite" && !attendu && !opts.essai && (e.attente || 5) <= 25) {
           attendu = true;
           const s = Math.ceil(e.attente || 5);
-          if (opts.surEtat) opts.surEtat(`⏸️ Limite par minute de ${FOURNISSEURS[fournisseur].nom} : nouvel essai dans ${s} s…`);
+          if (opts.surEtat) opts.surEtat(`Limite par minute de ${FOURNISSEURS[fournisseur].nom} : nouvel essai dans ${s} s…`);
           await new Promise(ok => setTimeout(ok, s * 1000 + 300));
           continue;
         }
@@ -1143,7 +1226,7 @@ Règles :
     }
     throw new ErreurRedacteur("aucun_modele", candidats.length
       ? `Aucun modèle de ${F.nom} n'accepte cette clé pour l'instant (` + refuses.map(x => `${x.modele} : ${x.raison}`).join(" ; ") + ")."
-      : `${F.nom} ne propose aucun modèle utilisable : indique le nom du modèle dans ⚙️ Réglages.`, { refuses });
+      : `${F.nom} ne propose aucun modèle utilisable : indique le nom du modèle dans les réglages.`, { refuses });
   }
 
   // ---------- Relais : modèles puis fournisseurs, jusqu'à une réponse ----------
@@ -1181,8 +1264,8 @@ Règles :
       }
     }
     throw new ErreurRedacteur("aucun_fournisseur", connexions.length
-      ? `Aucun fournisseur n'a pu répondre (${notes.join(" ; ")}). Ajoute une autre clé dans ⚙️ Réglages du Rédacteur, ou réessaie plus tard.`
-      : "Aucun fournisseur configuré : colle une clé dans ⚙️ Réglages du Rédacteur.", { notes });
+      ? `Aucun fournisseur n'a pu répondre (${notes.join(" ; ")}). Ajoute une autre clé dans les réglages du Rédacteur, ou réessaie plus tard.`
+      : "Aucun fournisseur configuré : colle une clé dans les réglages du Rédacteur.", { notes });
   }
 
   // ---------- Lecture de la réponse : citations et chiffres ----------
@@ -1323,8 +1406,12 @@ Règles :
   }
 
   // sigles : [{ s, def }] (le lexique) ; la 1re fois, un sigle court du lexique est dit en entier
-  function pourLaVoix(texte, { sigles = [] } = {}) {
-    let t = String(texte || "")
+  // prononciations : [[écrit, dit]] (ex. [["Rebecca", "Rébéca"]]) ; mots entiers, sans tenir compte des majuscules
+  function pourLaVoix(texte, { sigles = [], prononciations = [] } = {}) {
+    let t = String(texte || "");
+    for (const [ecrit, dit] of prononciations)
+      if (ecrit && dit) t = t.replace(new RegExp(`(?<![\\p{L}])${String(ecrit).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), dit);
+    t = t
       .replace(/<think>[\s\S]*?(<\/think>|$)/g, "")
       .replace(/[[【]\s*(?:extraits?\s*)?\d+(?:\s*(?:[,;]|[-–]|et)\s*\d+)*\s*[\]】]/gi, "")      // [1], [1, 3], 【2】
       .replace(/https?:\/\/\S+/g, "")
@@ -1346,6 +1433,8 @@ Règles :
          .replace(/(\d)\s?(mg|µg|μg|mcg|ug|kg|g|ml|dl|cl|l|UI|U|mmol|mEq|%|°C|°|h|min|mn|j|sem|cp|mm|cm|mmHg)(?![\p{L}\d])/giu,
                   (m, n, u) => `${n} ${UNITES[u.toLowerCase()] || u}`)
          .replace(/(\d)\s?[x×](?=\s|$)/g, "$1 fois");
+    // Prononciations fixes : « PO » = per os, sauf « J2 PO » (2e jour post-opératoire)
+    t = t.replace(/per os\s*\(PO\)/gi, "per os").replace(/\bjour (\d+) PO\b/g, "jour $1 post-opératoire").replace(/\bPO\b/g, "per os");
     const deja = new Set(), bas = t.toLowerCase();
     const defs = new Map();
     for (const x of sigles) {
@@ -1505,7 +1594,7 @@ Règles :
   async function lire(texte, opts = {}) {
     arreter();
     const jeton = E.jeton;
-    const phrases = decouperPhrases(pourLaVoix(texte, { sigles: opts.sigles }));
+    const phrases = decouperPhrases(pourLaVoix(texte, { sigles: opts.sigles, prononciations: opts.prononciations }));
     const surFin = () => { if (jeton === E.jeton && opts.surFin) opts.surFin(); };
     if (!phrases.length) { surFin(); return; }
     if (opts.navigateur || E.mode !== "piper" || !E.ctx) { if (opts.surDebut) opts.surDebut(); lireNavigateur(phrases, jeton, surFin); return; }
@@ -1531,7 +1620,77 @@ Règles :
     else surFin();
   }
 
+  // ---------- Voix Gemini (cloud, en option) ----------
+  // Voix féminines de Gemini (nom → caractère, d'après Google)
+  const VOIX_GEMINI = { Sulafat: "chaleureuse", Vindemiatrix: "douce", Achernar: "feutrée", Despina: "posée", Kore: "assurée",
+                        Aoede: "légère", Leda: "jeune", Zephyr: "lumineuse", Erinome: "claire", Gacrux: "mûre" };
+  const BASE_GEMINI = "https://generativelanguage.googleapis.com/v1beta";
+  class ErreurVoix extends Error { constructor(code, message) { super(message); this.code = code; } }
+  const dernierGemini = { cle: "", buffer: null };
+
+  async function choisirModeleTTS(cle, f = racine.fetch.bind(racine)) {
+    const r = await f(`${BASE_GEMINI}/models?pageSize=200`, { headers: { "x-goog-api-key": cle }, cache: "no-store" });
+    if (!r.ok) throw new ErreurVoix(r.status === 429 ? "limite" : (r.status === 400 || r.status === 401 || r.status === 403) ? "cle" : "service", `Gemini : erreur ${r.status}`);
+    const noms = ((await r.json()).models || []).map(m => String(m.name || "").replace(/^models\//, "")).filter(n => /tts/i.test(n));
+    const version = n => { const m = /(\d+(?:\.\d+)?)/.exec(n); return m ? parseFloat(m[1]) : 0; };
+    noms.sort((a, b) => (/pro/.test(a) - /pro/.test(b)) || (/lite/.test(a) - /lite/.test(b)) || (/preview/.test(a) - /preview/.test(b)) || version(b) - version(a));
+    if (!noms.length) throw new ErreurVoix("modele", "Gemini ne propose pas de voix avec cette clé.");
+    return noms[0];
+  }
+
+  function base64VersOctets(b64) {
+    const bin = atob(b64), out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  // Lit le texte (déjà préparé pour l'oral) avec une voix Gemini. opts : { cle, modele, voix, surDebut, surFin, fetch }
+  async function lireGemini(texte, opts = {}) {
+    arreter();
+    const jeton = E.jeton, f = opts.fetch || racine.fetch.bind(racine);
+    const surFin = () => { if (jeton === E.jeton && opts.surFin) opts.surFin(); };
+    const cle = `${opts.modele}|${opts.voix}|${texte}`;
+    let buffer = dernierGemini.cle === cle ? dernierGemini.buffer : null;
+    if (!buffer) {
+      let r;
+      try {
+        r = await f(`${BASE_GEMINI}/models/${encodeURIComponent(opts.modele)}:generateContent`, {
+          method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", "x-goog-api-key": opts.cle },
+          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Dis en français, d'un ton calme, clair et chaleureux : " + texte }] }],
+                                 generationConfig: { responseModalities: ["AUDIO"],
+                                                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: opts.voix || "Sulafat" } } } } }),
+        });
+      } catch (e) { throw new ErreurVoix("reseau", "Gemini injoignable."); }
+      if (!r.ok) throw new ErreurVoix(r.status === 429 ? "limite" : r.status === 404 ? "modele" : (r.status === 400 || r.status === 401 || r.status === 403) ? "cle" : "service",
+                                      `Gemini (voix) : erreur ${r.status}`);
+      const data = await r.json();
+      const part = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+      const audio = (part.find(x => x.inlineData) || {}).inlineData;
+      if (!audio || !audio.data) throw new ErreurVoix("vide", "Gemini n'a pas renvoyé de son.");
+      if (jeton !== E.jeton) return;
+      const octets = base64VersOctets(audio.data), type = String(audio.mimeType || "");
+      if (/wav|mpeg|mp3|ogg/i.test(type)) {
+        buffer = await E.ctx.decodeAudioData(octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength));
+      } else {                                                   // PCM 16 bits (« audio/L16;codec=pcm;rate=24000 »)
+        const rate = Number((/rate=(\d+)/.exec(type) || [])[1]) || 24000;
+        const n = octets.byteLength >> 1, vue = new DataView(octets.buffer, octets.byteOffset, octets.byteLength);
+        buffer = E.ctx.createBuffer(1, n, rate);
+        const canal = buffer.getChannelData(0);
+        for (let i = 0; i < n; i++) canal[i] = vue.getInt16(2 * i, true) / 32768;
+      }
+      dernierGemini.cle = cle; dernierGemini.buffer = buffer;
+    }
+    if (jeton !== E.jeton) return;
+    const src = E.ctx.createBufferSource();
+    src.buffer = buffer; src.connect(E.ctx.destination);
+    src.onended = () => { E.sources = E.sources.filter(s => s !== src); surFin(); };
+    src.start(E.ctx.currentTime + 0.05);
+    E.sources.push(src); E.stats.gemini = (E.stats.gemini || 0) + 1;
+    if (opts.surDebut) opts.surDebut();
+  }
+
   racine.Voix = { pourLaVoix, decouperPhrases, epeler, aEpeler, charger, lire, arreter, deverrouiller, phonemiser,
+                  VOIX_GEMINI, choisirModeleTTS, lireGemini, ErreurVoix,
                   etat: () => ({ mode: E.mode, charge: !!E.session, contexte: E.ctx ? E.ctx.state : null, stats: Object.assign({}, E.stats) }) };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* VOIX:FIN */
@@ -1539,7 +1698,7 @@ Règles :
 <script type="module">
 const CONFIG = {
   // Ce qui dépend du thème (pour une Rebecca « vierge » destinée à un autre service : changer ces lignes)
-  identite: { nom: "Rebecca", sousTitre: "Recherche dans les protocoles, référentiels et fiches",
+  identite: { nom: "Rebecca", prononciation: "Rébéca", sousTitre: "Recherche dans les protocoles, référentiels et fiches",
               public: "une équipe soignante (infirmiers, médecins) dans un hôpital français" },
   // Adresses externes. Produit final hors ligne : chemins locaux (ex. "lib/transformers.min.js", modeles: "modeles/")
   transformers: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
@@ -1561,13 +1720,14 @@ const CONFIG = {
                autre: { adresse: "", modele: "" } },
 };
 document.title = CONFIG.identite.nom;
-document.querySelector("header h1").textContent = "🔎 " + CONFIG.identite.nom;
+document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 8;
+const VERSION_PAGE = 9;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
+const ico = (nom, classe = "") => `<svg class="ico${classe ? " " + classe : ""}" aria-hidden="true"><use href="#i-${nom}"></use></svg>`;
 const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0,
             passagesSigles: new Map(),
             reponse: null, ticketReponse: 0, attenteModele: null };
@@ -1578,6 +1738,7 @@ const HTTP = /^https?:$/.test(location.protocol);
 // ---------- Indicateur d'état ----------
 function etat(texte, pourcent = null, genre = "charge") {
   $("etat").className = "etat" + (genre === "charge" ? "" : " " + genre);
+  $("etat-ico").innerHTML = genre === "ok" ? ico("circle-check") : genre === "erreur" ? ico("triangle-alert") : ico("loader-circle", "tourne");
   $("etat-texte").textContent = texte;
   const barre = $("etat-barre");
   barre.hidden = genre !== "charge";
@@ -1644,7 +1805,7 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
   E.sigles = C.preparerSigles(donnees.sigles);
   E.dim = manifeste.embeddings.dim;
   E.vecteurs = demiVersFloat(octets);
-  if (E.vecteurs.length !== E.morceaux.length * E.dim) throw new Error("index incohérent (vecteurs et textes ne correspondent pas) : relance ▶ Mettre à jour Rebecca");
+  if (E.vecteurs.length !== E.morceaux.length * E.dim) throw new Error("index incohérent (vecteurs et textes ne correspondent pas) : relance la mise à jour dans l'Atelier");
   let vecteursDocs = octetsDocs ? demiVersFloat(octetsDocs) : null;
   if (vecteursDocs && vecteursDocs.length !== E.docs.length * E.dim) vecteursDocs = null;
   E.etat = {
@@ -1716,7 +1877,7 @@ async function chargerModele() {
       },
     });
     await E.extracteur(m.prefixe_question + "test", { pooling: "mean", normalize: true });
-    etat("✅ Prêt : recherche par le sens et par mots-clés" + (HTTP ? ", même hors connexion" : ""), null, "ok");
+    etat("Prêt : recherche par le sens et par mots-clés" + (HTTP ? ", même hors connexion" : ""), null, "ok");
     $("verifier").disabled = false;
     remplirInfos();
     finModele();
@@ -1725,7 +1886,7 @@ async function chargerModele() {
     console.error(e);
     E.echecModele = true;
     if (E.derniere) afficher(E.derniere);
-    etat("⚠️ Moteur de sens indisponible (connexion ?) : recherche par mots-clés seulement. Recharge la page pour réessayer.", null, "erreur");
+    etat("Moteur de sens indisponible (connexion ?) : recherche par mots-clés seulement. Recharge la page pour réessayer.", null, "erreur");
     finModele();
   }
 }
@@ -1876,26 +2037,26 @@ function afficher(rep) {
   const termes = C.analyser(rep.question, true).concat(rep.corrections.map(c => c.terme));
   const qa = C.analyserQuestion(rep.question, rep.corrections.map(c => c.terme), C.rareteTermes(E.etat.bm25, termes));
   $("sigles").hidden = !rep.sigles.length;
-  $("sigles").innerHTML = rep.sigles.map(x => `<div>📖 <b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${
-    x.d == null ? "lexique du catalogue" : `${C.echapper(E.docs[x.d].titre)}, p. ${x.p}`}</span></div>`).join("");
+  $("sigles").innerHTML = rep.sigles.map(x => `<div>${ico("book-open-text")}<span><b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${
+    x.d == null ? "lexique du catalogue" : `${C.echapper(E.docs[x.d].titre)}, p. ${x.p}`}</span></span></div>`).join("");
   const avis = [];
   if (resultats.length && rep.confiance === "faible")
-    avis.push(`<div class="faible">🤔 <b>Rien ne correspond vraiment</b> à ta question dans les documents. Voici quand même les passages les plus proches : vérifie-les.</div>`);
+    avis.push(`<div class="faible">${ico("search-x")}<span><b>Rien ne correspond vraiment</b> à ta question dans les documents. Voici quand même les passages les plus proches : vérifie-les.</span></div>`);
   if (rep.absents.length)
-    avis.push(`<div>∅ Absent de tous les documents : ${rep.absents.map(x => `« ${C.echapper(x)} »`).join(", ")}</div>`);
+    avis.push(`<div>${ico("circle-slash")}<span>Absent de tous les documents : ${rep.absents.map(x => `« ${C.echapper(x)} »`).join(", ")}</span></div>`);
   if (rep.corrections.length)
-    avis.push(`<div>🔤 Cherché aussi : ${rep.corrections.map(c => `« ${C.echapper(c.cherche)} » (pour « ${C.echapper(c.ecrit)} »)`).join(", ")}</div>`);
+    avis.push(`<div>${ico("spell-check")}<span>Cherché aussi : ${rep.corrections.map(c => `« ${C.echapper(c.cherche)} » (pour « ${C.echapper(c.ecrit)} »)`).join(", ")}</span></div>`);
   $("avis").hidden = !avis.length;
   $("avis").innerHTML = avis.join("");
   $("mode").textContent = E.extracteur ? ""
-    : E.echecModele ? "🔤 Mots-clés seulement (moteur de sens indisponible)" : "🔤 Mots-clés seulement — mis à jour quand le modèle sera prêt";
+    : E.echecModele ? "Mots-clés seulement (moteur de sens indisponible)" : "Mots-clés seulement — mis à jour quand le modèle sera prêt";
   $("outils").hidden = !resultats.length || !$("mode").textContent;
   if (!resultats.length) {
     ol.innerHTML = `<li class="vide">Aucun passage trouvé${E.extracteur ? "" : " par mots-clés (essaie d'autres mots, ou attends le chargement du modèle)"}.</li>`;
     return;
   }
   ol.innerHTML = rep.documents.map(d => `<li class="groupe">
-    <div class="doc"><span class="doc-titre">📄 ${C.echapper(d.titre)}</span>
+    <div class="doc"><span class="doc-titre">${ico("file-text")}<span>${C.echapper(d.titre)}</span></span>
       <span class="doc-infos">${C.echapper([infosDocument(d), d.fichier].filter(Boolean).join(" · "))}</span></div>
     <div class="passages">${d.passages.map(r => {
       const i = r.rang - 1;
@@ -1908,7 +2069,7 @@ function afficher(rep) {
         <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
         <div class="actions" hidden data-i="${i}">
           <button type="button" data-voir="${i}">Voir la page ${r.page}</button>
-          <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF ↗</a>
+          <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF${ico("external-link")}</a>
         </div>
         ${pert ? `<div class="pertinence">Trouvé par : ${pert}</div>` : ""}
       </div>`;
@@ -1920,7 +2081,11 @@ function afficher(rep) {
   }));
 }
 
-$("formulaire").addEventListener("submit", ev => { ev.preventDefault(); $("question").blur(); lancer($("question").value); });
+$("formulaire").addEventListener("submit", ev => {                 // Entrée : réponse rédigée si un fournisseur est réglé, sinon recherche
+  ev.preventDefault(); $("question").blur();
+  if (connexions(lireReglages()).length) { VX.deverrouiller(); if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix(); repondre(); }
+  else lancer($("question").value);
+});
 $("resultats").addEventListener("click", ev => {
   const b = ev.target.closest("[data-voir]");
   if (!b || !E.derniere) return;
@@ -1970,7 +2135,7 @@ function resumeRelais() {
     const F = R.FOURNISSEURS[cx.f], m = cx.impose || (r.auto[cx.f] && r.auto[cx.f].modele) || "";
     const pauses = Object.entries(r.epuise).filter(([k, v]) => k.startsWith(cx.f + "|") && v > t).map(([, v]) => v);
     const fin = Math.max(r.epuise[`${cx.f}|*`] || 0, m ? r.epuise[`${cx.f}|${m}`] || 0 : pauses.length ? Math.min(...pauses) : 0);
-    return `<b>${C.echapper(F.nom)}</b>${m ? ` (${C.echapper(m)})` : ""}${fin > t ? ` ⏸️ jusqu'à ${heure(fin)}` : ""}`;
+    return `<b>${C.echapper(F.nom)}</b>${m ? ` (${C.echapper(m)})` : ""}${fin > t ? ` ${ico("circle-pause")} en pause jusqu'à ${heure(fin)}` : ""}`;
   });
   $("r-relais").innerHTML = liste.length ? "Ordre d'essai : " + liste.join(" → ") : "Aucun fournisseur réglé pour l'instant : choisis-en un ci-dessous et colle sa clé.";
   const pref = $("r-prefere");
@@ -2027,12 +2192,12 @@ $("r-enregistrer").addEventListener("click", async () => {
     }
     const garde = ecrireReglages(r2);
     const refus = choix.refuses.filter(x => x.modele !== modele).map(x => `${C.echapper(x.modele)} (${x.raison})`);
-    $("r-etat").innerHTML = `✅ ${C.echapper(F.nom)} répond avec <b>${C.echapper(choix.modele)}</b>.${note}`
+    $("r-etat").innerHTML = `<span class="statut ok">${ico("circle-check")}<span>${C.echapper(F.nom)} répond avec <b>${C.echapper(choix.modele)}</b>.${note}`
       + (refus.length ? ` Modèles listés mais refusés : ${refus.join(", ")}.` : "")
-      + (garde ? " Réglage gardé sur cet appareil." : " ⚠️ Mémoire du navigateur indisponible (navigation privée ?) : réglage gardé jusqu'à la fermeture de la page.");
+      + (garde ? " Réglage gardé sur cet appareil." : " Attention : mémoire du navigateur indisponible (navigation privée ?), réglage gardé jusqu'à la fermeture de la page.") + "</span></span>";
     remplirChampsReglages(f);
   } catch (e) {
-    $("r-etat").textContent = "❌ " + (e.message || e) + (e.code === "reseau" ? ` ${F.nom} refuse peut-être les appels depuis une page web.` : "");
+    $("r-etat").innerHTML = `<span class="statut ko">${ico("circle-x")}<span>${C.echapper((e.message || e) + (e.code === "reseau" ? ` ${F.nom} refuse peut-être les appels depuis une page web.` : ""))}</span></span>`;
   } finally { $("r-enregistrer").disabled = false; }
 });
 $("r-oublier").addEventListener("click", () => {
@@ -2047,21 +2212,23 @@ $("r-oublier").addEventListener("click", () => {
 // ---------- Rédacteur : la réponse ----------
 const pdfOk = new Map();
 function cacherReponse() {
+  oublierDerniere();
   E.ticketReponse++;
   E.reponse = null;
   E.texteALire = "";
   VX.arreter();
   $("reponse").hidden = true;
 }
-function montrerReponse({ attente, message, erreur }) {
+function montrerReponse({ attente, message, erreur, icone }) {
   $("reponse").hidden = false;
   $("r-meta").textContent = "";
   E.texteALire = message || "";
   $("r-ecouter").hidden = !message;
   if (message) lireSiAuto(message);
   $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
-  $("r-corps").innerHTML = attente ? `<p class="r-attente">${C.echapper(attente.replace(/…$/, ""))}</p>`
-    : erreur ? `<p style="color:var(--erreur)">⚠️ ${C.echapper(erreur)}</p>` : `<p>${C.echapper(message)}</p>`;
+  $("r-corps").innerHTML = attente ? `<p class="r-attente">${ico("loader-circle", "tourne")}${C.echapper(attente.replace(/…$/, ""))}</p>`
+    : erreur ? `<p class="r-message erreur">${ico("triangle-alert")}<span>${C.echapper(erreur)}</span></p>`
+    : `<p class="r-message">${ico(icone || "info")}<span>${C.echapper(message)}</span></p>`;
   return attente ? null : erreur ? { erreur } : { message };
 }
 
@@ -2095,12 +2262,12 @@ async function repondre() {
   if (!rep || rep.question !== q || (rep.mode === "mots" && E.extracteur)) rep = await lancer(q, true, true);
   if (!encore() || !rep) return null;
   if (rep.questionDefinition && !rep.passagesDefinition)         // sigle ajouté à la main : la définition suffit, pas besoin du LLM
-    return montrerReponse({ message: "📖 " + rep.sigles.map(x => `${x.s} : ${x.def}`).join(" ; ") + " (lexique du catalogue)" });
-  if (!rep.resultats.length) return montrerReponse({ message: "📭 Aucun passage trouvé : pas de réponse possible." });
+    return montrerReponse({ icone: "book-open-text", message: rep.sigles.map(x => `${x.s} : ${x.def}`).join(" ; ") + " (lexique du catalogue)" });
+  if (!rep.resultats.length) return montrerReponse({ icone: "inbox", message: "Aucun passage trouvé : pas de réponse possible." });
   if (rep.confiance === "faible")
-    return montrerReponse({ message: "🤔 Rien ne correspond vraiment à ta question dans les documents : pas de réponse rédigée, pour ne rien inventer. Les passages les plus proches sont ci-dessous." });
+    return montrerReponse({ icone: "search-x", message: "Rien ne correspond vraiment à ta question dans les documents : pas de réponse rédigée, pour ne rien inventer. Les passages les plus proches sont ci-dessous." });
   if (navigator.onLine === false)
-    return montrerReponse({ message: "📵 Pas de connexion : la réponse rédigée a besoin d'internet. Les passages ci-dessous restent consultables." });
+    return montrerReponse({ icone: "wifi-off", message: "Pas de connexion : la réponse rédigée a besoin d'internet. Les passages ci-dessous restent consultables." });
   try {
     const res = await rediger(rep, reg, t => { if (encore()) montrerReponse({ attente: t }); });
     if (!encore()) return null;
@@ -2114,7 +2281,31 @@ async function repondre() {
     return montrerReponse({ erreur: e.message || String(e) });
   }
 }
-$("repondre").addEventListener("click", () => { VX.deverrouiller(); if (lireReglagesVoix().auto) prechargerVoix(); repondre(); });
+$("repondre").addEventListener("click", () => { VX.deverrouiller(); if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix(); repondre(); });
+$("chercher").addEventListener("click", () => { $("question").blur(); lancer($("question").value); });
+
+// ---------- La dernière réponse survit à un rechargement (iPad : Safari recharge parfois la page) ----------
+const CLE_DERNIERE = "rebecca.derniere.v1";
+function garderDerniere(res, rep) {
+  try {
+    localStorage.setItem(CLE_DERNIERE, JSON.stringify({ t: Date.now(), rep,
+      res: { texte: res.texte, modele: res.modele, ms: res.ms, tronque: res.tronque, fournisseur: res.fournisseur, relais: res.relais || [] } }));
+  } catch (e) {}
+}
+function oublierDerniere() { try { localStorage.removeItem(CLE_DERNIERE); } catch (e) {} }
+function restaurerDerniere(q) {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(CLE_DERNIERE) || "null"); } catch (e) {}
+  if (!d || !d.rep || Date.now() - d.t > 6 * 3600e3 || (q && q !== d.rep.question)) return false;
+  E.derniere = d.rep;
+  $("question").value = d.rep.question; $("effacer").hidden = false;
+  afficher(d.rep);
+  const res = Object.assign(d.res, { question: d.rep.question, analyse: R.analyserReponse(d.res.texte, d.rep.resultats) });
+  E.reponse = res;
+  afficherReponse(res, d.rep, { lire: false });
+  $("outils").hidden = true;
+  return true;
+}
 
 function rendreMorceaux(morceaux, rep) {
   const html = morceaux.map(m => {
@@ -2129,16 +2320,16 @@ function rendreMorceaux(morceaux, rep) {
   return html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*\*/g, "");
 }
 
-function afficherReponse(res, rep) {
+function afficherReponse(res, rep, opts = {}) {
   const a = res.analyse, F = R.FOURNISSEURS[res.fournisseur];
   $("reponse").hidden = false;
-  E.texteALire = a.aucune ? "Les passages trouvés ne contiennent pas la réponse à cette question." : res.texte;
+  E.texteALire = a.aucune ? "Les passages trouvés ne contiennent pas la réponse à cette question." : `${res.texte}\n${phraseSource(a, rep)}`;
   $("r-ecouter").hidden = false;
-  lireSiAuto(E.texteALire);
+  if (opts.lire !== false) { lireSiAuto(E.texteALire); garderDerniere(res, rep); }
   $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`
     + (res.relais && res.relais.length ? ` (relais : ${res.relais.join(" ; ")})` : "");
   if (a.aucune) {
-    $("r-corps").innerHTML = "<p>📭 Les passages trouvés ne contiennent pas la réponse à cette question : Rebecca préfère ne rien inventer. Vérifie les passages ci-dessous ou reformule.</p>";
+    $("r-corps").innerHTML = `<p class="r-message">${ico("inbox")}<span>Les passages trouvés ne contiennent pas la réponse à cette question : ${C.echapper(CONFIG.identite.nom)} préfère ne rien inventer. Vérifie les passages ci-dessous ou reformule.</span></p>`;
     $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
     return;
   }
@@ -2153,11 +2344,11 @@ function afficherReponse(res, rep) {
   if (liste) html += "</ul>";
   $("r-corps").innerHTML = html;
   const alertes = [];
-  if (a.douteux.length) alertes.push(`⚠️ Non retrouvé tel quel dans les passages : ${a.douteux.map(x => `« ${C.echapper(x)} »`).join(", ")}. Vérifie dans le document avant d'utiliser.`);
-  if (a.invalides.length) alertes.push(`⚠️ Source citée qui n'existe pas : ${a.invalides.map(n => `[${n}]`).join(", ")}.`);
-  if (a.sansSource) alertes.push("⚠️ Aucune source citée : vérifie dans les passages ci-dessous.");
-  if (res.tronque) alertes.push("⚠️ Réponse coupée (trop longue).");
-  $("r-alertes").innerHTML = alertes.map(x => `<div>${x}</div>`).join("");
+  if (a.douteux.length) alertes.push(`Non retrouvé tel quel dans les passages : ${a.douteux.map(x => `« ${C.echapper(x)} »`).join(", ")}. Vérifie dans le document avant d'utiliser.`);
+  if (a.invalides.length) alertes.push(`Source citée qui n'existe pas : ${a.invalides.map(n => `[${n}]`).join(", ")}.`);
+  if (a.sansSource) alertes.push("Aucune source citée : vérifie dans les passages ci-dessous.");
+  if (res.tronque) alertes.push("Réponse coupée (trop longue).");
+  $("r-alertes").innerHTML = alertes.map(x => `<div>${ico("triangle-alert")}<span>${x}</span></div>`).join("");
   $("r-alertes").hidden = !alertes.length;
   $("r-sources").innerHTML = a.cites.map(n => {
     const r = rep.resultats[n - 1];
@@ -2165,7 +2356,7 @@ function afficherReponse(res, rep) {
     return `<div class="r-source"><a class="cite" data-cite="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener">${n}</a>
       <span class="r-doc"><b>${C.echapper(r.titre)}</b> · ${pages}</span>
       <button class="secondaire" type="button" data-voir-r="${n}" hidden>Voir la page ${r.page}</button>
-      <a class="bouton secondaire" data-pdf-r="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener" hidden>PDF ↗</a></div>`;
+      <a class="bouton secondaire" data-pdf-r="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener" hidden>PDF${ico("external-link")}</a></div>`;
   }).join("");
   $("r-sources").hidden = !a.cites.length;
   $("r-pied").hidden = false;
@@ -2200,8 +2391,10 @@ function lireReglagesVoix() {
   let v = null;
   try { v = JSON.parse(localStorage.getItem(CLE_VOIX) || "null"); } catch (e) {}
   v = v || {};
-  return { auto: v.auto !== false, reglage: CONFIG.voix.reglages[v.reglage] ? v.reglage : "fluide", vitesse: Number(v.vitesse) || 1 };
+  return { auto: v.auto !== false, reglage: CONFIG.voix.reglages[v.reglage] ? v.reglage : "fluide", vitesse: Number(v.vitesse) || 1,
+           moteur: v.moteur === "gemini" ? "gemini" : "piper", gemini: VX.VOIX_GEMINI[v.gemini] ? v.gemini : "Sulafat", modeleTTS: v.modeleTTS || "" };
 }
+const prononciations = () => [[CONFIG.identite.nom, CONFIG.identite.prononciation]];
 function ecrireReglagesVoix(v) { try { localStorage.setItem(CLE_VOIX, JSON.stringify(v)); } catch (e) {} }
 const VOIX = { info: null, echec: false, promesse: null };
 
@@ -2214,16 +2407,27 @@ async function trouverVoix() {                    // voix/voix.json, écrit par 
 }
 function majReglagesVoix() {
   const v = lireReglagesVoix();
+  if (!$("vx-gemini").options.length)
+    $("vx-gemini").innerHTML = Object.entries(VX.VOIX_GEMINI).map(([n, c]) => `<option value="${n}">${n} — ${c}</option>`).join("");
   $("vx-auto").checked = v.auto; $("vx-reglage").value = v.reglage; $("vx-vitesse").value = String(v.vitesse);
-  $("vx-reglage").closest("label").hidden = !VOIX.info;
+  $("vx-moteur").value = v.moteur; $("vx-gemini").value = v.gemini;
+  $("vx-gemini-l").hidden = v.moteur !== "gemini";
+  $("vx-reglage").closest("label").hidden = !VOIX.info || v.moteur === "gemini";
   $("vx-etat").textContent = VOIX.info
     ? `Voix : ${VOIX.info.nom} (${Math.round(VOIX.info.taille / 1e6)} Mo de voix + environ 40 Mo de moteur, téléchargés une seule fois au premier usage).`
-      + (VOIX.echec ? " ⚠️ Elle n'a pas pu être chargée ici : voix du navigateur à la place." : VX.etat().charge ? " Chargée ✅" : "")
+      + (VOIX.echec ? " Elle n'a pas pu être chargée ici : voix du navigateur à la place." : VX.etat().charge ? " Chargée." : "")
     : "Voix du navigateur (ta voix Piper n'est pas encore publiée : voir l'Atelier).";
+  if (v.moteur === "gemini")
+    $("vx-etat").textContent = lireReglages().cles.gemini
+      ? "Voix Gemini : naturelle, dans le cloud (le texte lu part chez Google). Si Gemini refuse ou sans connexion, ta voix Piper prend le relais."
+      : "Voix Gemini : colle d'abord une clé Gemini (gratuite) dans les réglages du Rédacteur. En attendant, ta voix Piper est utilisée.";
 }
-["vx-auto", "vx-reglage", "vx-vitesse"].forEach(id => $(id).addEventListener("change", () => {
-  ecrireReglagesVoix({ auto: $("vx-auto").checked, reglage: $("vx-reglage").value, vitesse: Number($("vx-vitesse").value) });
+["vx-auto", "vx-reglage", "vx-vitesse", "vx-moteur", "vx-gemini"].forEach(id => $(id).addEventListener("change", () => {
+  const avant = lireReglagesVoix();
+  ecrireReglagesVoix({ auto: $("vx-auto").checked, reglage: $("vx-reglage").value, vitesse: Number($("vx-vitesse").value),
+                       moteur: $("vx-moteur").value, gemini: $("vx-gemini").value, modeleTTS: avant.modeleTTS });
   if (id === "vx-auto" && !$("vx-auto").checked) VX.arreter();
+  majReglagesVoix();
 }));
 
 function prechargerVoix() {
@@ -2233,8 +2437,8 @@ function prechargerVoix() {
   return VOIX.promesse = VX.charger(CONFIG.voix, { modele: base + VOIX.info.modele + v, config: VOIX.info.config ? base + VOIX.info.config + v : null }, (quoi, r, t) => {
     if (quoi === "voix" && t) {
       $("r-voix").hidden = false;
-      $("r-voix").textContent = r < t ? `🔊 Chargement de la voix (une seule fois) : ${Math.floor(100 * r / t)} % — ${mo(r)} / ${mo(t)}`
-                                      : "🔊 Préparation de la voix…";
+      $("r-voix").innerHTML = ico("volume-2") + C.echapper(r < t ? `Chargement de la voix (une seule fois) : ${Math.floor(100 * r / t)} % — ${mo(r)} / ${mo(t)}`
+                                      : "Préparation de la voix…");
     }
   }).then(() => {
     $("r-voix").hidden = true;
@@ -2261,62 +2465,257 @@ function reglagesVoix() {
   const v = lireReglagesVoix();
   return Object.assign({}, CONFIG.voix.reglages[v.reglage], { length_scale: v.vitesse });
 }
+function boutonEcouter(enLecture) {
+  $("r-ecouter").innerHTML = enLecture ? ico("square") + "Arrêter" : ico("volume-2") + "Écouter";
+  $("r-ecouter").dataset.lecture = enLecture ? "1" : "";
+}
+function noteVoix(texte) {
+  $("r-voix").hidden = false; $("r-voix").innerHTML = ico("volume-2") + C.echapper(texte);
+  clearTimeout(noteVoix.minuteur);
+  noteVoix.minuteur = setTimeout(() => { $("r-voix").hidden = true; }, 8000);
+}
+async function modeleTTS(cle) {
+  const v = lireReglagesVoix();
+  if (v.modeleTTS) return v.modeleTTS;
+  const m = await VX.choisirModeleTTS(cle);
+  ecrireReglagesVoix(Object.assign(v, { modeleTTS: m }));
+  return m;
+}
+// Lit un texte : voix Gemini si choisie (et disponible), sinon ta voix Piper (ou celle du navigateur)
 async function dire(texte) {
   if (!texte) return;
-  $("r-ecouter").textContent = "⏹️ Arrêter";
+  const v = lireReglagesVoix(), finLecture = () => boutonEcouter(false);
+  let note = "";
+  boutonEcouter(true);
+  if (v.moteur === "gemini") {
+    const cle = lireReglages().cles.gemini;
+    if (cle && VX.etat().contexte) {
+      try {
+        const modele = await modeleTTS(cle);
+        await VX.lireGemini(VX.pourLaVoix(texte, { sigles: E.sigles, prononciations: prononciations() }), { cle, modele, voix: v.gemini, surFin: finLecture });
+        return;
+      } catch (e) {
+        if (e.code === "modele") ecrireReglagesVoix(Object.assign(lireReglagesVoix(), { modeleTTS: "" }));
+        note = `Voix Gemini indisponible (${e.code === "limite" ? "limite gratuite atteinte" : e.message}) : ta voix Piper prend le relais.`;
+      }
+    } else if (!cle) note = "Voix Gemini : pas de clé Gemini dans les réglages du Rédacteur. Ta voix Piper prend le relais.";
+    if (note) noteVoix(note);
+  }
   await prechargerVoix();
-  await VX.lire(texte, { sigles: E.sigles, reglages: reglagesVoix(), navigateur: !VX.etat().charge,
-                         surFin: () => { $("r-ecouter").textContent = "🔊 Écouter"; } });
+  if (note) noteVoix(note);                                        // (le chargement de Piper a pu remplacer le message)
+  await VX.lire(texte, { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture });
 }
 function lireSiAuto(texte) {
   if (lireReglagesVoix().auto) dire(texte).catch(e => console.error(e));
 }
+// « Source : fiche Peste, page 2. » : dit à la fin de la réponse (on ne voit pas les [1] quand on écoute)
+function titreCourt(r) {
+  let t = String(r.titre || "").split(/\s[-–—:]\s|\s\(/)[0].trim();
+  if (t.length > 45) {                                             // « Référentiel national de formation à la prise en charge… » → avant « à »
+    const m = /\s(?:à|pour|par|sur|dans|chez|lors)\s/.exec(t.slice(15));
+    if (m) t = t.slice(0, 15 + m.index);
+  }
+  if (t.length > 60) t = t.slice(0, 60).replace(/\s+\S*$/, "").replace(/(\s(?:de|du|des|la|le|les|à|en|et|d'|l'|au|aux))+$/i, "");
+  if (t && t === t.toUpperCase()) t = t.charAt(0) + t.slice(1).toLowerCase();
+  return t;
+}
+function phraseSource(a, rep) {
+  const vus = [], parties = [];
+  for (const n of a.cites) {
+    const r = rep.resultats[n - 1];
+    if (!r || vus.includes(r.fichier)) continue;
+    vus.push(r.fichier);
+    const type = (TYPES[r.type] || "Document").toLowerCase(), titre = titreCourt(r);
+    parties.push(`${titre.toLowerCase().startsWith(type) ? "" : type + " "}${titre}, page ${r.page}`);
+    if (parties.length === 2) break;
+  }
+  return parties.length ? `Source : ${parties.join(", et ")}.` : "";
+}
 $("r-ecouter").addEventListener("click", () => {
   VX.deverrouiller();
-  if ($("r-ecouter").textContent.startsWith("⏹️")) { VX.arreter(); $("r-ecouter").textContent = "🔊 Écouter"; return; }
+  if ($("r-ecouter").dataset.lecture) { VX.arreter(); boutonEcouter(false); return; }
   dire(E.texteALire).catch(e => console.error(e));
 });
 $("vx-essai").addEventListener("click", () => {
   VX.deverrouiller();
   $("vx-etat").textContent = "Préparation de la voix…";
-  prechargerVoix().then(() => {
+  (lireReglagesVoix().moteur === "piper" ? prechargerVoix() : Promise.resolve()).then(() => {
     majReglagesVoix();
-    return VX.lire(`Bonjour, je suis ${CONFIG.identite.nom}. Je lis les réponses à voix haute, par exemple : six milligrammes par jour pendant dix jours.`,
-                   { reglages: reglagesVoix(), navigateur: !VX.etat().charge });
+    return dire(`Bonjour, je suis ${CONFIG.identite.nom}. Je lis les réponses à voix haute, par exemple : six milligrammes par jour pendant dix jours.`);
   }).catch(e => { $("vx-etat").textContent = "Voix indisponible : " + e.message; });
 });
 
-// ---------- Dictée (reconnaissance vocale du navigateur) ----------
-const Reco = window.SpeechRecognition || window.webkitSpeechRecognition;
-let reco = null;
+// ---------- Dictée : micro + Whisper (Groq) avec le vocabulaire du lexique ; sinon dictée du navigateur ----------
 const MESSAGES_MICRO = {
   "not-allowed": "Micro refusé : autorise le micro pour ce site dans les réglages du navigateur.",
+  "NotAllowedError": "Micro refusé : autorise le micro pour ce site dans les réglages du navigateur.",
   "service-not-allowed": "Dictée indisponible : active la dictée de l'appareil (sur iPad : Réglages › Général › Clavier › Dictée).",
   "network": "La dictée a besoin d'une connexion internet.",
-  "audio-capture": "Aucun micro trouvé.",
+  "audio-capture": "Aucun micro trouvé.", "NotFoundError": "Aucun micro trouvé.",
+  "no-speech": "Je n'ai rien entendu : touche le micro et parle.",
 };
-if (Reco) $("dicter").hidden = false;
-$("dicter").addEventListener("click", () => {
-  if (reco) { reco.stop(); return; }
-  VX.deverrouiller(); VX.arreter(); if (lireReglagesVoix().auto) prechargerVoix();
+const Reco = window.SpeechRecognition || window.webkitSpeechRecognition;
+const D = { etat: "", reco: null, flux: null, enreg: null, morceaux: [], analyse: null, minuteur: null };
+const peutEnregistrer = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+const sessionAudio = type => { try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) {} };
+function dessinerDictee(etat) {
+  D.etat = etat;
+  const b = $("dicter");
+  b.classList.toggle("ecoute", etat === "ecoute");
+  b.disabled = etat === "transcription";
+  b.innerHTML = etat === "ecoute" ? ico("square") : etat === "transcription" ? ico("loader-circle", "tourne") : ico("mic");
+  b.setAttribute("aria-label", etat === "ecoute" ? "Arrêter la dictée" : "Dicter la question");
+}
+function majBoutonDictee() { $("dicter").hidden = !(Reco || peutEnregistrer()); }
+
+// Vocabulaire donné à Whisper : les sigles les plus fréquents de tes documents (COREB, ESR, FHV…)
+function vocabulaire() {
+  const vus = new Map();
+  for (const x of E.sigles || []) {
+    const s = String(x.s || "").trim();
+    if (!s || s.length > 12 || vus.has(s.toUpperCase())) continue;
+    const t = C.analyser(s)[0], p = t && E.etat ? E.etat.bm25.postings.get(t) : null;
+    vus.set(s.toUpperCase(), { s, n: p ? p.length : 0 });
+  }
+  const sigles = [...vus.values()].sort((a, b) => b.n - a.n).slice(0, 60).map(x => x.s);
+  return `Question posée à ${CONFIG.identite.nom}, assistante documentaire. ${sigles.length ? "Sigles possibles : " + sigles.join(", ") + "." : ""}`;
+}
+
+// Sigles mal compris (« Kared » pour COREB) : un mot absent de tous les documents, qui sonne comme un sigle du lexique
+const cleSons = t => sansAccents(t).replace(/[^a-z]/g, "").replace(/ph/g, "f").replace(/qu|[cq]/g, "k").replace(/h/g, "").replace(/(.)\1+/g, "$1");
+const clePhonetique = t => cleSons(t).replace(/[aeiouy]+/g, "a").replace(/a$/, "");
+function distance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function corrigerDictee(texte) {
+  let t = String(texte || "").replace(/\b(?:[A-Za-z]\.?\s){1,5}[A-Za-z]\b\.?/g, m => {   // « E S R » épelé → « ESR »
+    const l = m.replace(/[^A-Za-z]/g, "");
+    return l.length >= 2 && l.length <= 6 ? l.toUpperCase() : m;
+  });
+  const sigles = [...new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "")))]
+    .filter(s => /^[A-Z][A-Z0-9]{2,7}$/.test(s) && !VX.aEpeler(s)).map(s => ({ s, cle: clePhonetique(s), sons: cleSons(s) })).filter(x => x.cle.length >= 3);
+  const corrections = [];
+  t = t.replace(/[\p{L}][\p{L}'’-]{3,}/gu, mot => {
+    const termes = C.analyser(mot);
+    if (!termes.length || termes.some(x => E.etat && E.etat.bm25.postings.has(x))) return mot;   // mot connu des documents : on n'y touche pas
+    const cle = clePhonetique(mot);
+    if (cle.length < 3) return mot;
+    const sons = cleSons(mot);
+    const proches = sigles.filter(x => x.cle[0] === cle[0] && distance(x.cle, cle) <= 1)
+      .map(x => Object.assign({ note: [distance(x.cle, cle), distance(x.sons, sons), Math.abs(x.sons.length - sons.length)] }, x))
+      .sort((a, b) => a.note[0] - b.note[0] || a.note[1] - b.note[1] || a.note[2] - b.note[2]);
+    if (!proches.length || (proches[1] && proches[1].note.join() === proches[0].note.join())) return mot;   // ex aequo : on ne devine pas
+    corrections.push([mot, proches[0].s]);
+    return proches[0].s;
+  });
+  return { texte: t, corrections };
+}
+
+async function transcrireWhisper(blob, cle) {
+  const ext = /mp4|m4a|aac/.test(blob.type) ? "m4a" : /ogg/.test(blob.type) ? "ogg" : "webm";
+  for (const modele of ["whisper-large-v3-turbo", "whisper-large-v3"]) {
+    const form = new FormData();
+    form.append("file", blob, `question.${ext}`);
+    form.append("model", modele); form.append("language", "fr"); form.append("temperature", "0");
+    form.append("response_format", "json"); form.append("prompt", vocabulaire());
+    let r;
+    try { r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", cache: "no-store", headers: { Authorization: "Bearer " + cle }, body: form }); }
+    catch (e) { throw new Error("Groq injoignable pour la dictée (connexion ?)."); }
+    if (r.ok) return String((await r.json()).text || "").trim();
+    if (r.status === 404 || r.status === 400) continue;           // modèle indisponible : on essaie l'autre
+    throw new Error(r.status === 401 ? "clé Groq refusée pour la dictée." : r.status === 429 ? "limite gratuite de la dictée atteinte, réessaie plus tard." : `dictée refusée par Groq (${r.status}).`);
+  }
+  throw new Error("aucun modèle Whisper disponible chez Groq.");
+}
+
+function arreterEnregistrement() {
+  clearInterval(D.minuteur); D.minuteur = null;
+  if (D.enreg && D.enreg.state !== "inactive") D.enreg.stop();
+}
+async function dicterWhisper(cle) {
+  sessionAudio("play-and-record");                                // iPhone/iPad : sinon le micro est coupé
+  try { D.flux = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  catch (e) { sessionAudio("playback"); dessinerDictee(""); montrerReponse({ erreur: MESSAGES_MICRO[e.name] || "Micro indisponible : " + e.message }); return; }
+  const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || "";
+  D.morceaux = [];
+  D.enreg = new MediaRecorder(D.flux, type ? { mimeType: type } : undefined);
+  D.enreg.ondataavailable = ev => { if (ev.data && ev.data.size) D.morceaux.push(ev.data); };
+  D.enreg.onstop = async () => {
+    D.flux.getTracks().forEach(t => t.stop()); D.flux = null;
+    try { if (D.analyse) D.analyse.close(); } catch (e) {}
+    D.analyse = null;
+    sessionAudio("playback");
+    const blob = new Blob(D.morceaux, { type: D.enreg.mimeType || type || "audio/webm" });
+    if (!D.parole || blob.size < 2000) { dessinerDictee(""); montrerReponse({ erreur: MESSAGES_MICRO["no-speech"] }); return; }
+    dessinerDictee("transcription");
+    montrerReponse({ attente: "Transcription de ta question" });
+    try {
+      const brut = await transcrireWhisper(blob, cle);
+      const { texte, corrections } = corrigerDictee(brut);
+      dessinerDictee("");
+      if (!texte) { montrerReponse({ erreur: MESSAGES_MICRO["no-speech"] }); return; }
+      $("question").value = texte; $("effacer").hidden = false;
+      await repondre();
+      if (corrections.length) noteVoix(`Dictée : ${corrections.map(([a, b]) => `« ${a} » compris comme ${b}`).join(", ")}.`);
+    } catch (e) { dessinerDictee(""); montrerReponse({ erreur: "Dictée : " + e.message }); }
+  };
+  // arrêt automatique : 1,3 s de silence après avoir parlé, 7 s sans parole, 25 s au plus
+  D.parole = false;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    D.analyse = new AC();
+    const an = D.analyse.createAnalyser(); an.fftSize = 1024;
+    D.analyse.createMediaStreamSource(D.flux).connect(an);
+    const buf = new Float32Array(an.fftSize), debut = Date.now();
+    let dernierSon = 0, fond = 0.01;
+    D.minuteur = setInterval(() => {
+      an.getFloatTimeDomainData(buf);
+      let e = 0; for (const x of buf) e += x * x;
+      const rms = Math.sqrt(e / buf.length), t = Date.now() - debut;
+      if (t < 500) fond = Math.max(fond, rms * 1.5);                // bruit de fond des premières 500 ms
+      if (rms > Math.max(0.015, fond * 2)) { D.parole = true; dernierSon = t; }
+      if ((D.parole && t - dernierSon > 1300) || (!D.parole && t > 7000) || t > 25000) arreterEnregistrement();
+    }, 100);
+  } catch (e) { D.parole = true; }                                 // sans analyse : arrêt en touchant le bouton
+  D.enreg.start(250);
+  dessinerDictee("ecoute");
+  montrerReponse({ attente: "Je t'écoute… parle, je m'arrête quand tu te tais" });
+}
+
+function dicterNavigateur() {                                       // sans clé Groq : la dictée du navigateur
   let texte = "", erreur = null;
-  reco = new Reco();
-  reco.lang = "fr-FR"; reco.interimResults = true; reco.continuous = false; reco.maxAlternatives = 1;
-  reco.onresult = ev => {
+  sessionAudio("play-and-record");
+  D.reco = new Reco();
+  D.reco.lang = "fr-FR"; D.reco.interimResults = true; D.reco.continuous = false; D.reco.maxAlternatives = 1;
+  D.reco.onresult = ev => {
     texte = Array.from(ev.results).map(r => r[0].transcript).join(" ").replace(/\s+/g, " ").trim();
-    $("question").value = texte;
-    $("effacer").hidden = !texte;
+    $("question").value = texte; $("effacer").hidden = !texte;
   };
-  reco.onerror = ev => { erreur = ev.error; };
-  reco.onend = () => {
-    reco = null;
-    $("dicter").classList.remove("ecoute"); $("dicter").textContent = "🎤";
-    if (erreur && MESSAGES_MICRO[erreur]) montrerReponse({ erreur: MESSAGES_MICRO[erreur] });
-    else if (texte) repondre();
+  D.reco.onerror = ev => { erreur = ev.error; };
+  D.reco.onend = () => {
+    D.reco = null; sessionAudio("playback"); dessinerDictee("");
+    if (erreur && erreur !== "aborted") montrerReponse({ erreur: MESSAGES_MICRO[erreur] || "Dictée impossible (" + erreur + ")." });
+    else if (texte) { $("question").value = corrigerDictee(texte).texte; repondre(); }
   };
-  try { reco.start(); $("dicter").classList.add("ecoute"); $("dicter").textContent = "⏺️"; }
-  catch (e) { reco = null; montrerReponse({ erreur: "Dictée impossible : " + e.message }); }
+  try { D.reco.start(); dessinerDictee("ecoute"); }
+  catch (e) { D.reco = null; sessionAudio("playback"); montrerReponse({ erreur: "Dictée impossible : " + e.message }); }
+}
+
+$("dicter").addEventListener("click", () => {
+  if (D.etat === "ecoute") { if (D.reco) D.reco.stop(); else { D.parole = true; arreterEnregistrement(); } return; }
+  if (D.etat === "transcription") return;
+  VX.deverrouiller(); VX.arreter();
+  if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix();
+  const cle = lireReglages().cles.groq;
+  if (cle && peutEnregistrer()) dicterWhisper(cle);
+  else if (Reco) dicterNavigateur();
+  else montrerReponse({ erreur: "Dictée indisponible ici : colle une clé Groq dans les réglages du Rédacteur (la dictée passe par Whisper)." });
 });
+majBoutonDictee();
 
 // ---------- Visionneuse PDF ----------
 const V = { pdfjs: null, tache: null, doc: null, fichier: null, page: 1, zoom: 1, rendu: null };
@@ -2349,7 +2748,7 @@ async function ouvrirVisionneuse(fichier, page) {
   } catch (e) {
     console.error(e);
     effacerCanvas();                            // ne jamais laisser la page d'un autre document à l'écran
-    $("v-etat").textContent = "Affichage impossible ici : utilise « Ouvrir ↗ ».";
+    $("v-etat").textContent = "Affichage impossible ici : utilise « Ouvrir ».";
   }
 }
 function effacerCanvas() {
@@ -2395,12 +2794,12 @@ document.addEventListener("keydown", ev => {
 // ---------- Bibliothèque ----------
 function remplirBibliotheque() {
   const tri = E.docs.map((d, i) => i).sort((a, b) => E.docs[a].titre.localeCompare(E.docs[b].titre, "fr", { sensitivity: "base" }));
-  $("biblio-titre").textContent = `📚 Bibliothèque (${E.docs.length} document${E.docs.length > 1 ? "s" : ""})`;
+  $("biblio-titre").textContent = `Bibliothèque (${E.docs.length} document${E.docs.length > 1 ? "s" : ""})`;
   $("biblio-liste").innerHTML = tri.map(i => {
     const d = E.docs[i];
     const infos = [infosDocument(d), `${d.pages} page${d.pages > 1 ? "s" : ""}`, d.f].filter(Boolean).join(" · ");
     return `<li><div class="b-texte"><b>${C.echapper(d.titre)}</b><span>${C.echapper(infos)}</span></div>`
-      + (HTTP ? `<a target="_blank" rel="noopener" href="${lienPdf(d.f)}">Ouvrir ↗</a>` : "") + "</li>";
+      + (HTTP ? `<a target="_blank" rel="noopener" href="${lienPdf(d.f)}">Ouvrir${ico("external-link")}</a>` : "") + "</li>";
   }).join("");
 }
 
@@ -2410,10 +2809,10 @@ function remplirInfos() {
   const m = E.manifeste.modele;
   const r = E.manifeste.recherche || {};
   $("infos-index").textContent = `Index du ${dateCourte(E.manifeste.cree_le)} (heure de Paris) : ${E.docs.length} documents, ${E.morceaux.length} passages. `
-    + (r.seuil_sens != null ? `Signal « rien ne correspond » réglé (seuil ${r.seuil_sens}).` : "Signal « rien ne correspond » pas encore réglé (🧪 Tester dans l'Atelier).");
+    + (r.seuil_sens != null ? `Signal « rien ne correspond » réglé (seuil ${r.seuil_sens}).` : "Signal « rien ne correspond » pas encore réglé (cellule « Tester » de l'Atelier).");
   const alerte = E.manifeste.transformers_js && E.manifeste.transformers_js !== CONFIG.versionTransformers
-    ? ` ⚠️ L'atelier a utilisé transformers.js ${E.manifeste.transformers_js}, cette page ${CONFIG.versionTransformers}.` : "";
-  $("infos-modele").textContent = `Modèle : ${m.id} (version ${m.revision.slice(0, 7)}, ${m.dtype}), ${E.dim} dimensions — ${E.extracteur ? "chargé ✅" : "non chargé"}.${alerte}`;
+    ? ` Attention : l'atelier a utilisé transformers.js ${E.manifeste.transformers_js}, cette page ${CONFIG.versionTransformers}.` : "";
+  $("infos-modele").textContent = `Modèle : ${m.id} (version ${m.revision.slice(0, 7)}, ${m.dtype}), ${E.dim} dimensions — ${E.extracteur ? "chargé" : "non chargé"}.${alerte}`;
 }
 
 $("verifier").addEventListener("click", async () => {
@@ -2434,9 +2833,9 @@ $("verifier").addEventListener("click", async () => {
     }
     const n = v.textes.length, memeVersion = v.revision === m.revision;
     const base = memeVersion && entrees === n && ids === n;
-    const verdict = base && cosMin >= 0.9999 ? "✅ <b>Identique à Colab</b> (aux arrondis de calcul près)"
-      : base && cosMin >= 0.999 ? "✅ <b>Équivalent à Colab</b> (écarts d'arrondi minimes, sans effet sur la recherche)"
-      : "❌ <b>Différence détectée</b> : relance les étapes 4 à 6 de l'atelier";
+    const verdict = base && cosMin >= 0.9999 ? ico("circle-check") + " <b>Identique à Colab</b> (aux arrondis de calcul près)"
+      : base && cosMin >= 0.999 ? ico("circle-check") + " <b>Équivalent à Colab</b> (écarts d'arrondi minimes, sans effet sur la recherche)"
+      : ico("circle-x") + " <b>Différence détectée</b> : relance les étapes 4 à 6 de l'atelier";
     out.innerHTML = `${verdict}<br>
       Même version du modèle : ${memeVersion ? "oui" : "non"} · Textes préparés à l'identique : ${entrees}/${n} · Tokens identiques : ${ids}/${n}<br>
       Similarité cosinus minimale : ${cosMin.toFixed(7)} · écart max : ${ecart.toExponential(1)}`;
@@ -2459,7 +2858,7 @@ $("verifier").addEventListener("click", async () => {
   etat("Recherche par mots-clés prête. Chargement du moteur de sens…");
   trouverVoix();
   const q = new URLSearchParams(location.search).get("q");
-  if (q) { $("question").value = q; lancer(q, false); }
+  if (!restaurerDerniere(q) && q) { $("question").value = q; lancer(q, false); }
   chargerModele();
 })();
 </script>
