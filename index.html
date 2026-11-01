@@ -129,6 +129,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 .reglages label { display: grid; gap: 4px; font-size: .9rem; color: var(--doux); }
 .reglages input, .reglages select { font: inherit; font-size: 16px; padding: 10px 12px; border: 1.5px solid var(--bord); border-radius: 10px; background: var(--carte); color: var(--texte); min-width: 0; }
 .reglages input:focus, .reglages select:focus { outline: none; border-color: var(--accent); }
+.reglages label[hidden] { display: none; }
 .carte.surligne { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
@@ -171,7 +172,6 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 
   <div id="outils" class="outils" hidden>
     <span id="mode"></span>
-    <button id="copier-llm" class="secondaire" type="button">📋 Copier pour un LLM</button>
   </div>
   <div id="sigles" class="sigles" hidden></div>
   <div id="avis" class="avis" hidden></div>
@@ -185,17 +185,23 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   <details id="reglages" class="infos">
     <summary>⚙️ Réglages du Rédacteur (réponse rédigée)</summary>
     <div class="reglages">
-      <label>Fournisseur
-        <select id="r-fournisseur"><option value="groq">Groq (gratuit, rapide)</option><option value="gemini">Gemini (Google AI Studio, gratuit)</option></select></label>
+      <p id="r-relais" class="petit" style="margin:0"></p>
+      <label>Fournisseur à régler
+        <select id="r-fournisseur"></select></label>
+      <p id="r-aide" class="petit" style="margin:-4px 0 0"></p>
+      <label id="r-adresse-l" hidden>Adresse du serveur
+        <input id="r-adresse" type="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="http://localhost:11434/v1"></label>
       <label>Clé API
         <input id="r-cle" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="colle ta clé ici"></label>
       <label>Modèle (vide = choix automatique)
         <input id="r-modele" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="automatique"></label>
       <div class="actions"><button id="r-enregistrer" type="button">Enregistrer et tester</button><button id="r-oublier" class="secondaire" type="button">Effacer la clé</button></div>
       <div id="r-etat" class="petit" role="status"></div>
-      <p class="petit" style="margin:0">La clé reste <b>seulement sur cet appareil</b>, dans ce navigateur : elle n'est jamais envoyée sur le site, seulement à Groq ou Google avec ta question et les passages.
-        Clé gratuite : Groq → console.groq.com › API Keys ; Gemini → aistudio.google.com › Get API key.
-        Sur iPhone/iPad, Rebecca ajoutée à l'écran d'accueil a sa propre mémoire : colle la clé une fois dedans. Safari peut l'oublier après 7 jours sans ouvrir Rebecca.</p>
+      <label>Essayer en premier
+        <select id="r-prefere"></select></label>
+      <p class="petit" style="margin:0">Quand un fournisseur atteint sa limite, Rebecca passe tout seule au modèle ou au fournisseur suivant.
+        Les clés restent <b>seulement sur cet appareil</b>, dans ce navigateur : elles ne sont jamais envoyées sur le site, seulement au fournisseur, avec ta question et les passages.
+        Sur iPhone/iPad, Rebecca ajoutée à l'écran d'accueil a sa propre mémoire : colle les clés une fois dedans. Safari peut les oublier après 7 jours sans ouvrir Rebecca.</p>
     </div>
   </details>
 
@@ -205,7 +211,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     <p id="infos-modele" class="petit"></p>
     <p><button id="verifier" class="secondaire" type="button" disabled>Vérifier le modèle</button></p>
     <div id="verif-resultat" class="petit"></div>
-    <p class="petit">Pour un futur chatbot : <code>await moteur.contexteLLM("ta question")</code> renvoie les passages trouvés (avec leur document, les sigles et l'avertissement « rien ne correspond ») prêts à donner à un LLM ; <code>await moteur.rechercher("ta question")</code> renvoie les résultats bruts, regroupés par document.</p>
+    <p class="petit">Pour les développeurs : <code>await moteur.repondre("ta question")</code> rédige la réponse sourcée (pour la future Voix) ; <code>await moteur.contexteLLM("ta question")</code> renvoie les passages envoyés au LLM ; <code>await moteur.rechercher("ta question")</code> renvoie les résultats bruts, regroupés par document.</p>
   </details>
 </div>
 
@@ -832,32 +838,61 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 </script>
 <script>
 /* REDACTEUR:DEBUT — le Rédacteur de Rebecca : réponse courte et sourcée à partir des passages trouvés.
-   Appelle un LLM gratuit (Groq ou Gemini) directement depuis la page ; la clé reste sur l'appareil.
+   Appelle un LLM directement depuis la page (3 formats : OpenAI, Gemini, Anthropic), avec relais automatique entre
+   modèles et fournisseurs quand une limite est atteinte. Les clés restent sur l'appareil.
    Garde-fous : « AUCUNE_REPONSE » si les passages ne répondent pas, chiffres vérifiés mot pour mot. */
 (function (racine) {
   "use strict";
 
   // ---------- Fournisseurs ----------
+  // format : « openai » (chat/completions, le plus répandu), « gemini » ou « anthropic ».
+  // Ajouter un fournisseur compatible OpenAI = ajouter une ligne. « autre » : adresse libre (serveur local, intranet, DSI).
   const FOURNISSEURS = {
-    groq: {
-      nom: "Groq", base: "https://api.groq.com/openai/v1", prefixeCle: /^gsk_/, aideCle: "console.groq.com › API Keys",
+    groq: { nom: "Groq", format: "openai", base: "https://api.groq.com/openai/v1", cout: "gratuit", prefixeCle: /^gsk_/,
+      aideCle: "Clé gratuite : console.groq.com › API Keys", champMax: "max_completion_tokens", relaisModeles: 3,
       exclus: /whisper|tts|orpheus|playai|guard|safeguard|compound|allam|embed|vision|audio|speech|distil/i,
       prefere: [/gpt-oss-120b/, /kimi/, /qwen/, /llama-3\.3-70b/, /llama-4/, /gpt-oss-20b/, /llama/, /gemma|mistral/],
-      defauts: ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"],
-    },
-    gemini: {
-      nom: "Gemini", base: "https://generativelanguage.googleapis.com/v1beta", prefixeCle: /^AIza/, aideCle: "aistudio.google.com › Get API key",
+      defauts: ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b"] },
+    mistral: { nom: "Mistral", format: "openai", base: "https://api.mistral.ai/v1", cout: "gratuit", relaisModeles: 2,
+      aideCle: "Clé gratuite (offre « Experiment ») : console.mistral.ai › API Keys",
+      exclus: /embed|ocr|moderation|codestral|devstral|pixtral|voxtral|saba|magistral|ministral-3b|tiny|nemo/i,
+      prefere: [/^mistral-medium-latest$/, /^mistral-small-latest$/, /^mistral-large-latest$/, /^mistral-medium/, /^mistral-small/, /^mistral-large/],
+      defauts: ["mistral-medium-latest", "mistral-small-latest", "mistral-large-latest"] },
+    gemini: { nom: "Gemini", format: "gemini", base: "https://generativelanguage.googleapis.com/v1beta", cout: "gratuit", prefixeCle: /^AIza/,
+      aideCle: "Clé gratuite : aistudio.google.com › Get API key", relaisModeles: 2,
       exclus: /tts|image|live|embedding|aqa|audio|robotics|computer|native|veo|imagen|thinking|exp|learnlm|nano|pro/i,
       prefere: [/^gemini-\d+(\.\d+)?-flash$/, /^gemini-flash-latest$/, /^gemini-\d+(\.\d+)?-flash-lite$/, /^gemini-flash-lite-latest$/,
                 /^gemini-.*flash/, /^gemma-3-27b/, /^gemma/],
-      defauts: ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"],
-    },
+      defauts: ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"] },
+    openrouter: { nom: "OpenRouter", format: "openai", base: "https://openrouter.ai/api/v1", cout: "gratuit limité", prefixeCle: /^sk-or-/,
+      aideCle: "openrouter.ai › Keys. Seuls les modèles gratuits « :free » sont choisis tout seuls (environ 50 questions par jour)",
+      seulement: /:free$/, relaisModeles: 2, exclus: /vision|image|audio|embed|guard/i,
+      prefere: [/gpt-oss-120b/, /llama-3\.3-70b/, /mistral-(small|medium)/, /qwen/, /gemma/, /deepseek/], defauts: ["openai/gpt-oss-120b:free"] },
+    autre: { nom: "Autre / local / intranet", format: "openai", base: "", cout: "selon le serveur", cleFacultative: true, relaisModeles: 1,
+      aideCle: "Serveur compatible OpenAI : par exemple http://localhost:11434/v1 (Ollama), ou l'adresse donnée par la DSI. Clé facultative.",
+      exclus: /embed|whisper|tts|guard/i, prefere: [], defauts: [] },
+    anthropic: { nom: "Anthropic (Claude)", format: "anthropic", base: "https://api.anthropic.com/v1", cout: "payant", prefixeCle: /^sk-ant-/,
+      aideCle: "Payant : console.anthropic.com › API Keys", relaisModeles: 1, exclus: /claude-(?:2|instant)/i,
+      prefere: [/haiku/, /sonnet/, /opus/], defauts: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
+    openai: { nom: "OpenAI", format: "openai", base: "https://api.openai.com/v1", cout: "payant", prefixeCle: /^sk-(?:proj|svcacct)-/,
+      aideCle: "Payant : platform.openai.com › API keys", champMax: "max_completion_tokens", relaisModeles: 1,
+      exclus: /audio|realtime|tts|transcribe|image|search|embedding|moderation|dall|whisper|davinci|babbage|instruct|codex|computer|research|o1|o3|o4|nano|chat-latest/i,
+      prefere: [/^gpt-[\d.]+-mini$/, /^gpt-4\.1-mini$/, /^gpt-4o-mini$/, /^gpt-[\d.]+$/, /mini/], defauts: ["gpt-4.1-mini", "gpt-4o-mini"] },
+    xai: { nom: "xAI (Grok)", format: "openai", base: "https://api.x.ai/v1", cout: "payant", prefixeCle: /^xai-/,
+      aideCle: "Payant : console.x.ai › API Keys", relaisModeles: 1, exclus: /image|vision|imagine|video/i,
+      prefere: [/grok-[\d.]+-fast/, /grok.*mini/, /grok/], defauts: ["grok-3-mini"] },
+    deepseek: { nom: "DeepSeek", format: "openai", base: "https://api.deepseek.com/v1", cout: "payant", relaisModeles: 1,
+      aideCle: "Payant : platform.deepseek.com › API keys", exclus: /^$/, prefere: [/deepseek-chat/, /deepseek/], defauts: ["deepseek-chat"] },
   };
+  const ORDRE_DEFAUT = ["groq", "mistral", "gemini", "openrouter", "autre", "anthropic", "openai", "xai", "deepseek"];
   const NB_CANDIDATS = 6;
 
   // ---------- Consignes données au LLM ----------
   const SENTINELLE = "AUCUNE_REPONSE";
-  const CONSIGNES = `Tu es Rebecca, l'assistante documentaire d'une équipe soignante (infirmiers, médecins) dans un hôpital français.
+  function consignes(identite = {}) {
+    const nom = identite.nom || "Rebecca";
+    const pour = identite.public || "une équipe soignante (infirmiers, médecins) dans un hôpital français";
+    return `Tu es ${nom}, l'assistante documentaire d'${pour.replace(/^(une?|des|les?|la) /i, m => m.toLowerCase())}.
 Tu réponds UNIQUEMENT à partir des extraits numérotés fournis, jamais avec tes propres connaissances.
 
 Règles :
@@ -868,6 +903,8 @@ Règles :
 5. Si les extraits ne répondent qu'en partie, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
 6. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
 7. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
+  }
+  const CONSIGNES = consignes();
 
   function messageUtilisateur(contexte) {
     return `${contexte.trim()}\n\nRéponds à la question en suivant les règles (crochets [n] après chaque information, ou ${SENTINELLE}).`;
@@ -875,8 +912,9 @@ Règles :
 
   // ---------- Erreurs ----------
   const COURT = { cle: "clé refusée", modele: "modèle indisponible", limite: "limite par minute", limite_jour: "limite du jour",
-                  service: "service en panne", reseau: "pas de connexion", delai: "trop long", parametre: "réglage refusé",
-                  vide: "réponse vide", bloque: "réponse bloquée", aucun_modele: "aucun modèle", autre: "erreur" };
+                  credit: "crédit épuisé", service: "service en panne", reseau: "injoignable", delai: "trop long", parametre: "réglage refusé",
+                  vide: "réponse vide", bloque: "réponse bloquée", aucun_modele: "aucun modèle utilisable", sans_adresse: "adresse manquante",
+                  aucun_fournisseur: "aucun fournisseur", autre: "erreur" };
   class ErreurRedacteur extends Error {
     constructor(code, message, extra = {}) { super(message); this.code = code; this.court = COURT[code] || code; Object.assign(this, extra); }
   }
@@ -892,9 +930,9 @@ Règles :
   async function lireErreur(r) {
     let texte = "", corps = null;
     try { texte = await r.text(); corps = JSON.parse(texte); } catch (e) {}
-    let err = corps && (corps.error || (Array.isArray(corps) && corps[0] && corps[0].error)) || {};
+    let err = corps && (corps.error || (Array.isArray(corps) && corps[0] && corps[0].error) || (corps.message && corps)) || {};
     if (typeof err === "string") err = { message: err };
-    const details = JSON.stringify(err.details || []);
+    const details = JSON.stringify(err.details || err.metadata || []);
     const message = String(err.message || texte || `erreur ${r.status}`).slice(0, 500);
     let attente = null;
     const ra = Number(r.headers && r.headers.get && r.headers.get("retry-after"));
@@ -905,13 +943,15 @@ Règles :
     return { statut: r.status, message, code: String(err.code || err.status || err.type || ""), details, attente };
   }
 
-  function classerErreur(e, avecExtras) {
+  // reglable : la requête contenait encore quelque chose à retirer (réglages de réflexion, température)
+  function classerErreur(e, reglable) {
     const s = e.statut, m = `${e.message} ${e.code} ${e.details}`.toLowerCase();
-    if (s === 401 || /invalid.?api.?key|api key not valid|api_key_invalid|unauthenticated|unregistered callers/.test(m)) return "cle";
+    if (s === 401 || /invalid.?(api.?)?key|api key not valid|api_key_invalid|unauthenticated|unregistered callers|authentication_error|invalid x-api-key/.test(m)) return "cle";
+    if (s === 402 || /credit balance|insufficient.?(quota|balance|credit|funds)|payment required|billing/.test(m)) return "credit";
     if (s === 429 || /rate.?limit|resource_exhausted/.test(m))
-      return /per ?day|perday|\(tpd\)|\(rpd\)|daily/.test(m) ? "limite_jour" : "limite";
-    if (avecExtras && s === 400 && /reasoning|thinking|include_reasoning|unknown name|unsupported|not supported|invalid.*(field|param)|property/.test(m)) return "parametre";
-    if (s === 404 || ((s === 400 || s === 403) && /model|modèle|decommission|terms/.test(m))) return "modele";
+      return /per[ -]?day|perday|\(tpd\)|\(rpd\)|daily/.test(m) ? "limite_jour" : "limite";
+    if (reglable && (s === 400 || s === 422) && /reasoning|thinking|temperature|include_reasoning|unknown name|unsupported|not supported|extra (inputs|fields)|invalid.*(field|param)|property/.test(m)) return "parametre";
+    if (s === 404 || ((s === 400 || s === 403 || s === 422) && /model|modèle|decommission|terms/.test(m))) return "modele";
     if (s === 403) return "cle";
     if (s >= 500) return "service";
     return "autre";
@@ -920,27 +960,32 @@ Règles :
   function erreurLisible(code, F, e) {
     const det = e && e.message ? ` (${e.message.slice(0, 160)})` : "";
     switch (code) {
-      case "cle": return `Clé ${F.nom} refusée : vérifie-la dans ⚙️ Réglages du Rédacteur (ou crée-en une sur ${F.aideCle}).`;
+      case "cle": return `Clé ${F.nom} refusée : vérifie-la dans ⚙️ Réglages du Rédacteur. ${F.aideCle}.`;
       case "modele": return `Modèle refusé par ${F.nom}${det}.`;
-      case "limite": return `Limite gratuite de ${F.nom} atteinte pour cette minute : réessaie dans un instant.`;
-      case "limite_jour": return `Limite gratuite du jour atteinte chez ${F.nom}${e && e.attente ? ` (réessaie dans ${Math.ceil(e.attente / 60)} min)` : ""}. Tu peux passer sur l'autre fournisseur dans ⚙️ Réglages.`;
-      case "service": return `${F.nom} est en panne ou surchargé${det}. Réessaie dans un moment.`;
+      case "limite": return `Limite de ${F.nom} atteinte pour cette minute.`;
+      case "limite_jour": return `Limite du jour atteinte chez ${F.nom}${e && e.attente ? ` (de nouveau possible dans ${Math.ceil(e.attente / 60)} min)` : ""}.`;
+      case "credit": return `Crédit épuisé chez ${F.nom}${det}.`;
+      case "service": return `${F.nom} est en panne ou surchargé${det}.`;
       default: return `${F.nom} a répondu une erreur${det}.`;
     }
   }
 
   // ---------- Appels ----------
-  function extrasGroq(modele) {
-    if (/gpt-oss/.test(modele)) return { reasoning_effort: "low", include_reasoning: false };
-    if (/qwen3|qwq/.test(modele)) return { reasoning_effort: "none", reasoning_format: "hidden" };
-    return null;
-  }
-  function extrasGemini(modele) {
-    if (/^gemini-2\.5/.test(modele)) return { thinkingBudget: 0 };
-    if (/^gemini/.test(modele)) return { thinkingLevel: "low" };
-    return null;
-  }
+  FOURNISSEURS.groq.extras = modele => /gpt-oss/.test(modele) ? { reasoning_effort: "low", include_reasoning: false }
+    : /qwen3|qwq/.test(modele) ? { reasoning_effort: "none", reasoning_format: "hidden" } : null;
+  FOURNISSEURS.gemini.extras = modele => /^gemini-2\.5/.test(modele) ? { thinkingBudget: 0 } : /^gemini/.test(modele) ? { thinkingLevel: "low" } : null;
   const nettoyer = t => String(t || "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  const sansBarre = u => String(u || "").trim().replace(/\/+$/, "");
+  function baseDe(F, opts) {
+    const b = sansBarre(opts.base || F.base);
+    if (!b) throw new ErreurRedacteur("sans_adresse", `Indique l'adresse du serveur pour « ${F.nom} » dans ⚙️ Réglages du Rédacteur.`);
+    return b;
+  }
+  function entetesDe(F, cle) {
+    if (F.format === "gemini") return { "x-goog-api-key": cle };
+    if (F.format === "anthropic") return { "x-api-key": cle, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
+    return cle ? { "Authorization": "Bearer " + cle } : {};
+  }
 
   async function requete(f, url, init, delai) {
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -953,38 +998,40 @@ Règles :
     } finally { if (minuteur) clearTimeout(minuteur); }
   }
 
-  // Un appel, sans nouvel essai. opts : { fetch, extras, maxTokens, delai, essai }
+  // Un appel, sans nouvel essai. opts : { fetch, base, mode ("complet" | "simple" | "minimal"), maxTokens, delai, essai }
   async function appeler(fournisseur, cle, modele, systeme, utilisateur, opts = {}) {
     const F = FOURNISSEURS[fournisseur];
     if (!F) throw new ErreurRedacteur("autre", `Fournisseur inconnu : ${fournisseur}`);
-    const f = opts.fetch || racine.fetch.bind(racine);
-    const maxTokens = opts.maxTokens || (fournisseur === "gemini" ? 2048 : 900);   // réponse courte : ménage la limite par minute
-    let url, entetes, corps, extras = null;
-    if (fournisseur === "gemini") {
-      url = `${F.base}/models/${encodeURIComponent(modele)}:generateContent`;
-      entetes = { "Content-Type": "application/json", "x-goog-api-key": cle };
+    const f = opts.fetch || racine.fetch.bind(racine), base = baseDe(F, opts), mode = opts.mode || "complet";
+    const maxTokens = opts.maxTokens || (F.format === "gemini" ? 2048 : 900);   // réponse courte : ménage les limites
+    const temperature = mode === "minimal" ? {} : { temperature: 0.2 };
+    const extras = mode === "complet" && F.extras ? F.extras(modele) : null;
+    let url, corps;
+    if (F.format === "gemini") {
+      url = `${base}/models/${encodeURIComponent(modele)}:generateContent`;
       corps = { systemInstruction: { parts: [{ text: systeme }] }, contents: [{ role: "user", parts: [{ text: utilisateur }] }],
-                generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens } };
-      if (opts.extras !== false && (extras = extrasGemini(modele))) corps.generationConfig.thinkingConfig = extras;
+                generationConfig: Object.assign({ maxOutputTokens: maxTokens }, temperature, extras ? { thinkingConfig: extras } : {}) };
+    } else if (F.format === "anthropic") {
+      url = `${base}/messages`;
+      corps = Object.assign({ model: modele, max_tokens: maxTokens, system: systeme, messages: [{ role: "user", content: utilisateur }] }, temperature);
     } else {
-      url = `${F.base}/chat/completions`;
-      entetes = { "Content-Type": "application/json", "Authorization": "Bearer " + cle };
-      corps = { model: modele, messages: [{ role: "system", content: systeme }, { role: "user", content: utilisateur }],
-                temperature: 0.2, max_completion_tokens: maxTokens };
-      if (opts.extras !== false && (extras = extrasGroq(modele))) Object.assign(corps, extras);
+      url = `${base}/chat/completions`;
+      corps = Object.assign({ model: modele, messages: [{ role: "system", content: systeme }, { role: "user", content: utilisateur }],
+                              [F.champMax || "max_tokens"]: maxTokens }, temperature, extras || {});
     }
     const debut = Date.now();
-    const r = await requete(f, url, { method: "POST", headers: entetes, body: JSON.stringify(corps) }, opts.delai || 45000);
+    const r = await requete(f, url, { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, entetesDe(F, cle)), body: JSON.stringify(corps) },
+                            opts.delai || 45000);
     if (!r.ok) {
       const e = await lireErreur(r);
-      const code = classerErreur(e, !!extras);
-      throw new ErreurRedacteur(code, erreurLisible(code, F, e), { statut: e.statut, attente: e.attente, brut: e.message });
+      const code = classerErreur(e, mode !== "minimal");
+      throw new ErreurRedacteur(code, erreurLisible(code, F, e), { statut: e.statut, attente: e.attente, brut: e.message, avaitExtras: !!extras });
     }
     const data = await r.json();
     const ms = Date.now() - debut;
     if (opts.essai) return { texte: "", modele, ms, tronque: false };
     let texte = "", tronque = false;
-    if (fournisseur === "gemini") {
+    if (F.format === "gemini") {
       const c = (data.candidates || [])[0];
       if (!c) {
         const raison = data.promptFeedback && data.promptFeedback.blockReason;
@@ -994,9 +1041,13 @@ Règles :
       tronque = c.finishReason === "MAX_TOKENS";
       if (!texte.trim() && c.finishReason && c.finishReason !== "STOP" && !tronque)
         throw new ErreurRedacteur("bloque", `Réponse bloquée par Google (${c.finishReason}).`);
+    } else if (F.format === "anthropic") {
+      texte = (data.content || []).filter(b => b.type === "text").map(b => b.text || "").join("");
+      tronque = data.stop_reason === "max_tokens";
     } else {
       const c = (data.choices || [])[0] || {};
       texte = (c.message && c.message.content) || "";
+      if (Array.isArray(texte)) texte = texte.map(x => x.text || "").join("");
       tronque = c.finish_reason === "length";
     }
     texte = nettoyer(texte);
@@ -1004,14 +1055,14 @@ Règles :
     return { texte, modele, ms, tronque };
   }
 
-  // Avec les nouveaux essais utiles : sans les réglages de « réflexion » s'ils sont refusés, attente courte si limite par minute.
+  // Nouveaux essais utiles : sans réglages de réflexion puis sans température s'ils sont refusés ; attente courte si limite par minute.
   async function appelerAvecEssais(fournisseur, cle, modele, systeme, utilisateur, opts = {}) {
-    let extras = opts.extras !== false, attendu = false;
+    let mode = "complet", attendu = false;
     for (;;) {
       try {
-        return await appeler(fournisseur, cle, modele, systeme, utilisateur, Object.assign({}, opts, { extras }));
+        return await appeler(fournisseur, cle, modele, systeme, utilisateur, Object.assign({}, opts, { mode }));
       } catch (e) {
-        if (e.code === "parametre" && extras) { extras = false; continue; }
+        if (e.code === "parametre" && mode !== "minimal") { mode = mode === "complet" && e.avaitExtras ? "simple" : "minimal"; continue; }
         if (e.code === "limite" && !attendu && !opts.essai && (e.attente || 5) <= 25) {
           attendu = true;
           const s = Math.ceil(e.attente || 5);
@@ -1025,51 +1076,95 @@ Règles :
   }
 
   async function listerModeles(fournisseur, cle, opts = {}) {
-    const F = FOURNISSEURS[fournisseur], f = opts.fetch || racine.fetch.bind(racine);
-    const url = fournisseur === "gemini" ? `${F.base}/models?pageSize=200` : `${F.base}/models`;
-    const entetes = fournisseur === "gemini" ? { "x-goog-api-key": cle } : { "Authorization": "Bearer " + cle };
-    const r = await requete(f, url, { method: "GET", headers: entetes }, opts.delai || 20000);
+    const F = FOURNISSEURS[fournisseur], f = opts.fetch || racine.fetch.bind(racine), base = baseDe(F, opts);
+    const url = F.format === "gemini" ? `${base}/models?pageSize=200` : `${base}/models`;
+    const r = await requete(f, url, { method: "GET", headers: entetesDe(F, cle) }, opts.delai || 20000);
     if (!r.ok) {
       const e = await lireErreur(r);
       const code = classerErreur(e, false);
       throw new ErreurRedacteur(code, erreurLisible(code, F, e), { statut: e.statut });
     }
     const data = await r.json();
-    if (fournisseur === "gemini")
+    if (F.format === "gemini")
       return (data.models || []).filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes("generateContent"))
         .map(m => String(m.name || "").replace(/^models\//, "")).filter(Boolean);
-    return (data.data || []).filter(m => m.active !== false).map(m => String(m.id || "")).filter(Boolean);
+    return (data.data || data.models || []).filter(m => m.active !== false).map(m => String(m.id || m.name || "")).filter(Boolean);
   }
 
   const versionDe = id => { const m = /(\d+(?:\.\d+)?)/.exec(String(id).replace(/^.*\//, "")); return m ? parseFloat(m[1]) : 0; };
-  function ordonnerCandidats(fournisseur, ids, impose = "") {
+  function ordonnerCandidats(fournisseur, ids, impose = "", sauf = null) {
     const F = FOURNISSEURS[fournisseur];
-    const dispo = [...new Set(ids)].filter(id => !F.exclus.test(id));
+    let dispo = [...new Set(ids)].filter(id => !F.exclus.test(id) && (!F.seulement || F.seulement.test(id)));
+    if (sauf) dispo = dispo.filter(id => !sauf(id));
     const ordre = [];
     for (const motif of F.prefere)
       ordre.push(...dispo.filter(id => motif.test(id) && !ordre.includes(id)).sort((a, b) => versionDe(b) - versionDe(a) || a.localeCompare(b)));
+    if (!F.prefere.length) ordre.push(...dispo);              // « autre » : ce que le serveur propose, dans son ordre
     const liste = [...new Set([impose, ...ordre].filter(Boolean))];
-    return (liste.length ? liste : F.defauts).slice(0, NB_CANDIDATS);
+    const repli = F.defauts.filter(m => !sauf || !sauf(m));
+    return (liste.length ? liste : repli).slice(0, NB_CANDIDATS);
   }
 
   // Choix automatique : la liste du fournisseur, puis un petit essai par modèle (certains sont listés mais refusés)
   async function choisirModele(fournisseur, cle, opts = {}) {
+    const F = FOURNISSEURS[fournisseur];
     let ids = [];
     try { ids = await listerModeles(fournisseur, cle, opts); }
-    catch (e) { if (e.code === "cle" || e.code === "reseau") throw e; }
-    const refuses = [];
-    for (const m of ordonnerCandidats(fournisseur, ids, opts.impose)) {
+    catch (e) { if (["cle", "reseau", "sans_adresse", "credit"].includes(e.code)) throw e; }
+    const refuses = [], candidats = ordonnerCandidats(fournisseur, ids, opts.impose, opts.sauf);
+    for (const m of candidats) {
       if (opts.surEtat) opts.surEtat(`Essai du modèle ${m}…`);
       try {
         const r = await appelerAvecEssais(fournisseur, cle, m, "Réponds seulement : OK", "OK ?", Object.assign({}, opts, { essai: true, maxTokens: 16 }));
         return { modele: m, ms: r.ms, refuses };
       } catch (e) {
-        if (e.code === "cle" || e.code === "reseau") throw e;
+        if (["cle", "reseau", "sans_adresse", "credit"].includes(e.code)) throw e;
+        if ((e.code === "limite_jour" || e.code === "limite") && opts.epuiser) opts.epuiser(m, e.code === "limite" ? 60 : e.attente || 3600);
         refuses.push({ modele: m, raison: e.court });
       }
     }
-    throw new ErreurRedacteur("aucun_modele", `Aucun modèle de ${FOURNISSEURS[fournisseur].nom} n'accepte cette clé pour l'instant (`
-      + refuses.map(x => `${x.modele} : ${x.raison}`).join(" ; ") + "). Réessaie plus tard ou change de fournisseur.", { refuses });
+    throw new ErreurRedacteur("aucun_modele", candidats.length
+      ? `Aucun modèle de ${F.nom} n'accepte cette clé pour l'instant (` + refuses.map(x => `${x.modele} : ${x.raison}`).join(" ; ") + ")."
+      : `${F.nom} ne propose aucun modèle utilisable : indique le nom du modèle dans ⚙️ Réglages.`, { refuses });
+  }
+
+  // ---------- Relais : modèles puis fournisseurs, jusqu'à une réponse ----------
+  // connexions : [{ f, cle, base, impose }] dans l'ordre d'essai.
+  // memoire : { auto(f), setAuto(f, m), estEpuise(f, m), epuiser(f, m, secondes) } (gardée par la page sur l'appareil)
+  async function redigerAvecRelais({ connexions, systeme, utilisateur, memoire, surEtat = () => {}, fetch }) {
+    const notes = [];
+    for (const cx of connexions) {
+      const F = FOURNISSEURS[cx.f];
+      if (!F) continue;
+      if (memoire.estEpuise(cx.f, "*")) { notes.push(`${F.nom} : ${COURT.credit}`); continue; }
+      const opts = { fetch, base: cx.base, surEtat, epuiser: (m, s) => memoire.epuiser(cx.f, m, s) };
+      const essayes = new Set();
+      let modele = cx.impose || memoire.auto(cx.f) || "";
+      for (let tour = 0; tour <= (cx.impose ? 0 : F.relaisModeles || 1); tour++) {
+        try {
+          if (!modele || memoire.estEpuise(cx.f, modele)) {
+            if (cx.impose) { notes.push(`${F.nom} ${cx.impose} : ${COURT.limite_jour}`); break; }
+            surEtat(`Choix du modèle (${F.nom})`);
+            modele = (await choisirModele(cx.f, cx.cle, Object.assign({}, opts, { sauf: m => essayes.has(m) || memoire.estEpuise(cx.f, m) }))).modele;
+            memoire.setAuto(cx.f, modele);
+          }
+          essayes.add(modele);
+          surEtat(`Rédaction par ${F.nom}`);
+          const res = await appelerAvecEssais(cx.f, cx.cle, modele, systeme, utilisateur, opts);
+          return Object.assign(res, { fournisseur: cx.f, relais: notes });
+        } catch (e) {
+          const raisons = e.code === "aucun_modele" && e.refuses && e.refuses.length ? [...new Set(e.refuses.map(x => x.raison))].join(", ") : e.court;
+          notes.push(`${F.nom}${modele && e.code !== "aucun_modele" ? " " + modele : ""} : ${raisons}`);
+          if (e.code === "credit") { memoire.epuiser(cx.f, "*", 3600); break; }
+          if (e.code === "limite_jour" || e.code === "limite") memoire.epuiser(cx.f, modele, e.code === "limite" ? Math.max(e.attente || 60, 60) : e.attente || 3600);
+          if (!cx.impose && ["limite_jour", "limite", "modele", "vide"].includes(e.code)) { memoire.setAuto(cx.f, ""); modele = ""; continue; }
+          break;                                                   // clé refusée, injoignable, panne… : fournisseur suivant
+        }
+      }
+    }
+    throw new ErreurRedacteur("aucun_fournisseur", connexions.length
+      ? `Aucun fournisseur n'a pu répondre (${notes.join(" ; ")}). Ajoute une autre clé dans ⚙️ Réglages du Rédacteur, ou réessaie plus tard.`
+      : "Aucun fournisseur configuré : colle une clé dans ⚙️ Réglages du Rédacteur.", { notes });
   }
 
   // ---------- Lecture de la réponse : citations et chiffres ----------
@@ -1179,28 +1274,39 @@ Règles :
   }
 
   racine.Redacteur = {
-    FOURNISSEURS, CONSIGNES, SENTINELLE, ErreurRedacteur, messageUtilisateur, appeler, appelerAvecEssais, listerModeles,
-    ordonnerCandidats, choisirModele, analyserReponse, nombresDe, indexSources, canonUnite, classerErreur, dureeEnSecondes, nettoyer,
+    FOURNISSEURS, ORDRE_DEFAUT, CONSIGNES, consignes, SENTINELLE, ErreurRedacteur, messageUtilisateur, appeler, appelerAvecEssais, listerModeles,
+    ordonnerCandidats, choisirModele, redigerAvecRelais, analyserReponse, nombresDe, indexSources, canonUnite, classerErreur, dureeEnSecondes, nettoyer,
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* REDACTEUR:FIN */
 </script>
 <script type="module">
 const CONFIG = {
+  // Ce qui dépend du thème (pour une Rebecca « vierge » destinée à un autre service : changer ces lignes)
+  identite: { nom: "Rebecca", sousTitre: "Recherche dans les protocoles, référentiels et fiches",
+              public: "une équipe soignante (infirmiers, médecins) dans un hôpital français" },
+  // Adresses externes. Produit final hors ligne : chemins locaux (ex. "lib/transformers.min.js", modeles: "modeles/")
   transformers: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
   versionTransformers: "3.8.1",
   pdfjs: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.min.mjs",
   pdfjsWorker: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.worker.min.mjs",
+  modeles: "",          // "" = modèle de sens téléchargé sur Hugging Face ; sinon dossier local (contenant Xenova/multilingual-e5-small/)
+  wasm: "",             // "" = moteur ONNX du CDN ; sinon dossier local des fichiers .wasm
   dossierIndex: "index/",
   dossierPdf: "pdf/",
-  // Le Rédacteur : fournisseur « groq » ou « gemini », modèle "" = choix automatique (modifiables aussi dans ⚙️ Réglages de la page)
-  redacteur: { fournisseur: "groq", modele: "" },
+  // Le Rédacteur : ordre d'essai des fournisseurs ; « autre » = serveur local, intranet ou DSI (compatible OpenAI), pré-rempli si besoin
+  redacteur: { ordre: ["groq", "mistral", "gemini", "openrouter", "autre", "anthropic", "openai", "xai", "deepseek"], prefere: "",
+               autre: { adresse: "", modele: "" } },
 };
+document.title = CONFIG.identite.nom;
+document.querySelector("header h1").textContent = "🔎 " + CONFIG.identite.nom;
+document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 5;
+const VERSION_PAGE = 7;
 const R = globalThis.Redacteur;
 const $ = id => document.getElementById(id);
 const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0,
+            passagesSigles: new Map(),
             reponse: null, ticketReponse: 0, attenteModele: null };
 let finModele = () => {};
 E.attenteModele = new Promise(ok => { finModele = ok; });
@@ -1330,7 +1436,9 @@ async function chargerModele() {
   etat("Recherche par mots-clés prête. Chargement du moteur de sens…");
   try {
     const T = await import(CONFIG.transformers);
-    T.env.allowLocalModels = false;
+    T.env.allowLocalModels = !!CONFIG.modeles;
+    if (CONFIG.modeles) { T.env.localModelPath = CONFIG.modeles; T.env.allowRemoteModels = false; }
+    if (CONFIG.wasm && T.env.backends && T.env.backends.onnx && T.env.backends.onnx.wasm) T.env.backends.onnx.wasm.wasmPaths = CONFIG.wasm;
     const fichiers = new Map();
     E.extracteur = await T.pipeline("feature-extraction", m.id, {
       dtype: m.dtype || "q8",
@@ -1373,25 +1481,66 @@ function motDesDocuments(terme) {
   return (p && motVu(E.morceaux[p[0]].t, terme)) || terme;
 }
 
+// ---------- Sigles : le passage où un sigle est défini ----------
+const sansAccents = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+function passageDuSigle(x) {
+  if (x.d === null || x.d === undefined) return -1;            // ajouté à la main dans le catalogue : pas de page
+  const cle = `${x.d}|${x.p}|${x.s}`;
+  if (E.passagesSigles.has(cle)) return E.passagesSigles.get(cle);
+  const debut = sansAccents(x.def).slice(0, 14);
+  let trouve = -1;
+  for (let i = 0; i < E.morceaux.length; i++) {
+    const m = E.morceaux[i];
+    if (m.d !== x.d || x.p < m.p || x.p > (m.pf || m.p)) continue;
+    if (trouve < 0) trouve = i;
+    if (m.t.includes(x.s) && sansAccents(m.t).includes(debut)) { trouve = i; break; }
+  }
+  E.passagesSigles.set(cle, trouve);
+  return trouve;
+}
+// « c'est quoi un ESR ? » : le passage qui définit le sigle passe en tête (et compte pour le Rédacteur)
+function avecDefinitions(groupes, prep) {
+  if (!prep.sigles.length || prep.qx === prep.question) return { groupes, nb: 0 };
+  const total = Object.assign({}, C.REGLAGES, E.etat.reglages).total || 6;
+  let gs = groupes.map(g => ({ doc: g.doc, passages: g.passages.slice() })), nb = 0;
+  for (const x of prep.sigles.slice(0, 2).reverse()) {
+    const id = passageDuSigle(x);
+    if (id < 0) continue;
+    nb++;
+    gs.forEach(g => { g.passages = g.passages.filter(p => p.id !== id); });
+    const doc = E.morceaux[id].d, g = gs.find(y => y.doc === doc && y.passages.length);
+    if (g) { g.passages.unshift({ id, definition: true }); gs = [g, ...gs.filter(y => y !== g)]; }
+    else gs.unshift({ doc, passages: [{ id, definition: true }] });
+  }
+  let n = 0;
+  gs = gs.map(g => ({ doc: g.doc, passages: g.passages.filter(() => n++ < total) })).filter(g => g.passages.length);
+  return { groupes: gs, nb };
+}
+
 // La recherche complète : documents puis passages, regroupés par document
 async function rechercher(question) {
   const q = String(question || "").trim();
   if (!q || !E.etat) return null;
   const prep = C.preparerQuestion(E.etat, q);
+  const vus = new Set();                                         // même sigle, même définition (aux accents près) : une fois
+  prep.sigles = prep.sigles.filter(x => { const c = x.s.replace(/\s+/g, "").toUpperCase() + "|" + sansAccents(x.def); return !vus.has(c) && vus.add(c); });
   let v = null;
   if (E.extracteur) v = (await E.extracteur(E.manifeste.modele.prefixe_question + C.normaliserModele(prep.qx), { pooling: "mean", normalize: true })).data;
   const r = C.chercher(E.etat, prep, v);
+  const def = avecDefinitions(r.groupes, prep);
+  const questionDefinition = prep.sigles.length > 0 && prep.qx !== prep.question;
   let k = 0;
-  const documents = r.groupes.map(g => {
+  const documents = def.groupes.map(g => {
     const d = E.docs[g.doc];
     return { fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", pages: d.pages,
              passages: g.passages.map(p => {
                const m = E.morceaux[p.id];
                return { rang: ++k, id: p.id, fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", page: m.p, page_fin: m.pf,
-                        section: m.s, texte: m.t, rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc };
+                        section: m.s, texte: m.t, rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc, definition: !!p.definition };
              }) };
   });
-  return { question: q, mode: r.mode, confiance: r.confiance, sens: r.meilleurSens, documents,
+  return { question: q, mode: r.mode, confiance: def.nb ? "normale" : r.confiance, sens: r.meilleurSens, documents,
+           questionDefinition, passagesDefinition: def.nb,
            resultats: documents.flatMap(d => d.passages), sigles: prep.sigles,
            corrections: prep.corrections.map(([a, b]) => ({ ecrit: motVu(q, a, true) || a, cherche: motDesDocuments(b), terme: b })),
            absents: prep.absents.map(t => motVu(q, t, true) || t) };
@@ -1404,7 +1553,7 @@ function contexte(rep) {
 window.moteur = {
   rechercher,
   contexteLLM: async question => contexte(await rechercher(question)),
-  sigles: question => C.siglesDansQuestion(question, E.sigles).map(x => ({ sigle: x.s, definition: x.def, fichier: E.docs[x.d].f, page: x.p })),
+  sigles: question => C.siglesDansQuestion(question, E.sigles).map(x => ({ sigle: x.s, definition: x.def, fichier: x.d == null ? null : E.docs[x.d].f, page: x.p })),
   formaterPourLLM: C.formaterPourLLM,
   pret: () => !!E.extracteur,
   // Le Rédacteur (pour la future Voix) : remplit la question, rédige, renvoie { texte, sources… } ou { message } / { erreur }
@@ -1463,7 +1612,8 @@ function afficher(rep) {
   const termes = C.analyser(rep.question, true).concat(rep.corrections.map(c => c.terme));
   const qa = C.analyserQuestion(rep.question, rep.corrections.map(c => c.terme), C.rareteTermes(E.etat.bm25, termes));
   $("sigles").hidden = !rep.sigles.length;
-  $("sigles").innerHTML = rep.sigles.map(x => `<div>📖 <b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${C.echapper(E.docs[x.d].titre)}, p. ${x.p}</span></div>`).join("");
+  $("sigles").innerHTML = rep.sigles.map(x => `<div>📖 <b>${C.echapper(x.s)}</b> : ${C.echapper(x.def)} <span class="petit">— ${
+    x.d == null ? "lexique du catalogue" : `${C.echapper(E.docs[x.d].titre)}, p. ${x.p}`}</span></div>`).join("");
   const avis = [];
   if (resultats.length && rep.confiance === "faible")
     avis.push(`<div class="faible">🤔 <b>Rien ne correspond vraiment</b> à ta question dans les documents. Voici quand même les passages les plus proches : vérifie-les.</div>`);
@@ -1473,9 +1623,9 @@ function afficher(rep) {
     avis.push(`<div>🔤 Cherché aussi : ${rep.corrections.map(c => `« ${C.echapper(c.cherche)} » (pour « ${C.echapper(c.ecrit)} »)`).join(", ")}</div>`);
   $("avis").hidden = !avis.length;
   $("avis").innerHTML = avis.join("");
-  $("outils").hidden = !resultats.length;
   $("mode").textContent = E.extracteur ? ""
     : E.echecModele ? "🔤 Mots-clés seulement (moteur de sens indisponible)" : "🔤 Mots-clés seulement — mis à jour quand le modèle sera prêt";
+  $("outils").hidden = !resultats.length || !$("mode").textContent;
   if (!resultats.length) {
     ol.innerHTML = `<li class="vide">Aucun passage trouvé${E.extracteur ? "" : " par mots-clés (essaie d'autres mots, ou attends le chargement du modèle)"}.</li>`;
     return;
@@ -1487,7 +1637,7 @@ function afficher(rep) {
       const i = r.rang - 1;
       const pages = r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
       const section = (r.section || "").split(" › ").filter(x => x.trim() !== d.titre.trim()).join(" › ");
-      const pert = [r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`, r.rang_doc && `document n°${r.rang_doc}`].filter(Boolean).join(" · ");
+      const pert = [r.definition && "définition du sigle", r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`, r.rang_doc && `document n°${r.rang_doc}`].filter(Boolean).join(" · ");
       return `<div class="carte" id="passage-${r.rang}">
         <div class="source"><span class="rang">${r.rang}</span><span><b>${pages}</b>${section ? " · " + C.echapper(section) : ""}</span></div>
         <p class="extrait">${C.extrait(r.texte, qa)}</p>
@@ -1514,61 +1664,98 @@ $("resultats").addEventListener("click", ev => {
   ouvrirVisionneuse(r.fichier, r.page);
 });
 
-async function copier(texte) {
-  try { await navigator.clipboard.writeText(texte); return true; } catch (e) {
-    const t = document.createElement("textarea");
-    t.value = texte; document.body.appendChild(t); t.select();
-    const ok = document.execCommand("copy"); t.remove(); return ok;
-  }
-}
-$("copier-llm").addEventListener("click", async () => {
-  if (!E.derniere) return;
-  const ok = await copier(contexte(E.derniere));
-  $("copier-llm").textContent = ok ? "✅ Copié" : "❌ Copie impossible";
-  setTimeout(() => { $("copier-llm").textContent = "📋 Copier pour un LLM"; }, 1800);
-});
-
 // ---------- Rédacteur : réglages (gardés seulement sur cet appareil) ----------
 const CLE_STOCKAGE = "rebecca.redacteur.v1";
+const ORDRE = (CONFIG.redacteur.ordre || R.ORDRE_DEFAUT).filter(f => R.FOURNISSEURS[f]);
 let reglagesMemoire = null;
 function lireReglages() {
   let r = null;
   try { r = JSON.parse(localStorage.getItem(CLE_STOCKAGE) || "null"); } catch (e) {}
   r = r || reglagesMemoire || {};
-  return { fournisseur: R.FOURNISSEURS[r.fournisseur] ? r.fournisseur : CONFIG.redacteur.fournisseur, cles: r.cles || {}, modeles: r.modeles || {}, auto: r.auto || {} };
+  return { fournisseur: R.FOURNISSEURS[r.fournisseur] ? r.fournisseur : ORDRE[0], cles: r.cles || {}, modeles: r.modeles || {}, auto: r.auto || {},
+           adresses: r.adresses || {}, prefere: r.prefere === undefined ? CONFIG.redacteur.prefere || "" : r.prefere, epuise: r.epuise || {} };
 }
 function ecrireReglages(r) {
   reglagesMemoire = r;
   try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(r)); return true; } catch (e) { return false; }
 }
-const modeleImpose = (r, f) => String(r.modeles[f] || (f === CONFIG.redacteur.fournisseur ? CONFIG.redacteur.modele : "") || "").trim();
+const adresseDe = (r, f) => f === "autre" ? String(r.adresses.autre || CONFIG.redacteur.autre.adresse || "").trim() : "";
+const estConfigure = (r, f) => f === "autre" ? !!adresseDe(r, f) : !!r.cles[f];
+const modeleImpose = (r, f) => String(r.modeles[f] || (f === "autre" ? CONFIG.redacteur.autre.modele : "") || "").trim();
+function connexions(r) {
+  const ordre = r.prefere && R.FOURNISSEURS[r.prefere] ? [r.prefere, ...ORDRE.filter(f => f !== r.prefere)] : ORDRE;
+  return ordre.filter(f => estConfigure(r, f)).map(f => ({ f, cle: r.cles[f] || "", base: adresseDe(r, f), impose: modeleImpose(r, f) }));
+}
+const maintenantMs = () => Date.now();
+function memoireRelais() {                     // modèle choisi et quotas épuisés, gardés sur l'appareil
+  return {
+    auto: f => { const a = lireReglages().auto[f]; return (a && a.modele) || ""; },
+    setAuto: (f, m) => { const r = lireReglages(); if (m) r.auto[f] = { modele: m, le: maintenantMs() }; else delete r.auto[f]; ecrireReglages(r); },
+    estEpuise: (f, m) => (lireReglages().epuise[`${f}|${m}`] || 0) > maintenantMs(),
+    epuiser: (f, m, s) => {
+      const r = lireReglages(), t = maintenantMs();
+      for (const k of Object.keys(r.epuise)) if (r.epuise[k] < t) delete r.epuise[k];
+      r.epuise[`${f}|${m}`] = t + s * 1000; ecrireReglages(r);
+    },
+  };
+}
+const heure = t => new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+function resumeRelais() {
+  const r = lireReglages(), t = maintenantMs();
+  const liste = connexions(r).map(cx => {
+    const F = R.FOURNISSEURS[cx.f], m = cx.impose || (r.auto[cx.f] && r.auto[cx.f].modele) || "";
+    const pauses = Object.entries(r.epuise).filter(([k, v]) => k.startsWith(cx.f + "|") && v > t).map(([, v]) => v);
+    const fin = Math.max(r.epuise[`${cx.f}|*`] || 0, m ? r.epuise[`${cx.f}|${m}`] || 0 : pauses.length ? Math.min(...pauses) : 0);
+    return `<b>${C.echapper(F.nom)}</b>${m ? ` (${C.echapper(m)})` : ""}${fin > t ? ` ⏸️ jusqu'à ${heure(fin)}` : ""}`;
+  });
+  $("r-relais").innerHTML = liste.length ? "Ordre d'essai : " + liste.join(" → ") : "Aucun fournisseur réglé pour l'instant : choisis-en un ci-dessous et colle sa clé.";
+  const pref = $("r-prefere");
+  pref.innerHTML = `<option value="">Automatique (gratuits d'abord)</option>` + connexions(Object.assign({}, r, { prefere: "" }))
+    .map(cx => `<option value="${cx.f}">${C.echapper(R.FOURNISSEURS[cx.f].nom)}</option>`).join("");
+  pref.value = r.prefere && estConfigure(r, r.prefere) ? r.prefere : "";
+}
+function champsVisibles(f) {
+  const F = R.FOURNISSEURS[f];
+  $("r-aide").textContent = F.aideCle;
+  $("r-adresse-l").hidden = f !== "autre";
+  $("r-cle").placeholder = F.cleFacultative ? "clé (facultative)" : "colle ta clé ici";
+}
 function remplirChampsReglages(f) {
   const r = lireReglages();
+  if (!$("r-fournisseur").options.length)
+    $("r-fournisseur").innerHTML = ORDRE.map(k => `<option value="${k}">${C.echapper(R.FOURNISSEURS[k].nom)} — ${R.FOURNISSEURS[k].cout}</option>`).join("");
   $("r-fournisseur").value = f || r.fournisseur;
   f = $("r-fournisseur").value;
+  champsVisibles(f);
   $("r-cle").value = r.cles[f] || "";
+  $("r-adresse").value = adresseDe(r, f);
   $("r-modele").value = r.modeles[f] || "";
   $("r-modele").placeholder = r.auto[f] ? `automatique (dernier choix : ${r.auto[f].modele})` : "automatique";
+  resumeRelais();
 }
 $("reglages").addEventListener("toggle", () => { if ($("reglages").open) remplirChampsReglages(); });
 $("r-fournisseur").addEventListener("change", () => { remplirChampsReglages($("r-fournisseur").value); $("r-etat").textContent = ""; });
-$("r-cle").addEventListener("input", () => {        // une clé « gsk_… » est une clé Groq, « AIza… » une clé Gemini
+$("r-prefere").addEventListener("change", () => { const r = lireReglages(); r.prefere = $("r-prefere").value; ecrireReglages(r); resumeRelais(); });
+$("r-cle").addEventListener("input", () => {        // le début de la clé suffit parfois à reconnaître le fournisseur (« gsk_… » = Groq)
   const v = $("r-cle").value.trim();
-  for (const [f, F] of Object.entries(R.FOURNISSEURS)) if (F.prefixeCle.test(v)) $("r-fournisseur").value = f;
+  for (const [f, F] of Object.entries(R.FOURNISSEURS))
+    if (F.prefixeCle && F.prefixeCle.test(v) && $("r-fournisseur").value !== f) { $("r-fournisseur").value = f; champsVisibles(f); $("r-modele").value = ""; }
 });
 $("r-enregistrer").addEventListener("click", async () => {
   const r = lireReglages(), f = $("r-fournisseur").value, F = R.FOURNISSEURS[f];
   const cle = $("r-cle").value.trim(), modele = $("r-modele").value.trim();
   r.fournisseur = f; r.modeles[f] = modele; delete r.auto[f];
   if (cle) r.cles[f] = cle; else delete r.cles[f];
+  if (f === "autre") r.adresses.autre = $("r-adresse").value.trim();
+  for (const k of Object.keys(r.epuise)) if (k.startsWith(f + "|")) delete r.epuise[k];   // nouvelle clé : on oublie les limites passées
   ecrireReglages(r);
-  if (!cle) { $("r-etat").textContent = `Colle d'abord ta clé ${F.nom}.`; return; }
+  if (!estConfigure(r, f)) { $("r-etat").textContent = f === "autre" ? "Indique d'abord l'adresse du serveur." : `Colle d'abord ta clé ${F.nom}.`; resumeRelais(); return; }
   $("r-enregistrer").disabled = true;
   $("r-etat").textContent = "Test en cours…";
   try {
-    const choix = await R.choisirModele(f, cle, { impose: modele, surEtat: t => { $("r-etat").textContent = t; } });
+    const choix = await R.choisirModele(f, cle, { impose: modele, base: adresseDe(r, f), surEtat: t => { $("r-etat").textContent = t; } });
     const r2 = lireReglages();
-    r2.auto[f] = { modele: choix.modele, le: Date.now() };
+    r2.auto[f] = { modele: choix.modele, le: maintenantMs() };
     let note = "";
     if (modele && choix.modele !== modele) {
       r2.modeles[f] = ""; $("r-modele").value = "";
@@ -1576,20 +1763,21 @@ $("r-enregistrer").addEventListener("click", async () => {
     }
     const garde = ecrireReglages(r2);
     const refus = choix.refuses.filter(x => x.modele !== modele).map(x => `${C.echapper(x.modele)} (${x.raison})`);
-    $("r-etat").innerHTML = `✅ ${F.nom} répond avec <b>${C.echapper(choix.modele)}</b>.${note}`
+    $("r-etat").innerHTML = `✅ ${C.echapper(F.nom)} répond avec <b>${C.echapper(choix.modele)}</b>.${note}`
       + (refus.length ? ` Modèles listés mais refusés : ${refus.join(", ")}.` : "")
-      + (garde ? " Clé gardée sur cet appareil." : " ⚠️ Mémoire du navigateur indisponible (navigation privée ?) : clé gardée jusqu'à la fermeture de la page.");
+      + (garde ? " Réglage gardé sur cet appareil." : " ⚠️ Mémoire du navigateur indisponible (navigation privée ?) : réglage gardé jusqu'à la fermeture de la page.");
     remplirChampsReglages(f);
   } catch (e) {
-    $("r-etat").textContent = "❌ " + (e.message || e);
+    $("r-etat").textContent = "❌ " + (e.message || e) + (e.code === "reseau" ? ` ${F.nom} refuse peut-être les appels depuis une page web.` : "");
   } finally { $("r-enregistrer").disabled = false; }
 });
 $("r-oublier").addEventListener("click", () => {
   const r = lireReglages(), f = $("r-fournisseur").value;
   delete r.cles[f]; delete r.auto[f];
+  if (f === "autre") delete r.adresses.autre;
   ecrireReglages(r);
-  $("r-cle").value = "";
-  $("r-etat").textContent = `Clé ${R.FOURNISSEURS[f].nom} effacée de cet appareil.`;
+  remplirChampsReglages(f);
+  $("r-etat").textContent = `Réglage ${R.FOURNISSEURS[f].nom} effacé de cet appareil.`;
 });
 
 // ---------- Rédacteur : la réponse ----------
@@ -1608,38 +1796,21 @@ function montrerReponse({ attente, message, erreur }) {
   return attente ? null : erreur ? { erreur } : { message };
 }
 
-async function rediger(rep, f, cle, reg, surEtat) {
-  const impose = modeleImpose(reg, f), F = R.FOURNISSEURS[f];
-  let modele = impose || (reg.auto[f] && reg.auto[f].modele) || "", nouveauChoix = false;
-  const message = R.messageUtilisateur(contexte(rep));
-  for (;;) {
-    if (!modele) {
-      surEtat("Choix du modèle");
-      modele = (await R.choisirModele(f, cle, { surEtat })).modele;
-      nouveauChoix = true;
-      const r2 = lireReglages(); r2.auto[f] = { modele, le: Date.now() }; ecrireReglages(r2);
-    }
-    try {
-      surEtat(`Rédaction par ${F.nom}`);
-      const res = await R.appelerAvecEssais(f, cle, modele, R.CONSIGNES, message, { surEtat });
-      return Object.assign(res, { fournisseur: f, question: rep.question, analyse: R.analyserReponse(res.texte, rep.resultats) });
-    } catch (e) {
-      if (e.code === "modele" && !impose && !nouveauChoix) { modele = ""; continue; }   // modèle retiré entre-temps : nouveau choix
-      if (e.code === "modele" && impose) e.message += " Vide le champ « Modèle » dans ⚙️ Réglages pour un choix automatique.";
-      throw e;
-    }
-  }
+async function rediger(rep, reg, surEtat) {
+  const res = await R.redigerAvecRelais({ connexions: connexions(reg), systeme: R.consignes(CONFIG.identite),
+                                          utilisateur: R.messageUtilisateur(contexte(rep)), memoire: memoireRelais(), surEtat });
+  return Object.assign(res, { question: rep.question, analyse: R.analyserReponse(res.texte, rep.resultats) });
 }
 
 async function repondre() {
   const q = $("question").value.trim();
   if (!q) { $("question").focus(); return null; }
   $("question").blur();
-  const reg = lireReglages(), f = reg.fournisseur, F = R.FOURNISSEURS[f], cle = reg.cles[f];
-  if (!cle) {
+  const reg = lireReglages();
+  if (!connexions(reg).length) {
     $("reglages").open = true;
-    remplirChampsReglages(f);
-    $("r-etat").textContent = `Pour les réponses rédigées : colle ici ta clé ${F.nom} (gratuite : ${F.aideCle}), puis « Enregistrer et tester ».`;
+    remplirChampsReglages();
+    $("r-etat").textContent = "Pour les réponses rédigées : colle ici une clé (Groq, Mistral et Gemini sont gratuits), puis « Enregistrer et tester ».";
     $("reglages").scrollIntoView({ behavior: "smooth", block: "start" });
     return { message: "clé manquante" };
   }
@@ -1654,18 +1825,20 @@ async function repondre() {
   let rep = E.derniere;
   if (!rep || rep.question !== q || (rep.mode === "mots" && E.extracteur)) rep = await lancer(q, true, true);
   if (!encore() || !rep) return null;
+  if (rep.questionDefinition && !rep.passagesDefinition)         // sigle ajouté à la main : la définition suffit, pas besoin du LLM
+    return montrerReponse({ message: "📖 " + rep.sigles.map(x => `${x.s} : ${x.def}`).join(" ; ") + " (lexique du catalogue)" });
   if (!rep.resultats.length) return montrerReponse({ message: "📭 Aucun passage trouvé : pas de réponse possible." });
   if (rep.confiance === "faible")
     return montrerReponse({ message: "🤔 Rien ne correspond vraiment à ta question dans les documents : pas de réponse rédigée, pour ne rien inventer. Les passages les plus proches sont ci-dessous." });
   if (navigator.onLine === false)
     return montrerReponse({ message: "📵 Pas de connexion : la réponse rédigée a besoin d'internet. Les passages ci-dessous restent consultables." });
   try {
-    const res = await rediger(rep, f, cle, reg, t => { if (encore()) montrerReponse({ attente: t }); });
+    const res = await rediger(rep, reg, t => { if (encore()) montrerReponse({ attente: t }); });
     if (!encore()) return null;
     E.reponse = res;
     afficherReponse(res, rep);
     const a = res.analyse;
-    return { question: q, texte: res.texte, aucune: a.aucune, douteux: a.douteux, fournisseur: f, modele: res.modele,
+    return { question: q, texte: res.texte, aucune: a.aucune, douteux: a.douteux, fournisseur: res.fournisseur, modele: res.modele, relais: res.relais,
              sources: a.cites.map(n => { const r = rep.resultats[n - 1]; return { n, titre: r.titre, fichier: r.fichier, page: r.page }; }) };
   } catch (e) {
     if (!encore()) return null;
@@ -1690,7 +1863,8 @@ function rendreMorceaux(morceaux, rep) {
 function afficherReponse(res, rep) {
   const a = res.analyse, F = R.FOURNISSEURS[res.fournisseur];
   $("reponse").hidden = false;
-  $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`;
+  $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`
+    + (res.relais && res.relais.length ? ` (relais : ${res.relais.join(" ; ")})` : "");
   if (a.aucune) {
     $("r-corps").innerHTML = "<p>📭 Les passages trouvés ne contiennent pas la réponse à cette question : Rebecca préfère ne rien inventer. Vérifie les passages ci-dessous ou reformule.</p>";
     $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
@@ -1749,7 +1923,7 @@ $("reponse").addEventListener("click", ev => {
 });
 
 // ---------- Visionneuse PDF ----------
-const V = { pdfjs: null, doc: null, fichier: null, page: 1, zoom: 1, rendu: null };
+const V = { pdfjs: null, tache: null, doc: null, fichier: null, page: 1, zoom: 1, rendu: null };
 async function ouvrirVisionneuse(fichier, page) {
   $("visionneuse").hidden = false;
   document.body.classList.add("bloque");
@@ -1763,18 +1937,28 @@ async function ouvrirVisionneuse(fichier, page) {
       V.pdfjs.GlobalWorkerOptions.workerSrc = CONFIG.pdfjsWorker;
     }
     if (V.fichier !== fichier) {
-      if (V.doc) V.doc.destroy();
-      V.doc = null; V.fichier = null;
-      V.doc = await V.pdfjs.getDocument({ url: lienPdf(fichier), disableRange: true, disableStream: true }).promise;
-      V.fichier = fichier;
+      if (V.rendu) { V.rendu.cancel(); V.rendu = null; }
+      const ancienne = V.tache;
+      V.doc = null; V.fichier = null; V.tache = null;
+      if (ancienne) Promise.resolve(ancienne.destroy()).catch(() => {});
+      effacerCanvas();
+      const tache = V.tache = V.pdfjs.getDocument({ url: lienPdf(fichier), disableRange: true, disableStream: true });
+      const doc = await tache.promise;
+      if (V.tache !== tache) return;            // un autre document a été demandé entre-temps
+      V.doc = doc; V.fichier = fichier;
     }
     V.page = Math.min(Math.max(1, page), V.doc.numPages);
     V.zoom = 1;
     await dessinerPage();
   } catch (e) {
     console.error(e);
+    effacerCanvas();                            // ne jamais laisser la page d'un autre document à l'écran
     $("v-etat").textContent = "Affichage impossible ici : utilise « Ouvrir ↗ ».";
   }
+}
+function effacerCanvas() {
+  const c = $("v-canvas");
+  c.width = c.height = 0; c.style.width = c.style.height = "";
 }
 async function dessinerPage() {
   if (!V.doc) return;
