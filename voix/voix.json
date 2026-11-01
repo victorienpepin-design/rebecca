@@ -1,0 +1,8 @@
+{
+ "nom": "chaleureuse",
+ "modele": "fr_FR-chaleureuse-medium.onnx",
+ "config": "fr_FR-chaleureuse-medium.onnx.json",
+ "version": "241b22bff09b",
+ "taille": 63516051,
+ "empreinte": "63516051-1793387949"
+}

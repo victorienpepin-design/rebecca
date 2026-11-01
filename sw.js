@@ -14,6 +14,7 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   if (!/^https?:$/.test(url.protocol) || HF.test(url.hostname)) return;   // le modèle est mis en cache par transformers.js
   if (req.cache === "no-store" || API.test(url.hostname)) return;          // le Rédacteur (Groq, Gemini) : jamais en cache
+  if (url.origin === self.location.origin && /\/voix\/.+\.onnx/.test(url.pathname)) { e.respondWith(cacheDabord(req)); return; }   // la voix (60 Mo) : une seule fois
   e.respondWith(url.origin === self.location.origin ? reseauDabord(req, url) : cacheDabord(req));
 });
 async function reseauDabord(req, url) {

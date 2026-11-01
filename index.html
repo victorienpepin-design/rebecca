@@ -130,6 +130,14 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 .reglages input, .reglages select { font: inherit; font-size: 16px; padding: 10px 12px; border: 1.5px solid var(--bord); border-radius: 10px; background: var(--carte); color: var(--texte); min-width: 0; }
 .reglages input:focus, .reglages select:focus { outline: none; border-color: var(--accent); }
 .reglages label[hidden] { display: none; }
+.reglages label.case { display: flex; align-items: center; gap: 8px; color: var(--texte); }
+.reglages label.case input { width: 22px; height: 22px; padding: 0; }
+.reglages .titre-reglage { margin: 8px 0 0; padding-top: 10px; border-top: 1px solid var(--bord); font-weight: 600; }
+#dicter.ecoute { background: var(--erreur); color: #fff; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .6; } }
+.r-tete #r-ecouter { margin-left: auto; min-height: 36px; padding: 4px 12px; font-size: .88rem; }
+#r-voix { margin: 0; }
+#r-voix[hidden] { display: none; }
 .carte.surligne { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
@@ -144,6 +152,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     <div class="champ">
       <input id="question" type="search" autocomplete="off" name="rebecca-q" placeholder="Pose une question ou tape des mots-clés…" enterkeyhint="search" aria-label="Recherche" disabled>
       <button id="effacer" class="secondaire" type="button" aria-label="Effacer la recherche" hidden>✕</button>
+      <button id="dicter" class="secondaire" type="button" aria-label="Dicter la question" hidden>🎤</button>
     </div>
     <div class="boutons">
       <button id="chercher" class="secondaire" type="submit" disabled>🔎 Chercher</button>
@@ -163,7 +172,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   </div>
 
   <section id="reponse" class="carte reponse" hidden aria-live="polite">
-    <div class="r-tete"><b>✍️ Réponse</b><span id="r-meta" class="petit"></span></div>
+    <div class="r-tete"><b>✍️ Réponse</b><span id="r-meta" class="petit"></span><button id="r-ecouter" class="secondaire" type="button" hidden>🔊 Écouter</button></div>
+    <p id="r-voix" class="petit" hidden></p>
     <div id="r-corps" class="r-corps"></div>
     <div id="r-alertes" class="r-alertes" hidden></div>
     <div id="r-sources" class="r-sources" hidden></div>
@@ -183,7 +193,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   </details>
 
   <details id="reglages" class="infos">
-    <summary>⚙️ Réglages du Rédacteur (réponse rédigée)</summary>
+    <summary>⚙️ Réglages (Rédacteur et voix)</summary>
     <div class="reglages">
       <p id="r-relais" class="petit" style="margin:0"></p>
       <label>Fournisseur à régler
@@ -202,6 +212,14 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       <p class="petit" style="margin:0">Quand un fournisseur atteint sa limite, Rebecca passe tout seule au modèle ou au fournisseur suivant.
         Les clés restent <b>seulement sur cet appareil</b>, dans ce navigateur : elles ne sont jamais envoyées sur le site, seulement au fournisseur, avec ta question et les passages.
         Sur iPhone/iPad, Rebecca ajoutée à l'écran d'accueil a sa propre mémoire : colle les clés une fois dedans. Safari peut les oublier après 7 jours sans ouvrir Rebecca.</p>
+      <p class="titre-reglage">🔊 Voix</p>
+      <label class="case"><input id="vx-auto" type="checkbox"> Lire les réponses à voix haute</label>
+      <label>Réglage de la voix
+        <select id="vx-reglage"><option value="fluide">Fluide</option><option value="origine">D'origine</option></select></label>
+      <label>Vitesse
+        <select id="vx-vitesse"><option value="1.15">Lente</option><option value="1">Normale</option><option value="0.9">Rapide</option></select></label>
+      <div class="actions"><button id="vx-essai" class="secondaire" type="button">▶︎ Essayer la voix</button></div>
+      <p id="vx-etat" class="petit" style="margin:0"></p>
     </div>
   </details>
 
@@ -1280,6 +1298,244 @@ Règles :
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* REDACTEUR:FIN */
 </script>
+<script>
+/* VOIX:DEBUT — la Voix de Rebecca : lit les réponses avec une voix Piper (ONNX) dans le navigateur, phrase par phrase.
+   Phonèmes : espeak-ng compilé pour le web (piper_phonemize) ; calcul : onnxruntime-web ; son : Web Audio.
+   Sans voix Piper disponible : voix française du navigateur. */
+(function (racine) {
+  "use strict";
+
+  // ---------- Texte écrit → texte à dire ----------
+  const LETTRES = { A: "a", B: "bé", C: "cé", D: "dé", E: "euh", F: "effe", G: "gé", H: "ache", I: "i", J: "ji", K: "ka", L: "elle", M: "emme",
+                    N: "enne", O: "o", P: "pé", Q: "ku", R: "erre", S: "esse", T: "té", U: "u", V: "vé", W: "double vé", X: "ixe", Y: "i grec", Z: "zède" };
+  const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const UNITES = { mg: "milligrammes", "µg": "microgrammes", "μg": "microgrammes", mcg: "microgrammes", ug: "microgrammes", g: "grammes", kg: "kilos",
+                   ml: "millilitres", l: "litres", dl: "décilitres", cl: "centilitres", ui: "unités internationales", u: "unités", mmol: "millimoles",
+                   meq: "milliéquivalents", "%": "pour cent", "°c": "degrés", "°": "degrés", h: "heures", min: "minutes", mn: "minutes",
+                   s: "secondes", j: "jours", sem: "semaines", cp: "comprimés", mm: "millimètres", cm: "centimètres", mmhg: "millimètres de mercure" };
+  const PAR = { j: "par jour", jour: "par jour", h: "par heure", heure: "par heure", kg: "par kilo", min: "par minute", sem: "par semaine", semaine: "par semaine" };
+
+  const epeler = s => s.split("").map(c => /\d/.test(c) ? ` ${c} ` : (LETTRES[c.toUpperCase()] || c)).join(" ").replace(/\s+/g, " ").trim();
+  // « ESR », « FFP2 », « OMS » : épelés ; « SAMU », « COREB », « COVID » : lus comme des mots
+  function aEpeler(sigle) {
+    const l = sigle.replace(/[^A-Z]/g, "");
+    return l.length <= 3 || !/[AEIOUY]/.test(l) || /\d/.test(sigle) || /^[^AEIOUY]{3}/.test(l);
+  }
+
+  // sigles : [{ s, def }] (le lexique) ; la 1re fois, un sigle court du lexique est dit en entier
+  function pourLaVoix(texte, { sigles = [] } = {}) {
+    let t = String(texte || "")
+      .replace(/<think>[\s\S]*?(<\/think>|$)/g, "")
+      .replace(/[[【]\s*(?:extraits?\s*)?\d+(?:\s*(?:[,;]|[-–]|et)\s*\d+)*\s*[\]】]/gi, "")      // [1], [1, 3], 【2】
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, "")
+      .replace(/^\s*>+/gm, "")
+      .replace(/≥/g, " supérieur ou égal à ").replace(/≤/g, " inférieur ou égal à ")
+      .replace(/(^|[\s(])>\s?(?=\d)/g, "$1supérieur à ").replace(/(^|[\s(])<\s?(?=\d)/g, "$1inférieur à ")
+      .replace(/[*_`#|<>]+/g, " ")
+      .replace(/^\s*(?:[-•–]|\d{1,2}[.)])\s+/gm, "");
+    t = t.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => /[.!?:;]$/.test(l) ? l : l + ".").join(" ");
+    t = t.replace(/\b(\d{1,2})\/(\d{1,2})\/((?:19|20)\d{2})\b/g, (m, j, mo, a) => +mo >= 1 && +mo <= 12 ? `${+j === 1 ? "1er" : +j} ${MOIS[+mo - 1]} ${a}` : m);
+    t = t.replace(/([tT])h/g, "$1");                                                         // « th » se dit [t] (méthode, thrombose)
+    t = t.replace(/(\d)\s*[-–]\s*(\d)/g, "$1 à $2")
+         .replace(/\bJ\s?\+\s?(\d+)/g, "jour plus $1").replace(/\bJ\s?-\s?(\d+)/g, "jour moins $1").replace(/\bJ(\d+)\b/g, "jour $1")
+         .replace(/[x×]\s?(\d+)\s?\/\s?j(?:our)?\b/gi, "$1 fois par jour")
+         .replace(/(\d+)\s?(?:x|×|fois)\s?\/\s?j(?:our)?\b/gi, "$1 fois par jour")
+         .replace(/\/\s?(\d+)\s?h\b/gi, " toutes les $1 heures")
+         .replace(/\/\s?(j|jour|h|heure|kg|min|sem|semaine)\b/gi, (m, u) => " " + PAR[u.toLowerCase()])
+         .replace(/(\d)\s?(mg|µg|μg|mcg|ug|kg|g|ml|dl|cl|l|UI|U|mmol|mEq|%|°C|°|h|min|mn|j|sem|cp|mm|cm|mmHg)(?![\p{L}\d])/giu,
+                  (m, n, u) => `${n} ${UNITES[u.toLowerCase()] || u}`)
+         .replace(/(\d)\s?[x×](?=\s|$)/g, "$1 fois");
+    const deja = new Set(), bas = t.toLowerCase();
+    const defs = new Map();
+    for (const x of sigles) {
+      const k = String(x.s || "").replace(/\s+/g, "").toUpperCase();
+      if (k && !defs.has(k) && String(x.def || "").split(/\s+/).length <= 7) defs.set(k, String(x.def));
+    }
+    t = t.replace(/\b[A-ZÀ-Ý][A-Z0-9ÀÉÈ]{1,7}\b/g, mot => {
+      if (!/[A-Z]{2}/.test(mot)) return mot;
+      const def = defs.get(mot);
+      if (def && aEpeler(mot) && !deja.has(mot) && !bas.includes(def.toLowerCase())) { deja.add(mot); return def.charAt(0).toLowerCase() + def.slice(1); }
+      deja.add(mot);
+      return aEpeler(mot) ? epeler(mot) : mot.charAt(0) + mot.slice(1).toLowerCase();
+    });
+    return t.replace(/\s+([,.;:!?])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  }
+
+  // Phrases de taille raisonnable (la 1re courte : on commence à parler plus vite)
+  function decouperPhrases(texte, max = 220) {
+    const morceaux = [];
+    for (const p of String(texte).split(/(?<=[.!?;:])\s+/)) {
+      let reste = p.trim();
+      while (reste.length > max) {
+        let coupe = reste.lastIndexOf(", ", max);
+        if (coupe < max / 3) coupe = reste.lastIndexOf(" ", max);
+        if (coupe <= 0) coupe = max;
+        morceaux.push(reste.slice(0, coupe + 1).trim()); reste = reste.slice(coupe + 1).trim();
+      }
+      if (reste) morceaux.push(reste);
+    }
+    const sortie = morceaux.filter(m => /[\p{L}\d]/u.test(m));
+    if (sortie.length && sortie[0].length > 90) {             // la 1re phrase courte : la voix démarre plus vite
+      const p = sortie[0];
+      let coupe = p.indexOf(", ", 30);
+      if (coupe < 0 || coupe > 90) coupe = p.lastIndexOf(" ", 70);
+      if (coupe > 20) sortie.splice(0, 1, p.slice(0, coupe + 1).trim(), p.slice(coupe + 1).trim());
+    }
+    return sortie;
+  }
+
+  // ---------- Le moteur ----------
+  const E = { verrou: Promise.resolve(), ort: null, session: null, phon: null, sortiesPhon: null, config: null, ctx: null, sources: [], jeton: 0, chargement: null,
+              mode: null, stats: { phrases: 0, echantillons: 0, msCalcul: 0 } };
+
+  function chargerScript(url) {
+    return new Promise((ok, ko) => {
+      if (racine.createPiperPhonemize) return ok();
+      const s = document.createElement("script");
+      s.crossOrigin = "anonymous";                             // réponse lisible : gardée pour le hors connexion
+      s.src = url; s.onload = () => ok(); s.onerror = () => ko(new Error("phonémiseur introuvable : " + url));
+      document.head.appendChild(s);
+    });
+  }
+  async function telechargerAvecProgres(url, surProgres) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${url} : erreur ${r.status}`);
+    const total = Number(r.headers.get("content-length")) || 0;
+    if (!r.body || !total || !surProgres) return await r.arrayBuffer();
+    const lecteur = r.body.getReader(), parts = [];
+    let recu = 0;
+    for (;;) {
+      const { done, value } = await lecteur.read();
+      if (done) break;
+      parts.push(value); recu += value.length; surProgres(recu, total);
+    }
+    const tout = new Uint8Array(recu);
+    let o = 0;
+    for (const p of parts) { tout.set(p, o); o += p.length; }
+    return tout.buffer;
+  }
+
+  // urls : { ort, ortWasm, phonemiseur } ; voix : { modele (url), config (url ou null) }
+  function charger(urls, voix, surProgres = () => {}) {
+    if (E.chargement) return E.chargement;
+    E.chargement = (async () => {
+      const config = voix.config ? await (await fetch(voix.config)).json().catch(() => ({})) : {};
+      E.config = Object.assign({ audio: { sample_rate: 22050 }, espeak: { voice: "fr" }, inference: { noise_scale: 0.667, length_scale: 1, noise_w: 0.8 },
+                                 speaker_id_map: {} }, config);
+      surProgres("moteur", 0, 1);
+      E.ort = await import(urls.ort);
+      E.ort.env.wasm.numThreads = 1;                           // pas d'isolation multi-processus sur GitHub Pages
+      if (urls.ortWasm) E.ort.env.wasm.wasmPaths = urls.ortWasm;
+      await chargerScript(urls.phonemiseur + ".js");
+      E.phon = await racine.createPiperPhonemize({
+        print: ligne => { if (E.sortiesPhon) E.sortiesPhon.push(ligne); },
+        printErr: () => {},
+        locateFile: f => f.endsWith(".wasm") ? urls.phonemiseur + ".wasm" : f.endsWith(".data") ? urls.phonemiseur + ".data" : f,
+      });
+      const modele = await telechargerAvecProgres(voix.modele, (r, t) => surProgres("voix", r, t));
+      E.session = await E.ort.InferenceSession.create(modele, { executionProviders: ["wasm"] });
+      E.mode = "piper";
+    })().catch(e => { E.chargement = null; throw e; });
+    return E.chargement;
+  }
+
+  function phonemiser(phrases) {
+    E.sortiesPhon = [];
+    E.phon.callMain(["-l", E.config.espeak.voice || "fr", "--input", JSON.stringify(phrases.map(text => ({ text }))), "--espeak_data", "/espeak-ng-data"]);
+    const sorties = E.sortiesPhon.map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+    E.sortiesPhon = null;
+    return sorties.map(s => s.phoneme_ids);
+  }
+
+  async function synthetiser(ids, reglages) {
+    const ort = E.ort, inf = Object.assign({}, E.config.inference, reglages || {});
+    const feeds = {
+      input: new ort.Tensor("int64", BigInt64Array.from(ids, BigInt), [1, ids.length]),
+      input_lengths: new ort.Tensor("int64", BigInt64Array.from([BigInt(ids.length)]), [1]),
+      scales: new ort.Tensor("float32", Float32Array.from([inf.noise_scale, inf.length_scale, inf.noise_w]), [3]),
+    };
+    if (Object.keys(E.config.speaker_id_map || {}).length) feeds.sid = new ort.Tensor("int64", BigInt64Array.from([0n]), [1]);
+    const debut = performance.now();
+    const tache = E.verrou.then(() => E.session.run(feeds));   // un seul calcul à la fois (sinon le moteur refuse)
+    E.verrou = tache.catch(() => {});
+    const sortie = await tache;
+    E.stats.msCalcul += performance.now() - debut;
+    return sortie.output.data;
+  }
+
+  // ---------- Le son ----------
+  // À appeler pendant un geste (clic) : iPhone/iPad et Chrome n'autorisent le son qu'après une action de l'utilisateur
+  function deverrouiller() {
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = "playback";   // iPhone : même en mode silencieux
+      if (!E.ctx) { const AC = racine.AudioContext || racine.webkitAudioContext; if (AC) E.ctx = new AC(); }
+      if (E.ctx) {
+        if (E.ctx.state !== "running") E.ctx.resume();
+        const b = E.ctx.createBuffer(1, 1, 22050), s = E.ctx.createBufferSource();
+        s.buffer = b; s.connect(E.ctx.destination); s.start(0);
+      }
+    } catch (e) {}
+  }
+
+  function arreter() {
+    E.jeton++;
+    for (const s of E.sources) { try { s.stop(); } catch (e) {} }
+    E.sources = [];
+    try { if (racine.speechSynthesis) racine.speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  function lireNavigateur(phrases, jeton, surFin) {
+    const synth = racine.speechSynthesis;
+    if (!synth) { surFin(); return; }
+    const voixFr = synth.getVoices().filter(v => /^fr/i.test(v.lang));
+    let i = 0;
+    const suivante = () => {
+      if (jeton !== E.jeton || i >= phrases.length) { surFin(); return; }
+      const u = new SpeechSynthesisUtterance(phrases[i++]);
+      u.lang = "fr-FR"; if (voixFr[0]) u.voice = voixFr[0];
+      u.onend = suivante; u.onerror = suivante;
+      synth.speak(u);
+    };
+    suivante();
+  }
+
+  // Lit un texte : phrase par phrase, la suivante se calcule pendant que la précédente est dite.
+  // opts : { sigles, reglages: { noise_scale, length_scale, noise_w }, surDebut, surFin, navigateur (forcer la voix du navigateur) }
+  async function lire(texte, opts = {}) {
+    arreter();
+    const jeton = E.jeton;
+    const phrases = decouperPhrases(pourLaVoix(texte, { sigles: opts.sigles }));
+    const surFin = () => { if (jeton === E.jeton && opts.surFin) opts.surFin(); };
+    if (!phrases.length) { surFin(); return; }
+    if (opts.navigateur || E.mode !== "piper" || !E.ctx) { if (opts.surDebut) opts.surDebut(); lireNavigateur(phrases, jeton, surFin); return; }
+    const ids = phonemiser(phrases);
+    const sr = E.config.audio.sample_rate || 22050;
+    let t = Math.max(E.ctx.currentTime + 0.05, 0), dernier = null, debutSignale = false;
+    for (const sequence of ids) {
+      if (jeton !== E.jeton) return;
+      if (!sequence || !sequence.length) continue;
+      const pcm = await synthetiser(sequence, opts.reglages);
+      if (jeton !== E.jeton) return;
+      E.stats.phrases++; E.stats.echantillons += pcm.length;
+      const buf = E.ctx.createBuffer(1, pcm.length, sr);
+      buf.getChannelData(0).set(pcm);
+      const src = E.ctx.createBufferSource();
+      src.buffer = buf; src.connect(E.ctx.destination);
+      t = Math.max(t, E.ctx.currentTime + 0.02);
+      src.start(t); t += buf.duration + 0.12;                  // petite pause entre les phrases
+      E.sources.push(src); dernier = src;
+      if (!debutSignale && opts.surDebut) { debutSignale = true; opts.surDebut(); }
+    }
+    if (dernier) dernier.onended = () => { E.sources = E.sources.filter(s => s !== dernier); surFin(); };
+    else surFin();
+  }
+
+  racine.Voix = { pourLaVoix, decouperPhrases, epeler, aEpeler, charger, lire, arreter, deverrouiller, phonemiser,
+                  etat: () => ({ mode: E.mode, charge: !!E.session, contexte: E.ctx ? E.ctx.state : null, stats: Object.assign({}, E.stats) }) };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+/* VOIX:FIN */
+</script>
 <script type="module">
 const CONFIG = {
   // Ce qui dépend du thème (pour une Rebecca « vierge » destinée à un autre service : changer ces lignes)
@@ -1294,6 +1550,12 @@ const CONFIG = {
   wasm: "",             // "" = moteur ONNX du CDN ; sinon dossier local des fichiers .wasm
   dossierIndex: "index/",
   dossierPdf: "pdf/",
+  // La Voix : moteur (onnxruntime-web, phonèmes espeak-ng) et dossier de la voix Piper publiée par l'Atelier
+  voix: { ort: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.bundle.min.mjs",
+          ortWasm: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+          phonemiseur: "https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize",
+          dossier: "voix/",
+          reglages: { fluide: { noise_scale: 0.55, noise_w: 0.4 }, origine: { noise_scale: 0.667, noise_w: 0.8 } } },
   // Le Rédacteur : ordre d'essai des fournisseurs ; « autre » = serveur local, intranet ou DSI (compatible OpenAI), pré-rempli si besoin
   redacteur: { ordre: ["groq", "mistral", "gemini", "openrouter", "autre", "anthropic", "openai", "xai", "deepseek"], prefere: "",
                autre: { adresse: "", modele: "" } },
@@ -1302,8 +1564,9 @@ document.title = CONFIG.identite.nom;
 document.querySelector("header h1").textContent = "🔎 " + CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 7;
+const VERSION_PAGE = 8;
 const R = globalThis.Redacteur;
+const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
 const E = { manifeste: null, docs: [], morceaux: [], sigles: [], vecteurs: null, dim: 0, etat: null, extracteur: null, derniere: null, enCours: 0,
             passagesSigles: new Map(),
@@ -1575,6 +1838,7 @@ async function lancer(question, majAdresse = true, pourReponse = false) {
   const q = question.trim();
   if (!q) return null;
   if (!pourReponse) cacherReponse();
+  VX.arreter();
   const ticket = ++E.enCours;
   const rep = await rechercher(q);
   if (ticket !== E.enCours || !rep) return null;
@@ -1785,11 +2049,16 @@ const pdfOk = new Map();
 function cacherReponse() {
   E.ticketReponse++;
   E.reponse = null;
+  E.texteALire = "";
+  VX.arreter();
   $("reponse").hidden = true;
 }
 function montrerReponse({ attente, message, erreur }) {
   $("reponse").hidden = false;
   $("r-meta").textContent = "";
+  E.texteALire = message || "";
+  $("r-ecouter").hidden = !message;
+  if (message) lireSiAuto(message);
   $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
   $("r-corps").innerHTML = attente ? `<p class="r-attente">${C.echapper(attente.replace(/…$/, ""))}</p>`
     : erreur ? `<p style="color:var(--erreur)">⚠️ ${C.echapper(erreur)}</p>` : `<p>${C.echapper(message)}</p>`;
@@ -1845,7 +2114,7 @@ async function repondre() {
     return montrerReponse({ erreur: e.message || String(e) });
   }
 }
-$("repondre").addEventListener("click", () => repondre());
+$("repondre").addEventListener("click", () => { VX.deverrouiller(); if (lireReglagesVoix().auto) prechargerVoix(); repondre(); });
 
 function rendreMorceaux(morceaux, rep) {
   const html = morceaux.map(m => {
@@ -1863,6 +2132,9 @@ function rendreMorceaux(morceaux, rep) {
 function afficherReponse(res, rep) {
   const a = res.analyse, F = R.FOURNISSEURS[res.fournisseur];
   $("reponse").hidden = false;
+  E.texteALire = a.aucune ? "Les passages trouvés ne contiennent pas la réponse à cette question." : res.texte;
+  $("r-ecouter").hidden = false;
+  lireSiAuto(E.texteALire);
   $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`
     + (res.relais && res.relais.length ? ` (relais : ${res.relais.join(" ; ")})` : "");
   if (a.aucune) {
@@ -1920,6 +2192,130 @@ $("reponse").addEventListener("click", ev => {
   if (!r) return;
   if (a.dataset.voirR || pdfOk.get(r.fichier)) { ev.preventDefault(); ouvrirVisionneuse(r.fichier, r.page); }
   else if (pdfOk.get(r.fichier) === false || !HTTP) { ev.preventDefault(); allerAuPassage(n); }
+});
+
+// ---------- La Voix ----------
+const CLE_VOIX = "rebecca.voix.v1";
+function lireReglagesVoix() {
+  let v = null;
+  try { v = JSON.parse(localStorage.getItem(CLE_VOIX) || "null"); } catch (e) {}
+  v = v || {};
+  return { auto: v.auto !== false, reglage: CONFIG.voix.reglages[v.reglage] ? v.reglage : "fluide", vitesse: Number(v.vitesse) || 1 };
+}
+function ecrireReglagesVoix(v) { try { localStorage.setItem(CLE_VOIX, JSON.stringify(v)); } catch (e) {} }
+const VOIX = { info: null, echec: false, promesse: null };
+
+async function trouverVoix() {                    // voix/voix.json, écrit par l'Atelier quand ta voix Piper est publiée
+  try {
+    const r = await fetch(CONFIG.voix.dossier + "voix.json", { cache: "no-cache" });
+    if (r.ok) VOIX.info = await r.json();
+  } catch (e) {}
+  majReglagesVoix();
+}
+function majReglagesVoix() {
+  const v = lireReglagesVoix();
+  $("vx-auto").checked = v.auto; $("vx-reglage").value = v.reglage; $("vx-vitesse").value = String(v.vitesse);
+  $("vx-reglage").closest("label").hidden = !VOIX.info;
+  $("vx-etat").textContent = VOIX.info
+    ? `Voix : ${VOIX.info.nom} (${Math.round(VOIX.info.taille / 1e6)} Mo de voix + environ 40 Mo de moteur, téléchargés une seule fois au premier usage).`
+      + (VOIX.echec ? " ⚠️ Elle n'a pas pu être chargée ici : voix du navigateur à la place." : VX.etat().charge ? " Chargée ✅" : "")
+    : "Voix du navigateur (ta voix Piper n'est pas encore publiée : voir l'Atelier).";
+}
+["vx-auto", "vx-reglage", "vx-vitesse"].forEach(id => $(id).addEventListener("change", () => {
+  ecrireReglagesVoix({ auto: $("vx-auto").checked, reglage: $("vx-reglage").value, vitesse: Number($("vx-vitesse").value) });
+  if (id === "vx-auto" && !$("vx-auto").checked) VX.arreter();
+}));
+
+function prechargerVoix() {
+  if (!VOIX.info || VOIX.echec || VX.etat().charge) return Promise.resolve();
+  if (VOIX.promesse) return VOIX.promesse;                 // chargement déjà en cours : on l'attend
+  const base = CONFIG.voix.dossier, v = `?v=${encodeURIComponent(VOIX.info.version || "")}`;
+  return VOIX.promesse = VX.charger(CONFIG.voix, { modele: base + VOIX.info.modele + v, config: VOIX.info.config ? base + VOIX.info.config + v : null }, (quoi, r, t) => {
+    if (quoi === "voix" && t) {
+      $("r-voix").hidden = false;
+      $("r-voix").textContent = r < t ? `🔊 Chargement de la voix (une seule fois) : ${Math.floor(100 * r / t)} % — ${mo(r)} / ${mo(t)}`
+                                      : "🔊 Préparation de la voix…";
+    }
+  }).then(() => {
+    $("r-voix").hidden = true;
+    majReglagesVoix();
+    nettoyerAnciennesVoix();
+  }).catch(e => {
+    console.error(e);
+    VOIX.echec = true;
+    $("r-voix").hidden = true;
+    majReglagesVoix();
+  }).finally(() => { VOIX.promesse = null; });
+}
+async function nettoyerAnciennesVoix() {          // une nouvelle version de la voix remplace l'ancienne dans la mémoire hors connexion
+  try {
+    for (const nom of await caches.keys()) {
+      const c = await caches.open(nom);
+      for (const req of await c.keys())
+        if (req.url.includes("/" + CONFIG.voix.dossier) && /\.onnx/.test(req.url) && !req.url.includes("v=" + VOIX.info.version)) await c.delete(req);
+    }
+  } catch (e) {}
+}
+
+function reglagesVoix() {
+  const v = lireReglagesVoix();
+  return Object.assign({}, CONFIG.voix.reglages[v.reglage], { length_scale: v.vitesse });
+}
+async function dire(texte) {
+  if (!texte) return;
+  $("r-ecouter").textContent = "⏹️ Arrêter";
+  await prechargerVoix();
+  await VX.lire(texte, { sigles: E.sigles, reglages: reglagesVoix(), navigateur: !VX.etat().charge,
+                         surFin: () => { $("r-ecouter").textContent = "🔊 Écouter"; } });
+}
+function lireSiAuto(texte) {
+  if (lireReglagesVoix().auto) dire(texte).catch(e => console.error(e));
+}
+$("r-ecouter").addEventListener("click", () => {
+  VX.deverrouiller();
+  if ($("r-ecouter").textContent.startsWith("⏹️")) { VX.arreter(); $("r-ecouter").textContent = "🔊 Écouter"; return; }
+  dire(E.texteALire).catch(e => console.error(e));
+});
+$("vx-essai").addEventListener("click", () => {
+  VX.deverrouiller();
+  $("vx-etat").textContent = "Préparation de la voix…";
+  prechargerVoix().then(() => {
+    majReglagesVoix();
+    return VX.lire(`Bonjour, je suis ${CONFIG.identite.nom}. Je lis les réponses à voix haute, par exemple : six milligrammes par jour pendant dix jours.`,
+                   { reglages: reglagesVoix(), navigateur: !VX.etat().charge });
+  }).catch(e => { $("vx-etat").textContent = "Voix indisponible : " + e.message; });
+});
+
+// ---------- Dictée (reconnaissance vocale du navigateur) ----------
+const Reco = window.SpeechRecognition || window.webkitSpeechRecognition;
+let reco = null;
+const MESSAGES_MICRO = {
+  "not-allowed": "Micro refusé : autorise le micro pour ce site dans les réglages du navigateur.",
+  "service-not-allowed": "Dictée indisponible : active la dictée de l'appareil (sur iPad : Réglages › Général › Clavier › Dictée).",
+  "network": "La dictée a besoin d'une connexion internet.",
+  "audio-capture": "Aucun micro trouvé.",
+};
+if (Reco) $("dicter").hidden = false;
+$("dicter").addEventListener("click", () => {
+  if (reco) { reco.stop(); return; }
+  VX.deverrouiller(); VX.arreter(); if (lireReglagesVoix().auto) prechargerVoix();
+  let texte = "", erreur = null;
+  reco = new Reco();
+  reco.lang = "fr-FR"; reco.interimResults = true; reco.continuous = false; reco.maxAlternatives = 1;
+  reco.onresult = ev => {
+    texte = Array.from(ev.results).map(r => r[0].transcript).join(" ").replace(/\s+/g, " ").trim();
+    $("question").value = texte;
+    $("effacer").hidden = !texte;
+  };
+  reco.onerror = ev => { erreur = ev.error; };
+  reco.onend = () => {
+    reco = null;
+    $("dicter").classList.remove("ecoute"); $("dicter").textContent = "🎤";
+    if (erreur && MESSAGES_MICRO[erreur]) montrerReponse({ erreur: MESSAGES_MICRO[erreur] });
+    else if (texte) repondre();
+  };
+  try { reco.start(); $("dicter").classList.add("ecoute"); $("dicter").textContent = "⏺️"; }
+  catch (e) { reco = null; montrerReponse({ erreur: "Dictée impossible : " + e.message }); }
 });
 
 // ---------- Visionneuse PDF ----------
@@ -2061,6 +2457,7 @@ $("verifier").addEventListener("click", async () => {
     return;
   }
   etat("Recherche par mots-clés prête. Chargement du moteur de sens…");
+  trouverVoix();
   const q = new URLSearchParams(location.search).get("q");
   if (q) { $("question").value = q; lancer(q, false); }
   chargerModele();
