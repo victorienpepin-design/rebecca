@@ -52,6 +52,7 @@ form .boutons { display: flex; gap: 8px; flex: 0 0 auto; }
   form { position: static; }
   form .boutons { flex: 1 1 100%; }
   form .boutons button { flex: 1; justify-content: center; }
+  form .boutons button.carre { flex: 0 0 50px; }
 }
 input[type=search] { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; padding: 12px 14px 12px 42px; min-height: 50px; border: 1px solid var(--bord-fort); border-radius: var(--rayon); background: var(--carte); color: var(--texte); box-shadow: var(--ombre); }
 input[type=search]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-doux); }
@@ -72,6 +73,12 @@ button.suggestion { display: inline-flex; align-items: center; gap: 8px; text-al
 .r-suite { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px; }
 .r-suite button { padding: 4px 10px; font-size: .85rem; }
 .r-suite[hidden] { display: none; }
+button.carre.en-direct, button.carre.en-direct:hover:not(:disabled) { background: var(--erreur); color: var(--carte); border-color: var(--erreur); }
+.direct-etat { display: flex; align-items: center; gap: 8px; color: var(--doux); margin: 0 0 10px; }
+.direct-fil p { margin: 0 0 8px; line-height: 1.45; }
+.direct-fil .qui { font-weight: 650; margin-right: 6px; }
+.direct-fil .recherche { color: var(--doux); font-size: .9rem; display: flex; gap: 6px; align-items: flex-start; }
+.direct-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .avis button.suggestion { padding: 6px 12px; font-size: .9rem; margin-top: 4px; }
 .etat { margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-doux); font-size: .9rem; display: grid; gap: 6px; }
 .etat-ligne { display: flex; gap: 8px; align-items: flex-start; }
@@ -182,7 +189,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 .reglages input, .reglages select { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--bord-fort); border-radius: 10px; background: var(--carte); color: var(--texte); min-width: 0; }
 .reglages input:focus, .reglages select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-doux); }
 .reglages label.case { display: flex; align-items: center; gap: 10px; color: var(--texte); font-size: .95rem; }
-.reglages label.case input { width: 22px; height: 22px; padding: 0; accent-color: var(--accent); }
+.reglages label.case input { width: 22px; height: 22px; padding: 0; accent-color: var(--accent); flex: none; }
 .reglages .titre-reglage { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid var(--bord); font-weight: 650; display: flex; gap: 8px; align-items: center; color: var(--texte); }
 .reglages .titre-reglage .ico { color: var(--accent); }
 .statut { display: flex; gap: 8px; align-items: flex-start; }
@@ -197,6 +204,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></symbol>
+<symbol id="i-audio-lines" viewBox="0 0 24 24"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></symbol>
 <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></symbol>
 <symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></symbol>
 <symbol id="i-loader-circle" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
@@ -242,6 +250,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     <div class="boutons">
       <button id="chercher" class="secondaire" type="button" disabled><svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg>Chercher</button>
       <button id="repondre" type="button" disabled><svg class="ico" aria-hidden="true"><use href="#i-sparkles"></use></svg>Répondre</button>
+      <button id="direct" class="secondaire carre" type="button" aria-label="Conversation en direct (Gemini Live)" title="Conversation en direct (Gemini Live)" hidden><svg class="ico" aria-hidden="true"><use href="#i-audio-lines"></use></svg></button>
     </div>
   </form>
 
@@ -300,6 +309,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
         Sur iPhone/iPad, Rebecca ajoutée à l'écran d'accueil a sa propre mémoire : colle les clés une fois dedans. Safari peut les oublier après 7 jours sans ouvrir Rebecca.</p>
       <p class="titre-reglage"><svg class="ico" aria-hidden="true"><use href="#i-volume-2"></use></svg>Voix</p>
       <label class="case"><input id="vx-auto" type="checkbox"> Lire les réponses à voix haute</label>
+      <label class="case"><input id="vx-direct" type="checkbox"> Conversation en direct (Gemini Live, clé Gemini, en ligne)</label>
+      <label class="case"><input id="vx-mains" type="checkbox"> Mains libres : le micro se rouvre après chaque réponse</label>
       <label>Voix
         <select id="vx-moteur"><option value="piper">Voix Piper (sur l'appareil)</option><option value="gemini">Gemini (cloud, en option)</option></select></label>
       <label id="vx-gemini-l">Voix Gemini
@@ -1017,7 +1028,8 @@ Règles :
 5. Si la question porte sur une maladie, un germe, un médicament ou un nom qu'aucun extrait ne mentionne, réponds exactement et seulement : ${SENTINELLE}. Ne réponds jamais avec les extraits d'un autre sujet, même proche.
 6. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
 7. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
-8. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
+8. N'attribue une action ou une responsabilité à une personne, un service ou un organisme que si l'extrait le dit ; ne mélange pas les rôles de plusieurs acteurs.
+9. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
   }
   const CONSIGNES = consignes();
 
@@ -1436,7 +1448,9 @@ Règles :
     t = t
       .replace(/<think>[\s\S]*?(<\/think>|$)/g, "")
       .replace(/[[【]\s*(?:extraits?\s*)?\d+(?:\s*(?:[,;]|[-–]|et)\s*\d+)*\s*[\]】]/gi, "")      // [1], [1, 3], 【2】
-      .replace(/https?:\/\/\S+/g, "")
+      .replace(/https?:\/\/\S+/g, "").replace(/\bwww\.\S+/gi, "").replace(/\S+@\S+\.[a-z]{2,}\b/gi, "")     // adresses web et mails : pas lus
+      .replace(/\b[nN]°\s?(?=\d)/g, "numéro ").replace(/\bcf\.\s?/gi, "voir ")
+      .replace(/\s*[►▶•▪◦·→⇒➔]\s*/g, ", ")
       .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, "")
       .replace(/^\s*>+/gm, "")
       .replace(/≥/g, " supérieur ou égal à ").replace(/≤/g, " inférieur ou égal à ")
@@ -1665,6 +1679,17 @@ Règles :
     else surFin();
   }
 
+  // Petit bip doux : « je t'écoute » (mode mains libres)
+  function bip() {
+    try {
+      if (!E.ctx) { const AC = racine.AudioContext || racine.webkitAudioContext; if (AC) E.ctx = new AC(); }
+      if (!E.ctx) return;
+      const o = E.ctx.createOscillator(), g = E.ctx.createGain(), t = E.ctx.currentTime + 0.02;
+      o.frequency.value = 880; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g); g.connect(E.ctx.destination); o.start(t); o.stop(t + 0.18);
+    } catch (e) {}
+  }
+
   // ---------- Voix Gemini (cloud, en option) ----------
   // Voix féminines de Gemini (nom → caractère, d'après Google)
   const VOIX_GEMINI = { Sulafat: "chaleureuse", Vindemiatrix: "douce", Achernar: "feutrée", Despina: "posée", Kore: "assurée",
@@ -1765,10 +1790,200 @@ Règles :
   }
 
   racine.Voix = { pourLaVoix, decouperPhrases, epeler, aEpeler, charger, lire, arreter, deverrouiller, phonemiser,
-                  VOIX_GEMINI, choisirModeleTTS, lireGemini, moitiesGemini, ErreurVoix, synthetiserTexte, MOTS_COURANTS,
+                  VOIX_GEMINI, choisirModeleTTS, lireGemini, moitiesGemini, ErreurVoix, synthetiserTexte, MOTS_COURANTS, bip,
                   etat: () => ({ mode: E.mode, charge: !!E.session, contexte: E.ctx ? E.ctx.state : null, stats: Object.assign({}, E.stats) }) };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* VOIX:FIN */
+</script>
+<script>
+/* DIRECT:DEBUT — conversation en direct avec Gemini Live (option, en ligne) : micro → Gemini, voix de Gemini → haut-parleur.
+   Gemini ne répond pas de mémoire : il appelle l'outil « chercher_dans_les_documents » (la recherche de Rebecca, sur l'appareil)
+   et répond à partir des passages renvoyés. Son : PCM 16 bits, 16 kHz vers Gemini, 24 kHz depuis Gemini. */
+(function (racine) {
+  "use strict";
+  const BASE = "https://generativelanguage.googleapis.com/v1beta";
+  const ADRESSE_WS = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
+  const MODELES_SECOURS = ["gemini-3.8-live", "gemini-3.1-flash-live-preview"];
+  const DUREE_MAX_MS = 14.5 * 60e3;                               // une conversation audio dure 15 min au plus
+
+  class ErreurDirect extends Error { constructor(code, message) { super(message); this.code = code; } }
+
+  // Le modèle « Live » proposé à cette clé : le plus récent, pas « extended-thinking » (plus lent), stable avant preview
+  async function choisirModeleLive(cle, f = racine.fetch.bind(racine)) {
+    let r;
+    try { r = await f(`${BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": cle }, cache: "no-store" }); }
+    catch (e) { throw new ErreurDirect("reseau", "Gemini injoignable (connexion ?)."); }
+    if (!r.ok) throw new ErreurDirect(r.status === 429 ? "limite" : (r.status === 400 || r.status === 401 || r.status === 403) ? "cle" : "service", `Gemini : erreur ${r.status}`);
+    const modeles = ((await r.json()).models || []).filter(m => (m.supportedGenerationMethods || []).includes("bidiGenerateContent") || /live/i.test(m.name || ""))
+      .map(m => String(m.name || "").replace(/^models\//, "")).filter(n => n && !/thinking/i.test(n));
+    const version = n => { const m = /(\d+(?:\.\d+)?)/.exec(n); return m ? parseFloat(m[1]) : 0; };
+    modeles.sort((a, b) => (/live/.test(b) - /live/.test(a)) || (/preview|exp/.test(a) - /preview|exp/.test(b)) || version(b) - version(a));
+    return modeles[0] || MODELES_SECOURS[0];
+  }
+
+  // ---------- Son ----------
+  function versBase64(octets) {
+    let s = "";
+    for (let i = 0; i < octets.length; i += 0x8000) s += String.fromCharCode.apply(null, octets.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+  function depuisBase64(b64) {
+    const bin = atob(b64), out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  // Float32 (fréquence du micro) → PCM 16 bits à 16 kHz (moyenne des échantillons de chaque tranche)
+  function versPCM16k(entree, freq) {
+    const pas = freq / 16000, n = Math.floor(entree.length / pas), out = new Int16Array(n);
+    for (let i = 0; i < n; i++) {
+      const debut = Math.floor(i * pas), fin = Math.max(debut + 1, Math.floor((i + 1) * pas));
+      let s = 0; for (let k = debut; k < fin; k++) s += entree[k];
+      out[i] = Math.max(-1, Math.min(1, s / (fin - debut))) * 32767;
+    }
+    return out;
+  }
+
+  // ---------- Une conversation ----------
+  // opts : { cle, modele, voix, systeme, outils: [déclarations], surOutil(nom, args) → objet, surEtat(etat, detail),
+  //          surTexte(qui, texte), surFin(raison), WebSocket, mediaDevices }
+  // États : connexion, ecoute, cherche, parle, fin
+  class Session {
+    constructor(opts) {
+      this.o = opts; this.ws = null; this.ctx = null; this.flux = null; this.noeuds = []; this.sources = [];
+      this.finSon = 0; this.actif = false; this.minuteur = null; this.etat = "";
+    }
+    etatVers(e, detail) { if (this.etat !== e || detail) { this.etat = e; if (this.o.surEtat) this.o.surEtat(e, detail || ""); } }
+    envoyer(obj) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(obj)); }
+
+    async demarrer() {
+      const WS = this.o.WebSocket || racine.WebSocket;
+      this.actif = true;
+      this.etatVers("connexion");
+      try { if (navigator.audioSession) navigator.audioSession.type = "play-and-record"; } catch (e) {}
+      const AC = racine.AudioContext || racine.webkitAudioContext;
+      this.ctx = new AC();
+      if (this.ctx.state !== "running") { try { await this.ctx.resume(); } catch (e) {} }
+      try {
+        this.flux = await (this.o.mediaDevices || navigator.mediaDevices).getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      } catch (e) { this.arreter("micro"); throw new ErreurDirect("micro", e.name === "NotAllowedError" ? "Micro refusé : autorise-le dans les réglages du navigateur." : "Micro indisponible : " + e.message); }
+      if (!this.actif) return;
+      this.ws = new WS(`${ADRESSE_WS}?key=${encodeURIComponent(this.o.cle)}`);
+      this.ws.onopen = () => this.envoyer({ setup: this.configuration() });
+      this.ws.onmessage = ev => this.recevoir(ev.data).catch(e => console.error(e));
+      this.ws.onerror = () => {};
+      this.ws.onclose = ev => this.fermee(ev.code, ev.reason);
+      this.minuteur = setTimeout(() => this.arreter("duree"), DUREE_MAX_MS);
+    }
+
+    configuration() {
+      const c = {
+        model: "models/" + this.o.modele,
+        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: this.o.voix || "Sulafat" } } } },
+        systemInstruction: { parts: [{ text: this.o.systeme || "" }] },
+        inputAudioTranscription: {}, outputAudioTranscription: {},
+      };
+      if (this.o.outils && this.o.outils.length) c.tools = [{ functionDeclarations: this.o.outils }];
+      return c;
+    }
+
+    micro() {                                                   // le micro part vers Gemini, sauf pendant que Rebecca parle (pas d'écho)
+      const src = this.ctx.createMediaStreamSource(this.flux);
+      const proc = this.ctx.createScriptProcessor(4096, 1, 1), muet = this.ctx.createGain();
+      muet.gain.value = 0;
+      proc.onaudioprocess = ev => {
+        if (!this.actif || this.ctx.currentTime < this.finSon + 0.35) return;
+        const pcm = versPCM16k(ev.inputBuffer.getChannelData(0), this.ctx.sampleRate);
+        this.envoyer({ realtimeInput: { audio: { data: versBase64(new Uint8Array(pcm.buffer)), mimeType: "audio/pcm;rate=16000" } } });
+      };
+      src.connect(proc); proc.connect(muet); muet.connect(this.ctx.destination);
+      this.noeuds.push(src, proc, muet);
+    }
+
+    jouer(b64, type) {
+      const rate = Number((/rate=(\d+)/.exec(type || "") || [])[1]) || 24000;
+      const octets = depuisBase64(b64), n = octets.byteLength >> 1, vue = new DataView(octets.buffer);
+      if (!n) return;
+      const buf = this.ctx.createBuffer(1, n, rate), canal = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) canal[i] = vue.getInt16(2 * i, true) / 32768;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf; src.connect(this.ctx.destination);
+      const quand = Math.max(this.ctx.currentTime + 0.05, this.finSon);
+      src.start(quand); this.finSon = quand + buf.duration;
+      src.onended = () => {
+        this.sources = this.sources.filter(s => s !== src);
+        if (!this.sources.length && this.tourFini && this.actif) this.etatVers("ecoute");
+      };
+      this.sources.push(src);
+      this.etatVers("parle");
+    }
+    taire() {                                                   // Gemini interrompu (ou bouton « Interrompre ») : on coupe le son en cours
+      for (const s of this.sources) { try { s.stop(); } catch (e) {} }
+      this.sources = []; this.finSon = 0;
+      if (this.actif) this.etatVers("ecoute");
+    }
+
+    async recevoir(donnees) {
+      const texte = typeof donnees === "string" ? donnees : donnees instanceof Blob ? await donnees.text() : new TextDecoder().decode(donnees);
+      let m;
+      try { m = JSON.parse(texte); } catch (e) { return; }
+      if (m.setupComplete) { this.micro(); this.etatVers("ecoute"); return; }
+      if (m.toolCall) {
+        this.etatVers("cherche");
+        const reponses = [];
+        for (const appel of m.toolCall.functionCalls || []) {
+          let resultat;
+          try { resultat = await this.o.surOutil(appel.name, appel.args || {}); }
+          catch (e) { resultat = { erreur: String(e.message || e) }; }
+          reponses.push({ id: appel.id, name: appel.name, response: resultat });
+        }
+        this.envoyer({ toolResponse: { functionResponses: reponses } });
+        return;
+      }
+      if (m.goAway) { if (this.o.surEtat) this.o.surEtat("fin-proche", ""); return; }
+      const sc = m.serverContent;
+      if (!sc) return;
+      if (sc.interrupted) this.taire();
+      if (sc.inputTranscription && sc.inputTranscription.text && this.o.surTexte) this.o.surTexte("toi", sc.inputTranscription.text);
+      if (sc.outputTranscription && sc.outputTranscription.text && this.o.surTexte) this.o.surTexte("rebecca", sc.outputTranscription.text);
+      if (sc.modelTurn) {
+        this.tourFini = false;
+        for (const p of sc.modelTurn.parts || []) if (p.inlineData && p.inlineData.data && /audio/.test(p.inlineData.mimeType || "audio")) this.jouer(p.inlineData.data, p.inlineData.mimeType);
+      }
+      if (sc.turnComplete) {
+        this.tourFini = true;
+        if (this.o.surTexte) this.o.surTexte("fin-tour", "");
+        if (!this.sources.length && this.actif) this.etatVers("ecoute");
+      }
+    }
+
+    fermee(code, raison) {
+      const etaitActif = this.actif;
+      this.nettoyer();
+      if (etaitActif && this.o.surFin) this.o.surFin(code === 1000 ? "" : (raison || `connexion fermée (${code})`), code);
+    }
+    arreter(raison = "") {
+      const etaitActif = this.actif;
+      this.nettoyer();
+      if (this.ws && this.ws.readyState <= 1) { try { this.ws.close(1000, "fin"); } catch (e) {} }
+      if (etaitActif && this.o.surFin) this.o.surFin(raison === "duree" ? "durée maximale atteinte (15 min)" : "", 1000);
+    }
+    nettoyer() {
+      this.actif = false;
+      clearTimeout(this.minuteur);
+      for (const s of this.sources) { try { s.stop(); } catch (e) {} }
+      this.sources = [];
+      for (const n of this.noeuds) { try { n.disconnect(); } catch (e) {} }
+      this.noeuds = [];
+      if (this.flux) { this.flux.getTracks().forEach(t => t.stop()); this.flux = null; }
+      if (this.ctx) { try { this.ctx.close(); } catch (e) {} this.ctx = null; }
+      try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+      this.etatVers("fin");
+    }
+  }
+
+  racine.Direct = { choisirModeleLive, Session, ErreurDirect, versPCM16k, versBase64, depuisBase64, ADRESSE_WS, MODELES_SECOURS };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+/* DIRECT:FIN */
 </script>
 <script type="module">
 const CONFIG = {
@@ -1798,7 +2013,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 10;
+const VERSION_PAGE = 11;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -1878,6 +2093,7 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
   E.docs = donnees.docs;
   E.morceaux = donnees.morceaux;
   E.sigles = C.preparerSigles(donnees.sigles);
+  E.prononciations = (donnees.prononciations || []).filter(x => Array.isArray(x) && x[0] && x[1]);
   E.dim = manifeste.embeddings.dim;
   E.vecteurs = demiVersFloat(octets);
   if (E.vecteurs.length !== E.morceaux.length * E.dim) throw new Error("index incohérent (vecteurs et textes ne correspondent pas) : relance la mise à jour dans l'Atelier");
@@ -2091,6 +2307,8 @@ function effacer() {
   E.enCours++;
   E.derniere = null;
   oublierEchange();
+  finMainsLibres("");
+  if (L.session) L.session.arreter();
   cacherReponse();
   $("question").value = "";
   $("resultats").innerHTML = "";
@@ -2170,7 +2388,7 @@ function afficher(rep) {
 }
 
 $("formulaire").addEventListener("submit", ev => {                 // Entrée : réponse rédigée si un fournisseur est réglé, sinon recherche
-  ev.preventDefault(); $("question").blur();
+  ev.preventDefault(); $("question").blur(); finMainsLibres("");
   if (connexions(lireReglages()).length) { VX.deverrouiller(); if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix(); repondre(); }
   else lancer($("question").value);
 });
@@ -2286,7 +2504,7 @@ $("r-enregistrer").addEventListener("click", async () => {
     remplirChampsReglages(f);
   } catch (e) {
     $("r-etat").innerHTML = `<span class="statut ko">${ico("circle-x")}<span>${C.echapper((e.message || e) + (e.code === "reseau" ? ` ${F.nom} refuse peut-être les appels depuis une page web.` : ""))}</span></span>`;
-  } finally { $("r-enregistrer").disabled = false; }
+  } finally { $("r-enregistrer").disabled = false; majBoutonDirect(); }
 });
 $("r-oublier").addEventListener("click", () => {
   const r = lireReglages(), f = $("r-fournisseur").value;
@@ -2383,6 +2601,7 @@ function montrerSuggestion(q, inconnus) {
   const message = `${inconnus.map(x => `« ${x.ecrit} »`).join(", ")} ${plusieurs ? "n'apparaissent" : "n'apparaît"} dans aucun document : pas de réponse rédigée, pour ne rien inventer. `
                 + `Tu voulais dire ${inconnus.map(x => x.nom).join(", ")} ?`;
   montrerReponse({ icone: "search-x", message });
+  E.suggestion = corrigee;                                         // en mains libres, « oui » accepte la suggestion
   const p = document.createElement("p");
   p.className = "r-suggestion";
   p.innerHTML = `<button type="button" class="suggestion secondaire">${ico("search")}<span>Chercher « ${C.echapper(corrigee)} »</span></button>`;
@@ -2404,6 +2623,7 @@ async function repondre() {
   }
   const ticket = ++E.ticketReponse;
   const encore = () => ticket === E.ticketReponse;
+  E.suggestion = null;
   montrerReponse({ attente: "Recherche des passages" });
   if (!E.extracteur && !E.echecModele) {
     montrerReponse({ attente: "Attente du moteur de sens (premier chargement)" });
@@ -2439,7 +2659,7 @@ async function repondre() {
     return montrerReponse({ erreur: e.message || String(e) });
   }
 }
-$("repondre").addEventListener("click", () => { VX.deverrouiller(); if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix(); repondre(); });
+$("repondre").addEventListener("click", () => { finMainsLibres(""); VX.deverrouiller(); if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix(); repondre(); });
 $("chercher").addEventListener("click", () => { $("question").blur(); lancer($("question").value); });
 
 // ---------- La dernière réponse survit à un rechargement (iPad : Safari recharge parfois la page) ----------
@@ -2551,9 +2771,11 @@ function lireReglagesVoix() {
   try { v = JSON.parse(localStorage.getItem(CLE_VOIX) || "null"); } catch (e) {}
   v = v || {};
   return { auto: v.auto !== false, reglage: CONFIG.voix.reglages[v.reglage] ? v.reglage : "fluide", vitesse: Number(v.vitesse) || 1,
-           moteur: v.moteur === "gemini" ? "gemini" : "piper", gemini: VX.VOIX_GEMINI[v.gemini] ? v.gemini : "Sulafat", modeleTTS: v.modeleTTS || "" };
+           moteur: v.moteur === "gemini" ? "gemini" : "piper", gemini: VX.VOIX_GEMINI[v.gemini] ? v.gemini : "Sulafat", modeleTTS: v.modeleTTS || "",
+           mains: v.mains === true, direct: v.direct === true, modeleLive: v.modeleLive || "" };
 }
-const prononciations = () => [[CONFIG.identite.nom, CONFIG.identite.prononciation]];
+// Prononciations : le nom de Rebecca, puis l'onglet « Prononciation » du catalogue (publié avec l'index)
+const prononciations = () => [[CONFIG.identite.nom, CONFIG.identite.prononciation], ...(E.prononciations || [])].filter(x => x[0] && x[1]);
 function ecrireReglagesVoix(v) { try { localStorage.setItem(CLE_VOIX, JSON.stringify(v)); } catch (e) {} }
 const VOIX = { info: null, echec: false, promesse: null };
 
@@ -2569,7 +2791,7 @@ function majReglagesVoix() {
   if (!$("vx-gemini").options.length)
     $("vx-gemini").innerHTML = Object.entries(VX.VOIX_GEMINI).map(([n, c]) => `<option value="${n}">${n} — ${c}</option>`).join("");
   $("vx-auto").checked = v.auto; $("vx-reglage").value = v.reglage; $("vx-vitesse").value = String(v.vitesse);
-  $("vx-moteur").value = v.moteur; $("vx-gemini").value = v.gemini;
+  $("vx-moteur").value = v.moteur; $("vx-gemini").value = v.gemini; $("vx-mains").checked = v.mains; $("vx-direct").checked = v.direct;
   $("vx-gemini-l").hidden = v.moteur !== "gemini";
   $("vx-reglage").closest("label").hidden = !VOIX.info || v.moteur === "gemini";
   $("vx-etat").textContent = VOIX.info
@@ -2581,10 +2803,13 @@ function majReglagesVoix() {
       ? "Voix Gemini : naturelle, dans le cloud (le texte lu part chez Google). Si Gemini refuse ou sans connexion, la voix Piper prend le relais."
       : "Voix Gemini : colle d'abord une clé Gemini (gratuite) dans les réglages du Rédacteur. En attendant, la voix Piper est utilisée.";
 }
-["vx-auto", "vx-reglage", "vx-vitesse", "vx-moteur", "vx-gemini"].forEach(id => $(id).addEventListener("change", () => {
+["vx-auto", "vx-mains", "vx-direct", "vx-reglage", "vx-vitesse", "vx-moteur", "vx-gemini"].forEach(id => $(id).addEventListener("change", () => {
   const avant = lireReglagesVoix();
   ecrireReglagesVoix({ auto: $("vx-auto").checked, reglage: $("vx-reglage").value, vitesse: Number($("vx-vitesse").value),
-                       moteur: $("vx-moteur").value, gemini: $("vx-gemini").value, modeleTTS: avant.modeleTTS });
+                       moteur: $("vx-moteur").value, gemini: $("vx-gemini").value, modeleTTS: avant.modeleTTS, mains: $("vx-mains").checked,
+                       direct: $("vx-direct").checked, modeleLive: avant.modeleLive });
+  majBoutonDirect();
+  if (id === "vx-mains" && !$("vx-mains").checked) finMainsLibres("");
   if (id === "vx-auto" && !$("vx-auto").checked) VX.arreter();
   majReglagesVoix();
 }));
@@ -2643,7 +2868,7 @@ async function modeleTTS(cle) {
 // Lit un texte : voix Gemini si choisie (et disponible), sinon la voix Piper (ou celle du navigateur)
 async function dire(texte) {
   if (!texte) return;
-  const v = lireReglagesVoix(), finLecture = () => boutonEcouter(false);
+  const v = lireReglagesVoix(), finLecture = () => { boutonEcouter(false); apresLecture(); };
   let note = "";
   boutonEcouter(true);
   if (v.moteur === "gemini") {
@@ -2671,7 +2896,19 @@ async function dire(texte) {
   await VX.lire(texte, { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture });
 }
 function lireSiAuto(texte) {
-  if (lireReglagesVoix().auto) dire(texte).catch(e => console.error(e));
+  if (lireReglagesVoix().auto || D.mainsLibres) dire(texte).catch(e => console.error(e));
+}
+// ---------- Mains libres : écoute → réponse lue → écoute… ----------
+const estArret = t => /^(?:merci|stop|arr[êe]te|c'?est tout|ça ira|ca ira|fin|au revoir|termin[ée]|non merci)\b/i.test(t.trim()) && t.trim().split(/\s+/).length <= 5;
+const estOui = t => /^(?:oui|ouais|exactement|c'?est [çc]a|voil[àa]|d'accord|ok|okay)\b/i.test(t.trim()) && t.trim().split(/\s+/).length <= 4;
+function apresLecture() {
+  if (!D.mainsLibres || D.etat) return;
+  setTimeout(() => { if (D.mainsLibres && !D.etat) { VX.bip(); setTimeout(() => { if (D.mainsLibres && !D.etat) ecouter(true); }, 250); } }, 350);
+}
+function finMainsLibres(message) {
+  const actif = D.mainsLibres;
+  D.mainsLibres = false;
+  if (actif && message) noteVoix(message);
 }
 // « Source : fiche Peste, page 2. » : dit à la fin de la réponse (on ne voit pas les [1] quand on écoute)
 function titreCourt(r) {
@@ -2698,7 +2935,7 @@ function phraseSource(a, rep) {
 }
 $("r-ecouter").addEventListener("click", () => {
   VX.deverrouiller();
-  if ($("r-ecouter").dataset.lecture) { VX.arreter(); boutonEcouter(false); return; }
+  if ($("r-ecouter").dataset.lecture) { VX.arreter(); boutonEcouter(false); finMainsLibres("Mains libres arrêté."); return; }
   dire(E.texteALire).catch(e => console.error(e));
 });
 $("vx-essai").addEventListener("click", () => {
@@ -2811,7 +3048,7 @@ function vocabulaire() {
     vus.set(s.toUpperCase(), { s, n: p ? p.length : 0 });
   }
   const sigles = [...vus.values()].sort((a, b) => b.n - a.n).map(x => x.s);
-  const rares = E.etat ? noms().map(x => x.mot) : [];
+  const rares = [...new Set([...(E.prononciations || []).map(x => x[0]), ...(E.etat ? noms().map(x => x.mot) : [])])];
   let texte = `Question posée à ${CONFIG.identite.nom}, assistante documentaire.`;
   const ajout = (titre, liste, maxi) => {
     const pris = [];
@@ -2850,19 +3087,62 @@ function sigleProche(mot) {
   if (!proches.length || (proches[1] && proches[1].note.join() === proches[0].note.join())) return null;   // ex aequo : on ne devine pas
   return proches[0].s;
 }
+// Sigle en capitales à qui il manque (ou qu'a en trop) une lettre : « SRN » → ESRN (Whisper avale souvent le « e » du début)
+function sigleLettres(mot) {
+  const proches = [];
+  for (const s of new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "")))) {
+    if (!/^[A-Z][A-Z0-9]{1,7}$/.test(s) || s === mot) continue;
+    const d = distance(s, mot);
+    if (d <= 1) proches.push({ s, note: d - (s === "E" + mot ? 0.5 : 0) });
+  }
+  proches.sort((a, b) => a.note - b.note);
+  if (!proches.length || (proches[1] && proches[1].note === proches[0].note)) return null;
+  return proches[0].s;
+}
+// Nom des documents qui sonne exactement pareil (« l'ASA » recollé en « lasa » → Lassa)
+function nomExact(mot) {
+  const sons = cleSons(mot);
+  if (sons.length < 4) return null;
+  const memes = noms().filter(n => n.sons === sons);
+  return memes.length === 1 ? memes[0].mot : null;
+}
+// « rétex » trouve aussi « retex », « Rétex », « RÉTEX » (mot entier)
+function motifSansAccents(texte) {
+  const variantes = { a: "aàâä", e: "eéèêë", i: "iîï", o: "oôö", u: "uùûü", c: "cç" };
+  const corps = [...sansAccents(texte)].map(c => variantes[c] ? `[${variantes[c]}]` : c === " " ? "\\s+" : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("");
+  return new RegExp(`(?<![\\p{L}\\d])${corps}(?![\\p{L}\\d])`, "giu");
+}
 function corrigerDictee(texte) {
+  const corrections = [];
+  let t = String(texte || "");
+  for (const [ecrit, dit] of E.prononciations || []) {                       // onglet Prononciation : « laboratoire L S B 3 » dicté → « LSB3 »
+    if (sansAccents(dit) === sansAccents(ecrit)) continue;                     // (« rétex » et « RETEX » : déjà le même mot pour la recherche)
+    const avant = t;
+    t = t.replace(motifSansAccents(dit), ecrit);
+    if (t !== avant) corrections.push([dit, ecrit]);
+  }
   // « E S R » ou « E.S.R. » épelé → « ESR » (lettres majuscules isolées, pas « durée d'incubation »)
-  let t = String(texte || "").replace(/(?<![\p{L}\d'’])(?:[A-Z]\.?\s){1,5}[A-Z](?![\p{L}\d'’])\.?/gu, m => {
+  t = t.replace(/(?<![\p{L}\d'’])(?:[A-Z]\.?\s){1,5}[A-Z](?![\p{L}\d'’])\.?/gu, m => {
     const l = m.replace(/[^A-Za-z]/g, "");
     return l.length >= 2 && l.length <= 6 ? l.toUpperCase() : m;
   });
-  const corrections = [];
-  t = t.replace(/[\p{L}][\p{L}'’-]{3,}/gu, brut => {
+  const postings = E.etat ? E.etat.bm25.postings : new Map();
+  t = t.replace(/[\p{L}\d][\p{L}\d'’-]*/gu, brut => {
+    if (brut.length < 2 || /-(?:t-)?(?:je|tu|il|elle|on|nous|vous|ils|elles|ce|là|ci|moi|toi|le|la|les|lui|leur|y|en)$/i.test(brut)) return brut;   // « dois-je », « peut-on »
     const elision = (/^(?:[cdjlmnst]|qu)['’]/i.exec(brut) || [""])[0], mot = brut.slice(elision.length);   // « l'antivirus » : on garde « l' »
-    if (mot.length < 4) return brut;
+    if (mot.length < 2) return brut;
     const termes = C.analyser(mot);
-    if (!termes.length || termes.some(x => E.etat && E.etat.bm25.postings.has(x))) return brut;   // mot connu des documents : on n'y touche pas
-    const juste = sigleProche(mot) || (E.etat ? nomProche(mot) : null);                            // « Kared » → COREB ; « antivirus » → hantavirus
+    if (termes.some(x => postings.has(x))) return brut;                       // mot connu des documents : on n'y touche pas
+    const sigle = /^[A-Z][A-Z0-9]{1,6}$/.test(mot);
+    if (!termes.length && !sigle) return brut;
+    if (elision && E.etat) {                                                   // « l'ASA » = « Lassa » (article collé)
+      const n = nomExact(elision.replace(/['’]/, "") + mot);
+      if (n) { corrections.push([brut, n]); return n; }
+    }
+    let juste = null;
+    if (sigle) juste = sigleLettres(mot);                                      // « SRN » → ESRN
+    if (!juste && mot.length >= 4 && /^\p{Lu}/u.test(mot)) juste = sigleProche(mot);   // « Kared » → COREB (jamais un mot en minuscules)
+    if (!juste && mot.length >= 4 && E.etat) juste = nomProche(mot);           // « antivirus » → hantavirus
     if (!juste) return brut;
     corrections.push([mot, juste]);
     return elision + juste;
@@ -2891,7 +3171,7 @@ function arreterEnregistrement() {
   clearInterval(D.minuteur); D.minuteur = null;
   if (D.enreg && D.enreg.state !== "inactive") D.enreg.stop();
 }
-async function dicterWhisper(cle) {
+async function dicterWhisper(cle, discret = false) {          // discret : relance des mains libres, la réponse reste affichée
   sessionAudio("play-and-record");                                // iPhone/iPad : sinon le micro est coupé
   try { D.flux = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
   catch (e) { sessionAudio("playback"); dessinerDictee(""); montrerReponse({ erreur: MESSAGES_MICRO[e.name] || "Micro indisponible : " + e.message }); return; }
@@ -2905,16 +3185,20 @@ async function dicterWhisper(cle) {
     D.analyse = null;
     sessionAudio("playback");
     const blob = new Blob(D.morceaux, { type: D.enreg.mimeType || type || "audio/webm" });
-    if (!D.parole || blob.size < 2000) { dessinerDictee(""); montrerReponse({ erreur: MESSAGES_MICRO["no-speech"] }); return; }
+    if (!D.parole || blob.size < 2000) {
+      dessinerDictee("");
+      if (D.mainsLibres) finMainsLibres("Mains libres en pause : je n'ai rien entendu. Touche le micro pour reprendre.");
+      else montrerReponse({ erreur: MESSAGES_MICRO["no-speech"] });
+      return;
+    }
     dessinerDictee("transcription");
-    montrerReponse({ attente: "Transcription de ta question" });
+    if (discret) noteVoix("Je transcris…"); else montrerReponse({ attente: "Transcription de ta question" });
     try {
       const brut = await transcrireWhisper(blob, cle);
       const { texte, corrections } = corrigerDictee(brut);
       dessinerDictee("");
-      if (!texte) { montrerReponse({ erreur: MESSAGES_MICRO["no-speech"] }); return; }
-      $("question").value = texte; $("effacer").hidden = false;
-      await repondre();
+      if (!texte) { if (D.mainsLibres) finMainsLibres("Mains libres en pause : je n'ai rien entendu. Touche le micro pour reprendre."); else montrerReponse({ erreur: MESSAGES_MICRO["no-speech"] }); return; }
+      if (await traiterDicte(texte)) return;
       if (corrections.length) noteVoix(`Dictée : ${corrections.map(([a, b]) => `« ${a} » compris comme ${b}`).join(", ")}.`);
     } catch (e) { dessinerDictee(""); montrerReponse({ erreur: "Dictée : " + e.message }); }
   };
@@ -2933,15 +3217,15 @@ async function dicterWhisper(cle) {
       const rms = Math.sqrt(e / buf.length), t = Date.now() - debut;
       if (t < 500) fond = Math.max(fond, rms * 1.5);                // bruit de fond des premières 500 ms
       if (rms > Math.max(0.015, fond * 2)) { D.parole = true; dernierSon = t; }
-      if ((D.parole && t - dernierSon > 1300) || (!D.parole && t > 7000) || t > 25000) arreterEnregistrement();
+      if ((D.parole && t - dernierSon > 1300) || (!D.parole && t > 7000) || t > (D.maxMs || 25000)) arreterEnregistrement();
     }, 100);
   } catch (e) { D.parole = true; }                                 // sans analyse : arrêt en touchant le bouton
   D.enreg.start(250);
   dessinerDictee("ecoute");
-  montrerReponse({ attente: "Je t'écoute… parle, je m'arrête quand tu te tais" });
+  if (discret) noteVoix("Je t'écoute… (dis « merci » pour arrêter)"); else montrerReponse({ attente: "Je t'écoute… parle, je m'arrête quand tu te tais" });
 }
 
-function dicterNavigateur() {                                       // sans clé Groq : la dictée du navigateur
+function dicterNavigateur(discret = false) {                                       // sans clé Groq : la dictée du navigateur
   let texte = "", erreur = null;
   sessionAudio("play-and-record");
   D.reco = new Reco();
@@ -2954,23 +3238,152 @@ function dicterNavigateur() {                                       // sans clé
   D.reco.onend = () => {
     D.reco = null; sessionAudio("playback"); dessinerDictee("");
     if (erreur && erreur !== "aborted") montrerReponse({ erreur: MESSAGES_MICRO[erreur] || "Dictée impossible (" + erreur + ")." });
-    else if (texte) { $("question").value = corrigerDictee(texte).texte; repondre(); }
+    else if (texte) traiterDicte(corrigerDictee(texte).texte);
+    else if (D.mainsLibres) finMainsLibres("Mains libres en pause : je n'ai rien entendu. Touche le micro pour reprendre.");
   };
-  try { D.reco.start(); dessinerDictee("ecoute"); }
+  try { D.reco.start(); dessinerDictee("ecoute"); if (discret) noteVoix("Je t'écoute… (dis « merci » pour arrêter)"); }
   catch (e) { D.reco = null; sessionAudio("playback"); montrerReponse({ erreur: "Dictée impossible : " + e.message }); }
 }
 
+// Une question dictée : « merci » arrête les mains libres, « oui » accepte la suggestion, sinon on répond. Renvoie true si traité ici.
+async function traiterDicte(texte) {
+  if (D.mainsLibres && estArret(texte)) { finMainsLibres("Mains libres arrêté. À bientôt !"); return true; }
+  if (E.suggestion && estOui(texte)) texte = E.suggestion;
+  $("question").value = texte; $("effacer").hidden = false;
+  await repondre();
+  return false;
+}
+function ecouter(discret = false) {
+  const cle = lireReglages().cles.groq;
+  if (cle && peutEnregistrer()) dicterWhisper(cle, discret);
+  else if (Reco) dicterNavigateur(discret);
+  else { finMainsLibres(""); montrerReponse({ erreur: "Dictée indisponible ici : colle une clé Groq dans les réglages du Rédacteur (la dictée passe par Whisper)." }); }
+}
 $("dicter").addEventListener("click", () => {
   if (D.etat === "ecoute") { if (D.reco) D.reco.stop(); else { D.parole = true; arreterEnregistrement(); } return; }
   if (D.etat === "transcription") return;
   VX.deverrouiller(); VX.arreter();
-  if (lireReglagesVoix().auto && lireReglagesVoix().moteur === "piper") prechargerVoix();
-  const cle = lireReglages().cles.groq;
-  if (cle && peutEnregistrer()) dicterWhisper(cle);
-  else if (Reco) dicterNavigateur();
-  else montrerReponse({ erreur: "Dictée indisponible ici : colle une clé Groq dans les réglages du Rédacteur (la dictée passe par Whisper)." });
+  const v = lireReglagesVoix();
+  if ((v.auto || v.mains) && v.moteur === "piper") prechargerVoix();
+  D.mainsLibres = v.mains;
+  ecouter();
+  if (D.mainsLibres) noteVoix("Mains libres : je réponds, puis je t'écoute à nouveau. Dis « merci » pour arrêter.");
 });
 majBoutonDictee();
+
+// ---------- Conversation en direct (Gemini Live, en option) ----------
+// Gemini écoute et parle ; pour répondre, il appelle la recherche de Rebecca (sur l'appareil) et s'en tient aux passages trouvés.
+const DX = window.Direct, L = { session: null, courant: null };
+const OUTIL_RECHERCHE = {
+  name: "chercher_dans_les_documents",
+  description: "Cherche dans les documents de l'équipe soignante (fiches, protocoles, référentiels) les passages qui répondent à une question. À appeler avant toute réponse sur une maladie, un traitement, une procédure ou un sigle.",
+  parameters: { type: "OBJECT", properties: { question: { type: "STRING",
+    description: "La question complète et autonome, en français, avec la maladie ou le sujet (même s'il était seulement sous-entendu dans la conversation)." } }, required: ["question"] },
+};
+function consignesDirect() {
+  const nom = CONFIG.identite.nom, pron = prononciations().map(([e, d]) => `« ${e} » se dit « ${d} »`).join(" ; ");
+  return `Tu es ${nom}, l'assistante documentaire vocale d'${String(CONFIG.identite.public || "une équipe soignante").replace(/^(une?|des|les?|la) /i, m => m.toLowerCase())}. Tu parles en français.
+${pron ? "Prononciation : " + pron + ".\n" : ""}Règles :
+1. Phrases courtes et claires, comme au téléphone. Pas de liste lue avec des tirets.
+2. Pour toute question sur une maladie, un traitement, une procédure, une organisation ou un sigle, appelle d'abord l'outil chercher_dans_les_documents, avec une question complète (si l'on te dit « et chez l'enfant ? », reprends le sujet précédent).
+3. Réponds uniquement avec les extraits renvoyés par l'outil, jamais avec tes propres connaissances. Redis exactement les doses, durées et chiffres.
+4. Si l'outil ne renvoie pas d'extrait qui répond, dis simplement que tu ne trouves pas cette information dans les documents.
+5. Termine en citant la source : le nom court du document et la page.
+6. Si l'outil signale un nom inconnu avec un nom proche, demande si c'est ce nom-là.
+7. Pas de diagnostic ni de conseil médical général.`;
+}
+async function outilDirect(nom, args) {
+  if (nom !== OUTIL_RECHERCHE.name) return { erreur: "outil inconnu" };
+  const q = String((args && args.question) || "").trim();
+  if (!q) return { resultat: "Question vide." };
+  ligneDirect("recherche", q);
+  const inconnus = nomsInconnus(q).filter(x => x.nom);
+  if (inconnus.length) return { resultat: `${inconnus.map(x => `« ${x.ecrit} »`).join(", ")} n'apparaît dans aucun document. Nom proche : ${inconnus.map(x => x.nom).join(", ")}. Demande si c'est ce nom-là.` };
+  const rep = await rechercher(q);
+  if (!rep || !rep.resultats.length) return { resultat: "Aucun passage trouvé dans les documents." };
+  E.derniere = rep; afficher(rep); $("effacer").hidden = false;
+  if (rep.confiance === "faible") return { resultat: "Aucun passage ne répond vraiment à cette question dans les documents. Dis-le simplement." };
+  return { sigles: rep.sigles.map(x => `${x.s} = ${x.def}`),
+           extraits: rep.resultats.slice(0, 6).map((r, i) => ({ numero: i + 1, document: titreCourt(r), page: r.page, texte: String(r.texte).slice(0, 1500) })) };
+}
+function ligneDirect(qui, texte) {
+  const fil = $("direct-fil");
+  if (!fil) return;
+  if (qui === "fin-tour") { L.courant = null; return; }
+  if (qui === "recherche") {
+    const p = document.createElement("p"); p.className = "recherche";
+    p.innerHTML = `${ico("text-search")}<span>Recherche dans les documents : « ${C.echapper(texte)} »</span>`;
+    fil.appendChild(p); L.courant = null; return;
+  }
+  if (!L.courant || L.courant.qui !== qui) {
+    const p = document.createElement("p");
+    p.innerHTML = `<span class="qui">${qui === "toi" ? "Toi" : C.echapper(CONFIG.identite.nom)} :</span><span class="dit"></span>`;
+    fil.appendChild(p); L.courant = { qui, el: p.querySelector(".dit") };
+  }
+  L.courant.el.textContent = (L.courant.el.textContent + texte).replace(/\s+/g, " ");
+}
+const ETATS_DIRECT = { connexion: ["loader-circle", "Connexion à Gemini Live…"], ecoute: ["mic", "Je t'écoute… parle naturellement."],
+                       cherche: ["text-search", "Je cherche dans les documents…"], parle: ["volume-2", "Je réponds…"],
+                       "fin-proche": ["triangle-alert", "La conversation va bientôt s'arrêter (15 minutes au plus)."] };
+function etatDirect(etat) {
+  const el = $("direct-etat"), x = ETATS_DIRECT[etat];
+  if (el && x) el.innerHTML = `${ico(x[0], etat === "connexion" ? "tourne" : "")}<span>${x[1]}</span>`;
+  const b = $("direct-taire");
+  if (b) b.hidden = etat !== "parle";
+}
+function majBoutonDirect() {
+  $("direct").hidden = !(lireReglagesVoix().direct && lireReglages().cles.gemini && window.WebSocket && navigator.mediaDevices);
+}
+function dessinerDirect(actif) {
+  $("direct").classList.toggle("en-direct", actif);
+  $("direct").innerHTML = ico(actif ? "x" : "audio-lines");
+  $("direct").setAttribute("aria-label", actif ? "Raccrocher" : "Conversation en direct (Gemini Live)");
+}
+async function demarrerDirect() {
+  const cle = lireReglages().cles.gemini;
+  if (!cle) { montrerReponse({ erreur: "Conversation en direct : colle d'abord une clé Gemini dans les réglages du Rédacteur." }); return; }
+  VX.arreter(); finMainsLibres("");
+  if (D.etat === "ecoute") { if (D.reco) D.reco.abort(); else arreterEnregistrement(); }
+  E.ticketReponse++;
+  $("reponse").hidden = false; $("r-ecouter").hidden = true; $("r-suite").hidden = true; $("r-voix").hidden = true;
+  $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
+  $("r-meta").textContent = "· Gemini Live";
+  $("r-corps").innerHTML = `<p class="direct-etat" id="direct-etat"></p><div class="direct-fil" id="direct-fil"></div>
+    <div class="direct-actions"><button id="direct-taire" class="secondaire" type="button" hidden>${ico("circle-pause")}Interrompre</button>
+    <button id="direct-fin" class="secondaire" type="button">${ico("x")}Raccrocher</button></div>`;
+  $("direct-fin").addEventListener("click", () => { if (L.session) L.session.arreter(); });
+  $("direct-taire").addEventListener("click", () => { if (L.session) L.session.taire(); });
+  L.courant = null;
+  dessinerDirect(true);
+  etatDirect("connexion");
+  const v = lireReglagesVoix();
+  let modele = v.modeleLive;
+  try {
+    if (!modele) { modele = await DX.choisirModeleLive(cle); ecrireReglagesVoix(Object.assign(lireReglagesVoix(), { modeleLive: modele })); }
+  } catch (e) { finDirect(e.message || String(e)); return; }
+  $("r-meta").textContent = `· Gemini Live · ${modele}`;
+  L.session = new DX.Session({ cle, modele, voix: v.gemini, systeme: consignesDirect(), outils: [OUTIL_RECHERCHE], surOutil: outilDirect,
+                               surEtat: etatDirect, surTexte: ligneDirect, surFin: finDirect });
+  try { await L.session.demarrer(); } catch (e) { finDirect(e.message || String(e)); }
+}
+function finDirect(raison) {
+  L.session = null; L.courant = null;
+  dessinerDirect(false);
+  if (raison && /not found|not supported|unsupported|does not exist|introuvable/i.test(raison))
+    ecrireReglagesVoix(Object.assign(lireReglagesVoix(), { modeleLive: "" }));       // un autre modèle la prochaine fois
+  const el = $("direct-etat");
+  const message = raison ? `Conversation interrompue : ${raison}` : "Conversation terminée.";
+  if (el) { el.innerHTML = `${ico(raison ? "triangle-alert" : "circle-check")}<span>${C.echapper(message)}</span>`; }
+  else montrerReponse(raison ? { erreur: message } : { message });
+  for (const id of ["direct-fin", "direct-taire"]) if ($(id)) $(id).hidden = true;
+}
+$("direct").addEventListener("click", () => {
+  if (L.session) { L.session.arreter(); return; }
+  VX.deverrouiller();
+  demarrerDirect().catch(e => finDirect(e.message || String(e)));
+});
+majBoutonDirect();
+window.addEventListener("pagehide", () => { if (L.session) L.session.arreter(); });    // téléphone : on raccroche si la page est quittée
 
 // ---------- Visionneuse PDF ----------
 const V = { pdfjs: null, tache: null, doc: null, fichier: null, page: 1, zoom: 1, rendu: null };
@@ -3136,11 +3549,12 @@ function motsClefs(q) {
 async function dicteeDeTest(q, cle) {                              // la question lue par Piper, puis dictée à Whisper, puis corrigée
   await prechargerVoix();
   if (!VX.etat().charge) throw new Error("voix Piper indisponible");
-  const dit = VX.pourLaVoix(q, { sigles: E.sigles, prononciations: prononciations() });
+  const dit = VX.pourLaVoix(q, { sigles: [], prononciations: prononciations() });     // les sigles dits comme on les dicte (« NRBC »), pas en entier
   const { pcm, sr } = await VX.synthetiserTexte(dit, { pret: true, reglages: reglagesVoix() });
   const brut = await transcrireWhisper(new Blob([enWav(pcm, sr)], { type: "audio/wav" }), cle);
   const { texte, corrections } = corrigerDictee(brut);
-  const obtenus = new Set(C.analyser(texte, true)), perdus = motsClefs(q).filter(t => !obtenus.has(t));
+  const sansTirets = x => String(x).replace(/-/g, " ");                     // « Crimée-Congo » = « Crimée Congo »
+  const obtenus = new Set(C.analyser(sansTirets(texte), true)), perdus = motsClefs(sansTirets(q)).filter(t => !obtenus.has(t));
   return { dit, brut, texte, corrections, perdus, secondes: Math.round(pcm.length / sr) };
 }
 async function repondreA(q) {                                      // une question isolée (jamais « suite » de la précédente)
@@ -3152,7 +3566,8 @@ async function repondreA(q) {                                      // une questi
 }
 // Ce que la voix lirait mal : symboles restés, nombres collés à des lettres, sigles absents du lexique, abréviations
 function lectureDeTest() {
-  const motifs = new Map(), connus = new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "").toUpperCase()));
+  const motifs = new Map(), connus = new Set([...(E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "").toUpperCase()),
+                                              ...prononciations().map(x => String(x[0]).toUpperCase())]);   // un sigle prononcé (onglet Prononciation) n'est plus signalé
   const noter = (motif, m, ecrit, dit) => {
     const x = motifs.get(motif) || { motif, n: 0, exemples: [] };
     x.n++;
@@ -3176,7 +3591,7 @@ function lectureDeTest() {
 }
 
 // Pour le banc d'essai de l'Atelier (et les tests) : accès aux fonctions de la page, sans effet sur son usage normal
-window.RebeccaBanc = { dicteeDeTest, repondreA, lectureDeTest, motsClefs, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { D, L, dicteeDeTest, repondreA, lectureDeTest, motsClefs, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
