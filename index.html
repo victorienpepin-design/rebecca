@@ -67,6 +67,12 @@ button.carre { width: 50px; min-height: 50px; padding: 0; border-radius: var(--r
 button.carre .ico { width: 20px; height: 20px; }
 button:disabled { opacity: .5; cursor: default; }
 button[hidden] { display: none; }
+button.suggestion { display: inline-flex; align-items: center; gap: 8px; text-align: left; }
+.r-suggestion { margin: 12px 0 0; }
+.r-suite { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px; }
+.r-suite button { padding: 4px 10px; font-size: .85rem; }
+.r-suite[hidden] { display: none; }
+.avis button.suggestion { padding: 6px 12px; font-size: .9rem; margin-top: 4px; }
 .etat { margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-doux); font-size: .9rem; display: grid; gap: 6px; }
 .etat-ligne { display: flex; gap: 8px; align-items: flex-start; }
 .etat-ligne .ico { margin-top: .15em; }
@@ -253,6 +259,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   <section id="reponse" class="carte reponse" hidden aria-live="polite">
     <div class="r-tete"><b><svg class="ico" aria-hidden="true"><use href="#i-sparkles"></use></svg>Réponse</b><span id="r-meta" class="petit"></span><button id="r-ecouter" class="secondaire" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-volume-2"></use></svg>Écouter</button></div>
     <p id="r-voix" class="petit" hidden></p>
+    <p id="r-suite" class="petit r-suite" hidden></p>
     <div id="r-corps" class="r-corps"></div>
     <div id="r-alertes" class="r-alertes" hidden></div>
     <div id="r-sources" class="r-sources" hidden></div>
@@ -294,7 +301,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       <p class="titre-reglage"><svg class="ico" aria-hidden="true"><use href="#i-volume-2"></use></svg>Voix</p>
       <label class="case"><input id="vx-auto" type="checkbox"> Lire les réponses à voix haute</label>
       <label>Voix
-        <select id="vx-moteur"><option value="piper">Ta voix (Piper, sur l'appareil)</option><option value="gemini">Gemini (cloud, en option)</option></select></label>
+        <select id="vx-moteur"><option value="piper">Voix Piper (sur l'appareil)</option><option value="gemini">Gemini (cloud, en option)</option></select></label>
       <label id="vx-gemini-l">Voix Gemini
         <select id="vx-gemini"></select></label>
       <label>Réglage de la voix
@@ -912,9 +919,15 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     return `« ${r.titre || nomLisible(r.fichier)} »` + (infos ? ` (${infos})` : "");
   }
 
-  // extra : { confiance: "faible" | "normale", absents: [mots] }
+  // extra : { confiance: "faible" | "normale", absents: [mots], precedent: { question, reponse } (question de suite) }
   function formaterPourLLM(question, resultats, sigles = [], extra = {}) {
-    let s = `Question : ${question}\n`;
+    let s = "";
+    if (extra.precedent) {
+      const rep = String(extra.precedent.reponse || "").replace(/\s*\[\d+(?:\s*[,;–-]\s*\d+)*\]/g, "").replace(/\s+/g, " ").trim();
+      s += "Échange précédent (seulement pour comprendre la question ; ne pas l'utiliser comme source) :\n"
+         + `Question précédente : ${extra.precedent.question}\nRéponse précédente : ${rep.length > 700 ? rep.slice(0, 700) + "…" : rep}\n\n`;
+      s += `Question (suite de l'échange précédent) : ${question}\n`;
+    } else s += `Question : ${question}\n`;
     if (sigles.length) s += "Sigles : " + sigles.map(x => `${x.s} = ${x.def}`).join(" ; ") + "\n";
     if (extra.absents && extra.absents.length) s += "Mots absents de tous les documents : " + extra.absents.join(", ") + "\n";
     if (extra.confiance === "faible") s += "Attention : aucun extrait ne semble répondre directement à la question. Si c'est le cas, dis-le au lieu d'inventer.\n";
@@ -1001,9 +1014,10 @@ Règles :
 2. Après chaque information, indique entre crochets le numéro de l'extrait d'où elle vient : [1], [2]. Aucune information sans crochet.
 3. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas.
 4. Si les extraits ne permettent pas de répondre à la question, réponds exactement et seulement : ${SENTINELLE}
-5. Si les extraits ne répondent qu'en partie, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
-6. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
-7. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
+5. Si la question porte sur une maladie, un germe, un médicament ou un nom qu'aucun extrait ne mentionne, réponds exactement et seulement : ${SENTINELLE}. Ne réponds jamais avec les extraits d'un autre sujet, même proche.
+6. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
+7. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
+8. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
   }
   const CONSIGNES = consignes();
 
@@ -1396,8 +1410,16 @@ Règles :
                    ml: "millilitres", l: "litres", dl: "décilitres", cl: "centilitres", ui: "unités internationales", u: "unités", mmol: "millimoles",
                    meq: "milliéquivalents", "%": "pour cent", "°c": "degrés", "°": "degrés", h: "heures", min: "minutes", mn: "minutes",
                    s: "secondes", j: "jours", sem: "semaines", cp: "comprimés", mm: "millimètres", cm: "centimètres", mmhg: "millimètres de mercure" };
-  const PAR = { j: "par jour", jour: "par jour", h: "par heure", heure: "par heure", kg: "par kilo", min: "par minute", sem: "par semaine", semaine: "par semaine" };
+  const PAR = { j: "par jour", jour: "par jour", h: "par heure", heure: "par heure", kg: "par kilo", min: "par minute", sem: "par semaine", semaine: "par semaine",
+                l: "par litre", ml: "par millilitre", dl: "par décilitre", "µl": "par microlitre", "μl": "par microlitre", m2: "par mètre carré", "m²": "par mètre carré",
+                mm3: "par millimètre cube", "mm³": "par millimètre cube", s: "par seconde", mois: "par mois", an: "par an", dose: "par dose", prise: "par prise" };
+  const FRACTIONS = { "1/2": "un demi", "1/3": "un tiers", "2/3": "deux tiers", "1/4": "un quart", "3/4": "trois quarts" };
+  // « 1 gramme », « 1,5 gramme » (singulier sous 2), « 2 grammes »
+  const singulier = u => u.split(" ").map(m => m === "de" || m === "mercure" || m === "pour" || m === "cent" ? m : m.replace(/s$/, "")).join(" ");
 
+  // Mots courants souvent écrits en capitales dans les titres : lus comme des mots, jamais épelés
+  const MOTS_COURANTS = new Set(("LE LA LES DE DES DU EN ET UN UNE AU AUX PAR POUR SUR DANS AVEC SANS OU NE PAS SI CE CES SON SA SES " +
+    "EST SONT IL ILS ELLE QUI QUE NE NI MAIS DONC CAR TOUT TOUS LORS VIA").split(" "));
   const epeler = s => s.split("").map(c => /\d/.test(c) ? ` ${c} ` : (LETTRES[c.toUpperCase()] || c)).join(" ").replace(/\s+/g, " ").trim();
   // « ESR », « FFP2 », « OMS » : épelés ; « SAMU », « COREB », « COVID » : lus comme des mots
   function aEpeler(sigle) {
@@ -1428,11 +1450,21 @@ Règles :
          .replace(/\bJ\s?\+\s?(\d+)/g, "jour plus $1").replace(/\bJ\s?-\s?(\d+)/g, "jour moins $1").replace(/\bJ(\d+)\b/g, "jour $1")
          .replace(/[x×]\s?(\d+)\s?\/\s?j(?:our)?\b/gi, "$1 fois par jour")
          .replace(/(\d+)\s?(?:x|×|fois)\s?\/\s?j(?:our)?\b/gi, "$1 fois par jour")
+         .replace(/\bet\s?\/\s?ou\b/gi, "et ou")
+         .replace(/(\d+)\s?h\s?\/\s?24\b/gi, "$1 heures sur 24").replace(/(\d+)\s?j\s?\/\s?7\b/gi, "$1 jours sur 7")
          .replace(/\/\s?(\d+)\s?h\b/gi, " toutes les $1 heures")
-         .replace(/\/\s?(j|jour|h|heure|kg|min|sem|semaine)\b/gi, (m, u) => " " + PAR[u.toLowerCase()])
-         .replace(/(\d)\s?(mg|µg|μg|mcg|ug|kg|g|ml|dl|cl|l|UI|U|mmol|mEq|%|°C|°|h|min|mn|j|sem|cp|mm|cm|mmHg)(?![\p{L}\d])/giu,
-                  (m, n, u) => `${n} ${UNITES[u.toLowerCase()] || u}`)
-         .replace(/(\d)\s?[x×](?=\s|$)/g, "$1 fois");
+         .replace(/\/\s?(j|jour|h|heure|kg|min|sem|semaine|l|ml|dl|µl|μl|m2|m²|mm3|mm³|s|mois|an|dose|prise)(?![\p{L}\d])/giu, (m, u) => " " + PAR[u.toLowerCase()])
+         .replace(/(?<![\d,.\/])([123])\/([234])(?![\d\/,.])/g, (m, a, b) => FRACTIONS[`${a}/${b}`] || m)
+         .replace(/(?<![\d,.])(\d+(?:[.,]\d+)?)\s?(mg|µg|μg|mcg|ug|kg|g|ml|dl|cl|l|UI|U|mmol|mEq|%|°C|°|h|min|mn|j|sem|cp|mm|cm|mmHg)(?![\p{L}\d])/giu,
+                  (m, n, u, pos, tout) => {
+                    const mot = UNITES[u.toLowerCase()] || u, millier = /\d\s$/.test(tout.slice(Math.max(0, pos - 2), pos));
+                    return `${n} ${!millier && Math.abs(parseFloat(n.replace(",", "."))) < 2 ? singulier(mot) : mot}`;
+                  })
+         .replace(/(\d)\s?[x×](?=\s|$)/g, "$1 fois")
+         .replace(/\b(PaO2|SpO2|P)\s?\/\s?(FiO2|F)\b/g, "$1 sur $2")                                  // rapports
+         .replace(/(\d)\s?\/\s?(\d)/g, "$1 sur $2")                                                    // 90/60, 12/8
+         .replace(/([\p{L}\d)])\s?\/\s?(?=[\p{L}(\d])/gu, "$1, ")                                    // IV/PO, contact/gouttelettes : petite pause
+         .replace(/\//g, " ");
     // Prononciations fixes : « PO » = per os, sauf « J2 PO » (2e jour post-opératoire)
     t = t.replace(/per os\s*\(PO\)/gi, "per os").replace(/\bjour (\d+) PO\b/g, "jour $1 post-opératoire").replace(/\bPO\b/g, "per os");
     const deja = new Set(), bas = t.toLowerCase();
@@ -1443,6 +1475,7 @@ Règles :
     }
     t = t.replace(/\b[A-ZÀ-Ý][A-Z0-9ÀÉÈ]{1,7}\b/g, mot => {
       if (!/[A-Z]{2}/.test(mot)) return mot;
+      if (MOTS_COURANTS.has(mot) && !defs.has(mot)) return mot.toLowerCase();
       const def = defs.get(mot);
       if (def && aEpeler(mot) && !deja.has(mot) && !bas.includes(def.toLowerCase())) { deja.add(mot); return def.charAt(0).toLowerCase() + def.slice(1); }
       deja.add(mot);
@@ -1553,6 +1586,18 @@ Règles :
     return sortie.output.data;
   }
 
+  // Texte → son Piper, sans le jouer (banc d'essai : la question est lue puis donnée à la dictée). Renvoie { pcm, sr }.
+  async function synthetiserTexte(texte, opts = {}) {
+    if (!E.session) throw new Error("voix Piper non chargée");
+    const phrases = decouperPhrases(opts.pret ? String(texte || "") : pourLaVoix(texte, opts));
+    const sr = E.config.audio.sample_rate || 22050, pause = new Float32Array(Math.round(sr * 0.2)), morceaux = [pause];
+    for (const ids of phonemiser(phrases)) if (ids && ids.length) morceaux.push(await synthetiser(ids, opts.reglages), pause);
+    const pcm = new Float32Array(morceaux.reduce((n, m) => n + m.length, 0));
+    let k = 0;
+    for (const m of morceaux) { pcm.set(m, k); k += m.length; }
+    return { pcm, sr };
+  }
+
   // ---------- Le son ----------
   // À appeler pendant un geste (clic) : iPhone/iPad et Chrome n'autorisent le son qu'après une action de l'utilisateur
   function deverrouiller() {
@@ -1594,7 +1639,7 @@ Règles :
   async function lire(texte, opts = {}) {
     arreter();
     const jeton = E.jeton;
-    const phrases = decouperPhrases(pourLaVoix(texte, { sigles: opts.sigles, prononciations: opts.prononciations }));
+    const phrases = decouperPhrases(opts.pret ? String(texte || "") : pourLaVoix(texte, { sigles: opts.sigles, prononciations: opts.prononciations }));
     const surFin = () => { if (jeton === E.jeton && opts.surFin) opts.surFin(); };
     if (!phrases.length) { surFin(); return; }
     if (opts.navigateur || E.mode !== "piper" || !E.ctx) { if (opts.surDebut) opts.surDebut(); lireNavigateur(phrases, jeton, surFin); return; }
@@ -1626,7 +1671,7 @@ Règles :
                         Aoede: "légère", Leda: "jeune", Zephyr: "lumineuse", Erinome: "claire", Gacrux: "mûre" };
   const BASE_GEMINI = "https://generativelanguage.googleapis.com/v1beta";
   class ErreurVoix extends Error { constructor(code, message) { super(message); this.code = code; } }
-  const dernierGemini = { cle: "", buffer: null };
+  const dernierGemini = { cle: "", buffers: null };
 
   async function choisirModeleTTS(cle, f = racine.fetch.bind(racine)) {
     const r = await f(`${BASE_GEMINI}/models?pageSize=200`, { headers: { "x-goog-api-key": cle }, cache: "no-store" });
@@ -1644,53 +1689,83 @@ Règles :
     return out;
   }
 
-  // Lit le texte (déjà préparé pour l'oral) avec une voix Gemini. opts : { cle, modele, voix, surDebut, surFin, fetch }
+  // Un morceau de texte → son (une requête Gemini)
+  async function sonGemini(texte, opts, f) {
+    let r;
+    try {
+      r = await f(`${BASE_GEMINI}/models/${encodeURIComponent(opts.modele)}:generateContent`, {
+        method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", "x-goog-api-key": opts.cle },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: texte }] }],      // le texte seul : une consigne serait parfois lue à voix haute
+                               generationConfig: { responseModalities: ["AUDIO"],
+                                                   speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: opts.voix || "Sulafat" } } } } }),
+      });
+    } catch (e) { throw new ErreurVoix("reseau", "Gemini injoignable."); }
+    E.stats.gemini = (E.stats.gemini || 0) + 1;
+    if (!r.ok) throw new ErreurVoix(r.status === 429 ? "limite" : r.status === 404 ? "modele" : (r.status === 400 || r.status === 401 || r.status === 403) ? "cle" : "service",
+                                    `Gemini (voix) : erreur ${r.status}`);
+    const data = await r.json();
+    const part = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+    const audio = (part.find(x => x.inlineData) || {}).inlineData;
+    if (!audio || !audio.data) throw new ErreurVoix("vide", "Gemini n'a pas renvoyé de son.");
+    const octets = base64VersOctets(audio.data), type = String(audio.mimeType || "");
+    if (/wav|mpeg|mp3|ogg/i.test(type)) return E.ctx.decodeAudioData(octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength));
+    const rate = Number((/rate=(\d+)/.exec(type) || [])[1]) || 24000;          // PCM 16 bits (« audio/L16;codec=pcm;rate=24000 »)
+    const n = octets.byteLength >> 1, vue = new DataView(octets.buffer, octets.byteOffset, octets.byteLength);
+    const buffer = E.ctx.createBuffer(1, n, rate), canal = buffer.getChannelData(0);
+    for (let i = 0; i < n; i++) canal[i] = vue.getInt16(2 * i, true) / 32768;
+    return buffer;
+  }
+
+  // Coupe en deux : la 1re phrase seule (la voix démarre vite), puis le reste, demandé en même temps
+  function moitiesGemini(texte) {
+    const phrases = decouperPhrases(texte, 400);
+    if (phrases.length < 2 || texte.length < 160) return [texte];
+    return [phrases[0], phrases.slice(1).join(" ")];
+  }
+
+  // Lit le texte (déjà préparé pour l'oral) avec une voix Gemini.
+  // opts : { cle, modele, voix, surDebut, surFin, surEchecSuite(reste, erreur), fetch }
+  // Si le 1er morceau échoue : erreur (la page passe à Piper). Si seule la suite échoue : surEchecSuite, une fois le début lu.
   async function lireGemini(texte, opts = {}) {
     arreter();
     const jeton = E.jeton, f = opts.fetch || racine.fetch.bind(racine);
     const surFin = () => { if (jeton === E.jeton && opts.surFin) opts.surFin(); };
-    const cle = `${opts.modele}|${opts.voix}|${texte}`;
-    let buffer = dernierGemini.cle === cle ? dernierGemini.buffer : null;
-    if (!buffer) {
-      let r;
-      try {
-        r = await f(`${BASE_GEMINI}/models/${encodeURIComponent(opts.modele)}:generateContent`, {
-          method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", "x-goog-api-key": opts.cle },
-          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Dis en français, d'un ton calme, clair et chaleureux : " + texte }] }],
-                                 generationConfig: { responseModalities: ["AUDIO"],
-                                                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: opts.voix || "Sulafat" } } } } }),
-        });
-      } catch (e) { throw new ErreurVoix("reseau", "Gemini injoignable."); }
-      if (!r.ok) throw new ErreurVoix(r.status === 429 ? "limite" : r.status === 404 ? "modele" : (r.status === 400 || r.status === 401 || r.status === 403) ? "cle" : "service",
-                                      `Gemini (voix) : erreur ${r.status}`);
-      const data = await r.json();
-      const part = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-      const audio = (part.find(x => x.inlineData) || {}).inlineData;
-      if (!audio || !audio.data) throw new ErreurVoix("vide", "Gemini n'a pas renvoyé de son.");
-      if (jeton !== E.jeton) return;
-      const octets = base64VersOctets(audio.data), type = String(audio.mimeType || "");
-      if (/wav|mpeg|mp3|ogg/i.test(type)) {
-        buffer = await E.ctx.decodeAudioData(octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength));
-      } else {                                                   // PCM 16 bits (« audio/L16;codec=pcm;rate=24000 »)
-        const rate = Number((/rate=(\d+)/.exec(type) || [])[1]) || 24000;
-        const n = octets.byteLength >> 1, vue = new DataView(octets.buffer, octets.byteOffset, octets.byteLength);
-        buffer = E.ctx.createBuffer(1, n, rate);
-        const canal = buffer.getChannelData(0);
-        for (let i = 0; i < n; i++) canal[i] = vue.getInt16(2 * i, true) / 32768;
-      }
-      dernierGemini.cle = cle; dernierGemini.buffer = buffer;
-    }
+    const cle = `${opts.modele}|${opts.voix}|${texte}`, morceaux = moitiesGemini(texte);
+    const enCache = dernierGemini.cle === cle ? dernierGemini.buffers : null;
+    const promesses = morceaux.map((m, i) => enCache && enCache[i] ? Promise.resolve(enCache[i]) : sonGemini(m, opts, f));
+    promesses.forEach(p => p.catch(() => {}));                      // (erreurs traitées plus bas)
+    const buffers = [];
+    buffers[0] = await promesses[0];                                // 1er morceau : une erreur remonte à la page
     if (jeton !== E.jeton) return;
-    const src = E.ctx.createBufferSource();
-    src.buffer = buffer; src.connect(E.ctx.destination);
-    src.onended = () => { E.sources = E.sources.filter(s => s !== src); surFin(); };
-    src.start(E.ctx.currentTime + 0.05);
-    E.sources.push(src); E.stats.gemini = (E.stats.gemini || 0) + 1;
+    const jouer = (buffer, quand) => new Promise(fini => {
+      const src = E.ctx.createBufferSource();
+      src.buffer = buffer; src.connect(E.ctx.destination);
+      src.onended = () => { E.sources = E.sources.filter(s => s !== src); fini(); };
+      src.start(quand); E.sources.push(src);
+    });
+    let quand = E.ctx.currentTime + 0.05;
+    let fin = jouer(buffers[0], quand);
+    quand += buffers[0].duration + 0.1;
     if (opts.surDebut) opts.surDebut();
+    for (let i = 1; i < morceaux.length; i++) {
+      try { buffers[i] = await promesses[i]; }
+      catch (e) {
+        await fin;
+        if (jeton === E.jeton && opts.surEchecSuite) opts.surEchecSuite(morceaux.slice(i).join(" "), e);
+        else surFin();
+        return;
+      }
+      if (jeton !== E.jeton) return;
+      fin = jouer(buffers[i], Math.max(quand, E.ctx.currentTime + 0.02));
+      quand = Math.max(quand, E.ctx.currentTime + 0.02) + buffers[i].duration + 0.1;
+    }
+    dernierGemini.cle = cle; dernierGemini.buffers = buffers;
+    await fin;
+    surFin();
   }
 
   racine.Voix = { pourLaVoix, decouperPhrases, epeler, aEpeler, charger, lire, arreter, deverrouiller, phonemiser,
-                  VOIX_GEMINI, choisirModeleTTS, lireGemini, ErreurVoix,
+                  VOIX_GEMINI, choisirModeleTTS, lireGemini, moitiesGemini, ErreurVoix, synthetiserTexte, MOTS_COURANTS,
                   etat: () => ({ mode: E.mode, charge: !!E.session, contexte: E.ctx ? E.ctx.state : null, stats: Object.assign({}, E.stats) }) };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 /* VOIX:FIN */
@@ -1723,7 +1798,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 9;
+const VERSION_PAGE = 10;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -1970,8 +2045,9 @@ async function rechercher(question) {
            absents: prep.absents.map(t => motVu(q, t, true) || t) };
 }
 
-function contexte(rep) {
-  return rep ? C.formaterPourLLM(rep.question, rep.resultats, rep.sigles, { confiance: rep.confiance, absents: rep.absents }) : "";
+function contexte(rep, suite = null) {
+  return rep ? C.formaterPourLLM(suite ? suite.q : rep.question, rep.resultats, rep.sigles,
+                                 { confiance: rep.confiance, absents: rep.absents, precedent: suite ? { question: suite.precedent.question, reponse: suite.precedent.texte } : null }) : "";
 }
 
 window.moteur = {
@@ -2014,6 +2090,7 @@ async function lancer(question, majAdresse = true, pourReponse = false) {
 function effacer() {
   E.enCours++;
   E.derniere = null;
+  oublierEchange();
   cacherReponse();
   $("question").value = "";
   $("resultats").innerHTML = "";
@@ -2042,12 +2119,23 @@ function afficher(rep) {
   const avis = [];
   if (resultats.length && rep.confiance === "faible")
     avis.push(`<div class="faible">${ico("search-x")}<span><b>Rien ne correspond vraiment</b> à ta question dans les documents. Voici quand même les passages les plus proches : vérifie-les.</span></div>`);
-  if (rep.absents.length)
-    avis.push(`<div>${ico("circle-slash")}<span>Absent de tous les documents : ${rep.absents.map(x => `« ${C.echapper(x)} »`).join(", ")}</span></div>`);
+  if (rep.absents.length) {
+    const ecrits = [];
+    for (const brut of String(rep.question).match(/[\p{L}\d][\p{L}\d'’-]*/gu) || []) {
+      const mot = brut.replace(/^(?:[cdjlmnst]|qu)['’]/i, ""), t = C.analyser(mot);
+      if (t.length === 1 && rep.absents.includes(t[0]) && !ecrits.includes(mot)) ecrits.push(mot);
+    }
+    const proches = nomsInconnus(rep.question).filter(x => x.nom);
+    avis.push(`<div>${ico("circle-slash")}<span>Absent de tous les documents : ${(ecrits.length ? ecrits : rep.absents).map(x => `« ${C.echapper(x)} »`).join(", ")}${
+      proches.length ? `<br><button type="button" class="suggestion secondaire" data-suggestion="${C.echapper(questionCorrigee(rep.question, proches))}">${ico("search")}<span>Tu voulais dire ${
+        proches.map(x => `« ${C.echapper(x.nom)} »`).join(", ")} ?</span></button>` : ""}</span></div>`);
+  }
   if (rep.corrections.length)
     avis.push(`<div>${ico("spell-check")}<span>Cherché aussi : ${rep.corrections.map(c => `« ${C.echapper(c.cherche)} » (pour « ${C.echapper(c.ecrit)} »)`).join(", ")}</span></div>`);
   $("avis").hidden = !avis.length;
   $("avis").innerHTML = avis.join("");
+  for (const b of $("avis").querySelectorAll("button[data-suggestion]"))
+    b.addEventListener("click", () => { $("question").value = b.dataset.suggestion; lancer(b.dataset.suggestion); });
   $("mode").textContent = E.extracteur ? ""
     : E.echecModele ? "Mots-clés seulement (moteur de sens indisponible)" : "Mots-clés seulement — mis à jour quand le modèle sera prêt";
   $("outils").hidden = !resultats.length || !$("mode").textContent;
@@ -2221,6 +2309,7 @@ function cacherReponse() {
 }
 function montrerReponse({ attente, message, erreur, icone }) {
   $("reponse").hidden = false;
+  $("r-suite").hidden = true;
   $("r-meta").textContent = "";
   E.texteALire = message || "";
   $("r-ecouter").hidden = !message;
@@ -2232,12 +2321,75 @@ function montrerReponse({ attente, message, erreur, icone }) {
   return attente ? null : erreur ? { erreur } : { message };
 }
 
-async function rediger(rep, reg, surEtat) {
+async function rediger(rep, reg, surEtat, suite = null) {
   const res = await R.redigerAvecRelais({ connexions: connexions(reg), systeme: R.consignes(CONFIG.identite),
-                                          utilisateur: R.messageUtilisateur(contexte(rep)), memoire: memoireRelais(), surEtat });
+                                          utilisateur: R.messageUtilisateur(contexte(rep, suite)), memoire: memoireRelais(), surEtat });
   return Object.assign(res, { question: rep.question, analyse: R.analyserReponse(res.texte, rep.resultats) });
 }
 
+// ---------- Questions de suite : « Et chez l'enfant ? », « Combien de temps ? » après une réponse ----------
+// Une question sans sujet propre (maladie, germe, médicament, sigle rare), ou qui commence par « et… », continue l'échange précédent :
+// la recherche reprend la question précédente, et le Rédacteur reçoit l'échange précédent pour comprendre.
+function nbDocsTerme(t) {
+  const p = E.etat.bm25.postings.get(t);
+  if (!p) return 0;
+  const d = new Set(); for (let i = 0; i < p.length; i += 2) d.add(E.morceaux[p[i]].d);
+  return d.size;
+}
+// Sujet d'une question : nom des documents (maladie, germe, médicament), sigle peu répandu, mot très rare, ou nom propre inconnu (« Lyme »)
+function sujetsDe(q) {
+  const bm = E.etat.bm25, nD = E.docs.length, termesNoms = new Set(noms().map(x => x.terme));
+  const rare = Math.max(2, Math.round(nD * 0.07)), siglePropre = Math.max(2, Math.round(nD * 0.3));
+  const sigles = new Set(C.siglesDansQuestion(q, E.sigles || []).flatMap(x => x.cle));
+  for (const m of String(q).match(/(?<![\p{L}\d])[A-Z][A-Z0-9]{1,6}(?![\p{L}\d])/gu) || []) for (const t of C.analyser(m, true)) sigles.add(t);
+  const propres = new Set((String(q).match(/(?<=\S\s+)\p{Lu}\p{Ll}{3,}/gu) || []).flatMap(m => C.analyser(m, true)));
+  const colles = new Set((String(q).match(/\p{L}+(?:-\p{L}+)+/gu) || []).map(m => sansAccents(m).replace(/-/g, "")));   // « peut-on », « faut-il »
+  const verbe = t => /(?:er|ir|ez|ons|ent|ait|il|on)$/.test(t);
+  return [...new Set(C.analyser(q, true))].filter(t => {
+    if (termesNoms.has(t) || propres.has(t)) return true;
+    if (sigles.has(t)) return !bm.postings.has(t) || nbDocsTerme(t) <= siglePropre;     // « EPI » (partout) n'est pas un sujet ; « FHCC » oui
+    if (bm.postings.has(t)) return t.length >= 5 && !verbe(t) && nbDocsTerme(t) <= rare;  // « dexaméthasone » ; pas « appeler »
+    return /^[a-z]{5,}$/.test(t) && !colles.has(t) && !verbe(t) && !C.corriger(t, bm);    // mot inconnu des documents (un nom qu'ils n'ont pas)
+  });
+}
+function suiteDe(q) {
+  const x = E.echange;
+  if (!x || Date.now() - x.t > 20 * 60e3 || sansAccents(q) === sansAccents(x.question)) return null;
+  if (/^(?:c'?\s?est quoi|qu'?est[- ]ce que? c'?est|que (?:veut dire|signifie)|d[ée]finition)/i.test(q.trim())) return null;   // une définition se suffit
+  const commenceParEt = /^(?:et|mais|alors|aussi)\b/i.test(q.trim()), sujets = sujetsDe(q);
+  if (!commenceParEt && (sujets.length || C.analyser(q, true).length > 6)) return null;
+  // la question précédente, sans son sujet si la nouvelle en a un (« et pour Ebola ? » après une question sur Lassa)
+  let reprise = x.question;
+  if (sujets.length) {
+    const anciens = new Set(sujetsDe(x.question));
+    reprise = (x.question.match(/[^\s]+/g) || []).filter(m => !C.analyser(m, true).some(t => anciens.has(t))).join(" ");
+  }
+  return { q, precedent: x, recherche: `${q} ${reprise}`.trim() };
+}
+function oublierEchange() { E.echange = null; $("r-suite").hidden = true; }
+function montrerSuite(suite) {
+  const el = $("r-suite");
+  el.hidden = !suite;
+  if (!suite) return;
+  el.innerHTML = `<span>${ico("text-search")} Suite de : « ${C.echapper(suite.precedent.question)} »</span>`
+               + `<button type="button" class="secondaire">${ico("x")}<span>Nouvelle question</span></button>`;
+  el.querySelector("button").addEventListener("click", () => { oublierEchange(); repondre(); });
+}
+
+// Nom inconnu de tous les documents mais proche d'un nom connu : pas de réponse rédigée (elle porterait sur un autre sujet), on propose le bon mot
+function questionCorrigee(q, inconnus) { return inconnus.reduce((t, x) => remplacerMot(t, x.ecrit, x.nom), q); }
+function montrerSuggestion(q, inconnus) {
+  const corrigee = questionCorrigee(q, inconnus), plusieurs = inconnus.length > 1;
+  const message = `${inconnus.map(x => `« ${x.ecrit} »`).join(", ")} ${plusieurs ? "n'apparaissent" : "n'apparaît"} dans aucun document : pas de réponse rédigée, pour ne rien inventer. `
+                + `Tu voulais dire ${inconnus.map(x => x.nom).join(", ")} ?`;
+  montrerReponse({ icone: "search-x", message });
+  const p = document.createElement("p");
+  p.className = "r-suggestion";
+  p.innerHTML = `<button type="button" class="suggestion secondaire">${ico("search")}<span>Chercher « ${C.echapper(corrigee)} »</span></button>`;
+  p.querySelector("button").addEventListener("click", () => { $("question").value = corrigee; repondre(); });
+  $("r-corps").appendChild(p);
+  return { message, suggestion: corrigee };
+}
 async function repondre() {
   const q = $("question").value.trim();
   if (!q) { $("question").focus(); return null; }
@@ -2258,9 +2410,12 @@ async function repondre() {
     await E.attenteModele;
   }
   if (!encore()) return null;
+  const suite = suiteDe(q), qr = suite ? suite.recherche : q;
   let rep = E.derniere;
-  if (!rep || rep.question !== q || (rep.mode === "mots" && E.extracteur)) rep = await lancer(q, true, true);
+  if (!rep || rep.question !== qr || (rep.mode === "mots" && E.extracteur)) rep = await lancer(qr, true, true);
   if (!encore() || !rep) return null;
+  const inconnus = nomsInconnus(q).filter(x => x.nom);            // « olantavirus » : absent des documents, proche de « hantavirus »
+  if (inconnus.length) return montrerSuggestion(q, inconnus);
   if (rep.questionDefinition && !rep.passagesDefinition)         // sigle ajouté à la main : la définition suffit, pas besoin du LLM
     return montrerReponse({ icone: "book-open-text", message: rep.sigles.map(x => `${x.s} : ${x.def}`).join(" ; ") + " (lexique du catalogue)" });
   if (!rep.resultats.length) return montrerReponse({ icone: "inbox", message: "Aucun passage trouvé : pas de réponse possible." });
@@ -2269,12 +2424,15 @@ async function repondre() {
   if (navigator.onLine === false)
     return montrerReponse({ icone: "wifi-off", message: "Pas de connexion : la réponse rédigée a besoin d'internet. Les passages ci-dessous restent consultables." });
   try {
-    const res = await rediger(rep, reg, t => { if (encore()) montrerReponse({ attente: t }); });
+    const res = await rediger(rep, reg, t => { if (encore()) montrerReponse({ attente: t }); }, suite);
     if (!encore()) return null;
+    res.questionPosee = q;
     E.reponse = res;
     afficherReponse(res, rep);
+    montrerSuite(suite);
+    E.echange = { question: q, texte: res.texte, t: Date.now() };
     const a = res.analyse;
-    return { question: q, texte: res.texte, aucune: a.aucune, douteux: a.douteux, fournisseur: res.fournisseur, modele: res.modele, relais: res.relais,
+    return { question: q, suite: suite ? suite.precedent.question : null, recherche: qr, texte: res.texte, aucune: a.aucune, douteux: a.douteux, fournisseur: res.fournisseur, modele: res.modele, relais: res.relais,
              sources: a.cites.map(n => { const r = rep.resultats[n - 1]; return { n, titre: r.titre, fichier: r.fichier, page: r.page }; }) };
   } catch (e) {
     if (!encore()) return null;
@@ -2288,7 +2446,7 @@ $("chercher").addEventListener("click", () => { $("question").blur(); lancer($("
 const CLE_DERNIERE = "rebecca.derniere.v1";
 function garderDerniere(res, rep) {
   try {
-    localStorage.setItem(CLE_DERNIERE, JSON.stringify({ t: Date.now(), rep,
+    localStorage.setItem(CLE_DERNIERE, JSON.stringify({ t: Date.now(), rep, q: res.questionPosee || rep.question,
       res: { texte: res.texte, modele: res.modele, ms: res.ms, tronque: res.tronque, fournisseur: res.fournisseur, relais: res.relais || [] } }));
   } catch (e) {}
 }
@@ -2298,7 +2456,8 @@ function restaurerDerniere(q) {
   try { d = JSON.parse(localStorage.getItem(CLE_DERNIERE) || "null"); } catch (e) {}
   if (!d || !d.rep || Date.now() - d.t > 6 * 3600e3 || (q && q !== d.rep.question)) return false;
   E.derniere = d.rep;
-  $("question").value = d.rep.question; $("effacer").hidden = false;
+  $("question").value = d.q || d.rep.question; $("effacer").hidden = false;
+  E.echange = { question: d.q || d.rep.question, texte: d.res.texte, t: d.t };
   afficher(d.rep);
   const res = Object.assign(d.res, { question: d.rep.question, analyse: R.analyserReponse(d.res.texte, d.rep.resultats) });
   E.reponse = res;
@@ -2416,11 +2575,11 @@ function majReglagesVoix() {
   $("vx-etat").textContent = VOIX.info
     ? `Voix : ${VOIX.info.nom} (${Math.round(VOIX.info.taille / 1e6)} Mo de voix + environ 40 Mo de moteur, téléchargés une seule fois au premier usage).`
       + (VOIX.echec ? " Elle n'a pas pu être chargée ici : voix du navigateur à la place." : VX.etat().charge ? " Chargée." : "")
-    : "Voix du navigateur (ta voix Piper n'est pas encore publiée : voir l'Atelier).";
+    : "Voix du navigateur (la voix Piper n'est pas encore publiée : voir l'Atelier).";
   if (v.moteur === "gemini")
     $("vx-etat").textContent = lireReglages().cles.gemini
-      ? "Voix Gemini : naturelle, dans le cloud (le texte lu part chez Google). Si Gemini refuse ou sans connexion, ta voix Piper prend le relais."
-      : "Voix Gemini : colle d'abord une clé Gemini (gratuite) dans les réglages du Rédacteur. En attendant, ta voix Piper est utilisée.";
+      ? "Voix Gemini : naturelle, dans le cloud (le texte lu part chez Google). Si Gemini refuse ou sans connexion, la voix Piper prend le relais."
+      : "Voix Gemini : colle d'abord une clé Gemini (gratuite) dans les réglages du Rédacteur. En attendant, la voix Piper est utilisée.";
 }
 ["vx-auto", "vx-reglage", "vx-vitesse", "vx-moteur", "vx-gemini"].forEach(id => $(id).addEventListener("change", () => {
   const avant = lireReglagesVoix();
@@ -2481,7 +2640,7 @@ async function modeleTTS(cle) {
   ecrireReglagesVoix(Object.assign(v, { modeleTTS: m }));
   return m;
 }
-// Lit un texte : voix Gemini si choisie (et disponible), sinon ta voix Piper (ou celle du navigateur)
+// Lit un texte : voix Gemini si choisie (et disponible), sinon la voix Piper (ou celle du navigateur)
 async function dire(texte) {
   if (!texte) return;
   const v = lireReglagesVoix(), finLecture = () => boutonEcouter(false);
@@ -2492,13 +2651,19 @@ async function dire(texte) {
     if (cle && VX.etat().contexte) {
       try {
         const modele = await modeleTTS(cle);
-        await VX.lireGemini(VX.pourLaVoix(texte, { sigles: E.sigles, prononciations: prononciations() }), { cle, modele, voix: v.gemini, surFin: finLecture });
+        const suitePiper = async (reste, e) => {                      // la suite refusée par Gemini : Piper la lit
+          noteVoix(`Voix Gemini interrompue (${e.code === "limite" ? "limite gratuite atteinte" : e.message}) : la voix Piper lit la suite.`);
+          await prechargerVoix();
+          await VX.lire(reste, { pret: true, reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture });
+        };
+        await VX.lireGemini(VX.pourLaVoix(texte, { sigles: E.sigles, prononciations: prononciations() }),
+                            { cle, modele, voix: v.gemini, surFin: finLecture, surEchecSuite: (reste, e) => { suitePiper(reste, e).catch(x => console.error(x)); } });
         return;
       } catch (e) {
         if (e.code === "modele") ecrireReglagesVoix(Object.assign(lireReglagesVoix(), { modeleTTS: "" }));
-        note = `Voix Gemini indisponible (${e.code === "limite" ? "limite gratuite atteinte" : e.message}) : ta voix Piper prend le relais.`;
+        note = `Voix Gemini indisponible (${e.code === "limite" ? "limite gratuite atteinte" : e.message}) : la voix Piper prend le relais.`;
       }
-    } else if (!cle) note = "Voix Gemini : pas de clé Gemini dans les réglages du Rédacteur. Ta voix Piper prend le relais.";
+    } else if (!cle) note = "Voix Gemini : pas de clé Gemini dans les réglages du Rédacteur. La voix Piper prend le relais.";
     if (note) noteVoix(note);
   }
   await prechargerVoix();
@@ -2569,20 +2734,98 @@ function dessinerDictee(etat) {
 function majBoutonDictee() { $("dicter").hidden = !(Reco || peutEnregistrer()); }
 
 // Vocabulaire donné à Whisper : les sigles les plus fréquents de tes documents (COREB, ESR, FHV…)
+// Noms rares des documents (maladies, germes, lieux : « Hantavirus », « Oropouche », « Lassa »…) : pour la dictée et « Tu voulais dire »
+// D'abord les mots du titre qui sont aussi des sujets du document, puis les sujets rares, puis les mots rares écrits avec une majuscule.
+function noms() {
+  if (E.noms && E.nomsPour === E.etat) return E.noms;
+  const bm = E.etat.bm25;
+  const nbDocs = t => { const p = bm.postings.get(t); if (!p) return 0; const d = new Set(); for (let i = 0; i < p.length; i += 2) d.add(E.morceaux[p[i]].d); return d.size; };
+  const formes = new Map(), majuscules = new Map(), poids = new Map();
+  const cle = m => sansAccents(m);
+  for (const m of E.morceaux) {
+    for (const mot of String(m.t).match(/\p{L}{4,}/gu) || []) { const k = cle(mot), f = formes.get(k) || new Map(); f.set(mot, (f.get(mot) || 0) + 1); formes.set(k, f); }
+    for (const mot of String(m.t).match(/(?<=[\p{Ll},;] )\p{Lu}\p{Ll}{3,}/gu) || []) majuscules.set(cle(mot), (majuscules.get(cle(mot)) || 0) + 1);
+  }
+  const noter = (k, w) => { if (w > (poids.get(k) || 0)) poids.set(k, w); };
+  for (const d of E.docs) {
+    const titre = new Set((String(d.titre || "").match(/\p{L}{4,}/gu) || []).map(cle));
+    for (const su of d.sujets || []) {
+      const k = cle(String(su).replace(/^[a-z]['’]/i, ""));
+      if (k.length < 4 || !/^\p{L}+$/u.test(k)) continue;
+      noter(k, titre.has(k) ? 3 : 2);
+    }
+  }
+  for (const [k, n] of majuscules) if (n >= 2 && k.length >= 5) noter(k, 1);
+  const sigles = new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "").toLowerCase()));
+  const liste = [];
+  for (const [k, w] of poids) {
+    const t = C.analyser(k);
+    if (t.length !== 1 || sigles.has(k)) continue;
+    const n = nbDocs(t[0]);
+    if (!n || (w < 3 && n > 2)) continue;                              // sujet ou majuscule : seulement s'il est rare (1 ou 2 documents)
+    const f = formes.get(k);
+    let mot = f ? [...f.entries()].sort((a, b) => b[1] - a[1])[0][0] : k;
+    if (/^\p{Lu}+$/u.test(mot)) mot = mot.toLowerCase();                   // « TULARÉMIE » (en capitales) → « tularémie »
+    liste.push({ mot, terme: t[0], sons: cleSons(mot), poids: w, docs: n, n: (bm.postings.get(t[0]) || []).length / 2 });
+  }
+  E.noms = liste.sort((a, b) => b.poids - a.poids || a.docs - b.docs || b.n - a.n); E.nomsPour = E.etat;   // noms propres à 1 ou 2 documents d'abord
+  return E.noms;
+}
+// Le nom des documents le plus proche à l'oreille (« antivirus », « olantavirus » → hantavirus), ou rien s'il y a doute
+function nomProche(mot) {
+  const sons = cleSons(mot);
+  if (sons.length < 5) return null;
+  const max = sons.length >= 8 ? 2 : 1, proches = [];
+  for (const n of noms()) {
+    if (n.sons.length < 4) continue;
+    let d = Math.abs(n.sons.length - sons.length) <= max ? distance(n.sons, sons) : 99;
+    if (d > max && sons.length - n.sons.length > 0 && sons.length - n.sons.length <= 2 && n.sons.length >= 5 && sons.endsWith(n.sons)) d = max;   // article collé (« l'hantavirus »)
+    if (d <= max) proches.push({ n, d });
+  }
+  proches.sort((a, b) => a.d - b.d || b.n.poids - a.n.poids);
+  if (!proches.length || (proches[1] && proches[1].d === proches[0].d && proches[1].n.poids === proches[0].n.poids)) return null;   // ex aequo : on ne devine pas
+  return proches[0].n.mot;
+}
+// Mots tapés absents de tous les documents, avec le nom proche s'il y en a un : [{ ecrit, nom }]
+function nomsInconnus(question) {
+  const sortie = [], vus = new Set();
+  for (const brut of String(question).match(/[\p{L}][\p{L}'’-]*/gu) || []) {
+    const mot = brut.replace(/^(?:[cdjlmnst]|qu)['’]/i, "");
+    if (mot.length < 5 || vus.has(mot.toLowerCase())) continue;
+    vus.add(mot.toLowerCase());
+    const t = C.analyser(mot);
+    if (t.length !== 1 || E.etat.bm25.postings.has(t[0]) || C.corriger(t[0], E.etat.bm25)) continue;
+    sortie.push({ ecrit: mot, nom: sigleProche(mot) || nomProche(mot) });
+  }
+  return sortie;
+}
+const remplacerMot = (q, ecrit, nom) => q.replace(new RegExp(`(?<![\\p{L}])${ecrit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "u"), nom);
+
+// Vocabulaire donné à Whisper (dictée) : noms rares et sigles des documents, en 650 caractères au plus
 function vocabulaire() {
   const vus = new Map();
   for (const x of E.sigles || []) {
     const s = String(x.s || "").trim();
-    if (!s || s.length > 12 || vus.has(s.toUpperCase())) continue;
+    if (!/^[A-Z][A-Za-z0-9-]{1,9}$/.test(s) || vus.has(s.toUpperCase())) continue;            // « COREB », « RT-PCR » ; pas « CAS POSSIBLE »
     const t = C.analyser(s)[0], p = t && E.etat ? E.etat.bm25.postings.get(t) : null;
     vus.set(s.toUpperCase(), { s, n: p ? p.length : 0 });
   }
-  const sigles = [...vus.values()].sort((a, b) => b.n - a.n).slice(0, 60).map(x => x.s);
-  return `Question posée à ${CONFIG.identite.nom}, assistante documentaire. ${sigles.length ? "Sigles possibles : " + sigles.join(", ") + "." : ""}`;
+  const sigles = [...vus.values()].sort((a, b) => b.n - a.n).map(x => x.s);
+  const rares = E.etat ? noms().map(x => x.mot) : [];
+  let texte = `Question posée à ${CONFIG.identite.nom}, assistante documentaire.`;
+  const ajout = (titre, liste, maxi) => {
+    const pris = [];
+    for (const m of liste) { if (texte.length + titre.length + pris.join(", ").length + m.length + 4 > maxi) break; pris.push(m); }
+    if (pris.length) texte += ` ${titre} : ${pris.join(", ")}.`;
+  };
+  ajout("Maladies et noms", rares.slice(0, 40), 380);
+  ajout("Sigles", sigles.slice(0, 60), 650);
+  return texte;
 }
 
 // Sigles mal compris (« Kared » pour COREB) : un mot absent de tous les documents, qui sonne comme un sigle du lexique
-const cleSons = t => sansAccents(t).replace(/[^a-z]/g, "").replace(/ph/g, "f").replace(/qu|[cq]/g, "k").replace(/h/g, "").replace(/(.)\1+/g, "$1");
+const cleSons = t => sansAccents(t).replace(/[^a-z]/g, "").replace(/ph/g, "f").replace(/qu|[cq]/g, "k").replace(/h/g, "")
+  .replace(/e?au/g, "o").replace(/[ae]i/g, "e").replace(/y/g, "i").replace(/(.)\1+/g, "$1");   // « charbaun » ≈ « charbon »
 const clePhonetique = t => cleSons(t).replace(/[aeiouy]+/g, "a").replace(/a$/, "");
 function distance(a, b) {
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
@@ -2591,32 +2834,44 @@ function distance(a, b) {
     d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
   return d[a.length][b.length];
 }
+// Sigle du lexique qui sonne comme ce mot (« Kared » → COREB), ou rien s'il y a doute
+function sigleProche(mot) {
+  if (!E.siglesSons || E.siglesSonsPour !== E.sigles) {
+    E.siglesSons = [...new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "")))]
+      .filter(s => /^[A-Z][A-Z0-9]{2,7}$/.test(s) && !VX.aEpeler(s)).map(s => ({ s, cle: clePhonetique(s), sons: cleSons(s) })).filter(x => x.cle.length >= 3);
+    E.siglesSonsPour = E.sigles;
+  }
+  const cle = clePhonetique(mot);
+  if (cle.length < 3) return null;
+  const sons = cleSons(mot);
+  const proches = E.siglesSons.filter(x => x.cle[0] === cle[0] && distance(x.cle, cle) <= 1)
+    .map(x => Object.assign({ note: [distance(x.cle, cle), distance(x.sons, sons), Math.abs(x.sons.length - sons.length)] }, x))
+    .sort((a, b) => a.note[0] - b.note[0] || a.note[1] - b.note[1] || a.note[2] - b.note[2]);
+  if (!proches.length || (proches[1] && proches[1].note.join() === proches[0].note.join())) return null;   // ex aequo : on ne devine pas
+  return proches[0].s;
+}
 function corrigerDictee(texte) {
-  let t = String(texte || "").replace(/\b(?:[A-Za-z]\.?\s){1,5}[A-Za-z]\b\.?/g, m => {   // « E S R » épelé → « ESR »
+  // « E S R » ou « E.S.R. » épelé → « ESR » (lettres majuscules isolées, pas « durée d'incubation »)
+  let t = String(texte || "").replace(/(?<![\p{L}\d'’])(?:[A-Z]\.?\s){1,5}[A-Z](?![\p{L}\d'’])\.?/gu, m => {
     const l = m.replace(/[^A-Za-z]/g, "");
     return l.length >= 2 && l.length <= 6 ? l.toUpperCase() : m;
   });
-  const sigles = [...new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "")))]
-    .filter(s => /^[A-Z][A-Z0-9]{2,7}$/.test(s) && !VX.aEpeler(s)).map(s => ({ s, cle: clePhonetique(s), sons: cleSons(s) })).filter(x => x.cle.length >= 3);
   const corrections = [];
-  t = t.replace(/[\p{L}][\p{L}'’-]{3,}/gu, mot => {
+  t = t.replace(/[\p{L}][\p{L}'’-]{3,}/gu, brut => {
+    const elision = (/^(?:[cdjlmnst]|qu)['’]/i.exec(brut) || [""])[0], mot = brut.slice(elision.length);   // « l'antivirus » : on garde « l' »
+    if (mot.length < 4) return brut;
     const termes = C.analyser(mot);
-    if (!termes.length || termes.some(x => E.etat && E.etat.bm25.postings.has(x))) return mot;   // mot connu des documents : on n'y touche pas
-    const cle = clePhonetique(mot);
-    if (cle.length < 3) return mot;
-    const sons = cleSons(mot);
-    const proches = sigles.filter(x => x.cle[0] === cle[0] && distance(x.cle, cle) <= 1)
-      .map(x => Object.assign({ note: [distance(x.cle, cle), distance(x.sons, sons), Math.abs(x.sons.length - sons.length)] }, x))
-      .sort((a, b) => a.note[0] - b.note[0] || a.note[1] - b.note[1] || a.note[2] - b.note[2]);
-    if (!proches.length || (proches[1] && proches[1].note.join() === proches[0].note.join())) return mot;   // ex aequo : on ne devine pas
-    corrections.push([mot, proches[0].s]);
-    return proches[0].s;
+    if (!termes.length || termes.some(x => E.etat && E.etat.bm25.postings.has(x))) return brut;   // mot connu des documents : on n'y touche pas
+    const juste = sigleProche(mot) || (E.etat ? nomProche(mot) : null);                            // « Kared » → COREB ; « antivirus » → hantavirus
+    if (!juste) return brut;
+    corrections.push([mot, juste]);
+    return elision + juste;
   });
   return { texte: t, corrections };
 }
 
 async function transcrireWhisper(blob, cle) {
-  const ext = /mp4|m4a|aac/.test(blob.type) ? "m4a" : /ogg/.test(blob.type) ? "ogg" : "webm";
+  const ext = /mp4|m4a|aac/.test(blob.type) ? "m4a" : /ogg/.test(blob.type) ? "ogg" : /wav/.test(blob.type) ? "wav" : "webm";
   for (const modele of ["whisper-large-v3-turbo", "whisper-large-v3"]) {
     const form = new FormData();
     form.append("file", blob, `question.${ext}`);
@@ -2861,6 +3116,67 @@ $("verifier").addEventListener("click", async () => {
   if (!restaurerDerniere(q) && q) { $("question").value = q; lancer(q, false); }
   chargerModele();
 })();
+
+// ---------- Pour le banc d'essai de l'Atelier (navigateur sans écran) ----------
+function enWav(pcm, sr) {                                          // son 16 bits mono
+  const n = pcm.length, buf = new ArrayBuffer(44 + 2 * n), v = new DataView(buf);
+  const ecrire = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  ecrire(0, "RIFF"); v.setUint32(4, 36 + 2 * n, true); ecrire(8, "WAVE"); ecrire(12, "fmt "); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, 2 * sr, true); v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true); ecrire(36, "data"); v.setUint32(40, 2 * n, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + 2 * i, Math.max(-1, Math.min(1, pcm[i])) * 32767, true);
+  return buf;
+}
+// Mots importants d'une question (maladie, germe, médicament, sigle) : ceux qu'une dictée ne doit pas perdre
+function motsClefs(q) {
+  const sigles = C.siglesDansQuestion(q, E.sigles || []).flatMap(x => C.analyser(x.s, true));
+  const termesNoms = new Set(noms().map(x => x.terme));
+  return [...new Set([...sujetsDe(q).filter(t => t.length >= 5 || termesNoms.has(t)), ...sigles])];
+}
+async function dicteeDeTest(q, cle) {                              // la question lue par Piper, puis dictée à Whisper, puis corrigée
+  await prechargerVoix();
+  if (!VX.etat().charge) throw new Error("voix Piper indisponible");
+  const dit = VX.pourLaVoix(q, { sigles: E.sigles, prononciations: prononciations() });
+  const { pcm, sr } = await VX.synthetiserTexte(dit, { pret: true, reglages: reglagesVoix() });
+  const brut = await transcrireWhisper(new Blob([enWav(pcm, sr)], { type: "audio/wav" }), cle);
+  const { texte, corrections } = corrigerDictee(brut);
+  const obtenus = new Set(C.analyser(texte, true)), perdus = motsClefs(q).filter(t => !obtenus.has(t));
+  return { dit, brut, texte, corrections, perdus, secondes: Math.round(pcm.length / sr) };
+}
+async function repondreA(q) {                                      // une question isolée (jamais « suite » de la précédente)
+  oublierEchange();
+  $("question").value = q;
+  const r = await repondre();
+  const passages = (E.derniere && E.derniere.question === q ? E.derniere.resultats : []).map((x, i) => ({ n: i + 1, titre: x.titre, fichier: x.fichier, page: x.page, texte: x.texte }));
+  return Object.assign({}, r, { passages });
+}
+// Ce que la voix lirait mal : symboles restés, nombres collés à des lettres, sigles absents du lexique, abréviations
+function lectureDeTest() {
+  const motifs = new Map(), connus = new Set((E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "").toUpperCase()));
+  const noter = (motif, m, ecrit, dit) => {
+    const x = motifs.get(motif) || { motif, n: 0, exemples: [] };
+    x.n++;
+    if (x.exemples.length < 2) {
+      const i = Math.max(0, dit.indexOf(ecrit) - 50);
+      x.exemples.push({ dit: dit.slice(i, i + 120), titre: E.docs[m.d].titre, page: m.p });
+    }
+    motifs.set(motif, x);
+  };
+  for (const m of E.morceaux) {
+    const dit = VX.pourLaVoix(m.t, { sigles: E.sigles, prononciations: prononciations() });
+    // symboles que la voix lit mal ou pas du tout (« + », « = », « … », guillemets : lus correctement ou simple pause)
+    for (const c of dit.match(/[^\p{L}\d\s.,;:!?'’‘“”„()\[\]«»"–—\-+=…]/gu) || []) noter(`symbole « ${c} »`, m, c, dit);
+    for (const c of dit.match(/(?<![\p{L}\d])\d+(?:[.,]\d+)?\p{L}+/gu) || [])
+      if (!/^\d+(?:er|re|ère|e|es|ème|eme|èmes|nd|nde|ers|res|[A-Z])$/.test(c)) noter(`nombre collé : « ${c.replace(/\d+(?:[.,]\d+)?/, "n")} »`, m, c, dit);
+    for (const c of dit.match(/(?<![\p{L}\d])(?:cf|env|max|min|nb|vs|ex|resp|inj|sol|susp|cpr|amp)\.(?=\s)/giu) || []) noter(`abréviation « ${c} »`, m, c, dit);
+    for (const c of String(m.t).match(/(?<![\p{L}\d])[A-Z][A-Z0-9]{1,7}(?![\p{L}\d])/gu) || [])
+      if (/[A-Z]{2}/.test(c) && !connus.has(c) && VX.aEpeler(c) && !VX.MOTS_COURANTS.has(c)) noter(`sigle épelé, absent du lexique : « ${c} » (dit « ${VX.pourLaVoix(c).replace(/\.$/, "")} »)`, m, VX.pourLaVoix(c).replace(/\.$/, ""), dit);
+  }
+  return [...motifs.values()].sort((a, b) => b.n - a.n);
+}
+
+// Pour le banc d'essai de l'Atelier (et les tests) : accès aux fonctions de la page, sans effet sur son usage normal
+window.RebeccaBanc = { dicteeDeTest, repondreA, lectureDeTest, motsClefs, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
