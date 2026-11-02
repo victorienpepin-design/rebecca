@@ -705,7 +705,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     return groupes;
   }
 
-  const REGLAGES = { candidats: 50, retenus: 12, parDoc: 4, total: 6, poidsDoc: 0, kDocs: 10, seuilSens: null, margeAbsents: 0 };
+  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 10, poidsDoc: 0, kDocs: 10, seuilSens: null, margeAbsents: 0 };
 
   // Étape 1 : la question analysée (sigles, mots, corrections, équivalents)
   // Question de liste (« toutes les FHV », « liste… », « cite… ») : plus de passages, venant de plus de documents
@@ -1030,7 +1030,7 @@ Règles :
 2. Utilise TOUS les extraits utiles, pas seulement le premier : si plusieurs documents se complètent, combine-les en citant chacun ; s'ils se contredisent, dis-le en citant les deux.
 3. Après chaque information, indique entre crochets le numéro de l'extrait d'où elle vient : [1], [2]. Aucune information sans crochet.
 4. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas.
-5. Si les extraits ne permettent pas de répondre à la question, réponds exactement et seulement : ${SENTINELLE}
+5. Si les extraits ne permettent pas de répondre à la question, réponds exactement et seulement : ${SENTINELLE}. Avant de conclure ainsi, relis chaque extrait : la réponse peut y être écrite avec d'autres mots que ceux de la question (synonyme, périphrase, tableau).
 6. Si la question porte sur une maladie, un germe, un médicament ou un nom qu'aucun extrait ne mentionne, réponds exactement et seulement : ${SENTINELLE}. Ne réponds jamais avec les extraits d'un autre sujet, même proche.
 7. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
 8. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
