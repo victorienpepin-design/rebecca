@@ -261,7 +261,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 
   <div id="secours" class="carte" hidden>
     <p style="margin-top:0"><b>Index introuvable.</b> Cette page doit être ouverte depuis un site (voir le mode d'emploi), avec le dossier <code>index/</code> à côté d'elle.</p>
-    <p class="petit">Pour tester sur un ordinateur, tu peux aussi choisir ici les fichiers du dossier <code>index/</code> (manifest.json, chunks.json, embeddings.bin, docs.bin, verif.json) :</p>
+    <p class="petit">Pour tester sur un ordinateur, tu peux aussi choisir ici les fichiers du dossier <code>index/</code> (manifest.json, chunks.json, embeddings.bin, docs.bin) :</p>
     <input id="fichiers-index" type="file" multiple accept=".json,.bin">
   </div>
 
@@ -311,6 +311,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       <label class="case"><input id="vx-auto" type="checkbox"> Lire les réponses à voix haute</label>
       <label class="case"><input id="vx-direct" type="checkbox"> Conversation en direct (Gemini Live, clé Gemini, en ligne)</label>
       <label class="case"><input id="vx-mains" type="checkbox"> Mains libres : le micro se rouvre après chaque réponse</label>
+      <label class="case"><input id="vx-reveil" type="checkbox"> Réveil par la voix : dis « Dis Rebecca », puis pose ta question</label>
+      <p id="vx-reveil-etat" class="petit" style="margin:0" hidden></p>
       <label>Voix
         <select id="vx-moteur"><option value="piper">Voix Piper (sur l'appareil)</option><option value="gemini">Gemini (cloud, en option)</option></select></label>
       <label id="vx-gemini-l">Voix Gemini
@@ -325,12 +327,9 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   </details>
 
   <details id="infos" class="infos">
-    <summary><svg class="ico" aria-hidden="true"><use href="#i-info"></use></svg>Infos et vérification<svg class="ico fleche" aria-hidden="true"><use href="#i-chevron-down"></use></svg></summary>
+    <summary><svg class="ico" aria-hidden="true"><use href="#i-info"></use></svg>Infos<svg class="ico fleche" aria-hidden="true"><use href="#i-chevron-down"></use></svg></summary>
     <p id="infos-index" class="petit"></p>
     <p id="infos-modele" class="petit"></p>
-    <p><button id="verifier" class="secondaire" type="button" disabled>Vérifier le modèle</button></p>
-    <div id="verif-resultat" class="petit"></div>
-    <p class="petit">Pour les développeurs : <code>await moteur.repondre("ta question")</code> rédige la réponse sourcée (pour la future Voix) ; <code>await moteur.contexteLLM("ta question")</code> renvoie les passages envoyés au LLM ; <code>await moteur.rechercher("ta question")</code> renvoie les résultats bruts, regroupés par document.</p>
   </details>
 </div>
 
@@ -997,8 +996,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       exclus: /whisper|tts|orpheus|playai|guard|safeguard|compound|allam|embed|vision|audio|speech|distil/i,
       prefere: [/gpt-oss-120b/, /kimi/, /qwen/, /llama-3\.3-70b/, /llama-4/, /gpt-oss-20b/, /llama/, /gemma|mistral/],
       defauts: ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b"] },
-    mistral: { nom: "Mistral", format: "openai", base: "https://api.mistral.ai/v1", cout: "gratuit", relaisModeles: 2,
-      aideCle: "Clé gratuite (offre « Experiment ») : console.mistral.ai › API Keys",
+    mistral: { nom: "Mistral", format: "openai", base: "https://api.mistral.ai/v1", cout: "payant", relaisModeles: 2,
+      aideCle: "Payant (l'offre gratuite « Experiment » n'est plus proposée à tous) : console.mistral.ai › API Keys",
       exclus: /embed|ocr|moderation|codestral|devstral|pixtral|voxtral|saba|magistral|ministral-3b|tiny|nemo/i,
       prefere: [/^mistral-medium-latest$/, /^mistral-small-latest$/, /^mistral-large-latest$/, /^mistral-medium/, /^mistral-small/, /^mistral-large/],
       defauts: ["mistral-medium-latest", "mistral-small-latest", "mistral-large-latest"] },
@@ -1028,7 +1027,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     deepseek: { nom: "DeepSeek", format: "openai", base: "https://api.deepseek.com/v1", cout: "payant", relaisModeles: 1,
       aideCle: "Payant : platform.deepseek.com › API keys", exclus: /^$/, prefere: [/deepseek-chat/, /deepseek/], defauts: ["deepseek-chat"] },
   };
-  const ORDRE_DEFAUT = ["groq", "mistral", "gemini", "openrouter", "autre", "anthropic", "openai", "xai", "deepseek"];
+  const ORDRE_DEFAUT = ["groq", "gemini", "openrouter", "mistral", "autre", "anthropic", "openai", "xai", "deepseek"];
   const NB_CANDIDATS = 6;
 
   // ---------- Consignes données au LLM ----------
@@ -1094,7 +1093,8 @@ Règles :
   function classerErreur(e, reglable) {
     const s = e.statut, m = `${e.message} ${e.code} ${e.details}`.toLowerCase();
     if (s === 401 || /invalid.?(api.?)?key|api key not valid|api_key_invalid|unauthenticated|unregistered callers|authentication_error|invalid x-api-key/.test(m)) return "cle";
-    if (s === 402 || /credit balance|insufficient.?(quota|balance|credit|funds)|payment required|billing/.test(m)) return "credit";
+    // (avant v14, « billing » comptait comme crédit épuisé : Groq l'écrit dans chaque message de limite, et tout Groq était bloqué 1 h)
+    if (s === 402 || /credit balance|insufficient.?(quota|balance|credit|funds)|payment required/.test(m)) return "credit";
     if (s === 429 || /rate.?limit|resource_exhausted/.test(m))
       return /per[ -]?day|perday|\(tpd\)|\(rpd\)|daily/.test(m) ? "limite_jour" : "limite";
     if (reglable && (s === 400 || s === 422) && /reasoning|thinking|temperature|include_reasoning|unknown name|unsupported|not supported|extra (inputs|fields)|invalid.*(field|param)|property/.test(m)) return "parametre";
@@ -1151,7 +1151,7 @@ Règles :
     if (!F) throw new ErreurRedacteur("autre", `Fournisseur inconnu : ${fournisseur}`);
     const f = opts.fetch || racine.fetch.bind(racine), base = baseDe(F, opts), mode = opts.mode || "complet";
     const maxTokens = opts.maxTokens || (F.format === "gemini" ? 2048 : 900);   // réponse courte : ménage les limites
-    const temperature = mode === "minimal" ? {} : { temperature: 0.2 };
+    const temperature = mode === "minimal" ? {} : { temperature: 0 };   // 0 : même question, même réponse
     const extras = mode === "complet" && F.extras ? F.extras(modele) : null;
     let url, corps;
     if (F.format === "gemini") {
@@ -1776,12 +1776,8 @@ Règles :
     return buffer;
   }
 
-  // Coupe en deux : la 1re phrase seule (la voix démarre vite), puis le reste, demandé en même temps
-  function moitiesGemini(texte) {
-    const phrases = decouperPhrases(texte, 400);
-    if (phrases.length < 2 || texte.length < 160) return [texte];
-    return [phrases[0], phrases.slice(1).join(" ")];
-  }
+  // v15 : une seule demande par réponse (avant : 1re phrase puis le reste → quota consommé 2 fois plus vite, et une pause audible)
+  function moitiesGemini(texte) { return [texte]; }
 
   // Lit le texte (déjà préparé pour l'oral) avec une voix Gemini.
   // opts : { cle, modele, voix, surDebut, surFin, surEchecSuite(reste, erreur), fetch }
@@ -2048,7 +2044,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 13;
+const VERSION_PAGE = 15;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2173,7 +2169,6 @@ $("fichiers-index").addEventListener("change", async ev => {
     const manifeste = JSON.parse(await f["manifest.json"].text());
     installerIndex(manifeste, JSON.parse(await f["chunks.json"].text()), new Uint8Array(await f["embeddings.bin"].arrayBuffer()),
                    f["docs.bin"] ? new Uint8Array(await f["docs.bin"].arrayBuffer()) : null);
-    E.verifLocale = f["verif.json"] ? JSON.parse(await f["verif.json"].text()) : null;
     $("secours").hidden = true;
     etat("Index chargé. Recherche par mots-clés prête.", null, "ok");
     chargerModele();
@@ -2204,7 +2199,6 @@ async function chargerModele() {
     });
     await E.extracteur(m.prefixe_question + "test", { pooling: "mean", normalize: true });
     etat("Prêt : recherche par le sens et par mots-clés" + (HTTP ? ", même hors connexion" : ""), null, "ok");
-    $("verifier").disabled = false;
     remplirInfos();
     finModele();
     if (E.derniere && E.derniere.mode === "mots" && $("reponse").hidden) lancer(E.derniere.question, false);
@@ -2323,15 +2317,6 @@ function contexte(rep, suite = null) {
                                    precedent: suite ? { question: suite.precedent.complete || suite.precedent.question, reponse: suite.precedent.texte } : null }) : "";
 }
 
-window.moteur = {
-  rechercher,
-  contexteLLM: async question => contexte(await rechercher(question)),
-  sigles: question => C.siglesDansQuestion(question, E.sigles).map(x => ({ sigle: x.s, definition: x.def, fichier: x.d == null ? null : E.docs[x.d].f, page: x.p })),
-  formaterPourLLM: C.formaterPourLLM,
-  pret: () => !!E.extracteur,
-  // Le Rédacteur (pour la future Voix) : remplit la question, rédige, renvoie { texte, sources… } ou { message } / { erreur }
-  repondre: async question => { $("question").value = String(question || ""); return repondre(); },
-};
 
 const lienPdf = f => CONFIG.dossierPdf + f.split("/").map(encodeURIComponent).join("/");
 const pdfDispo = new Map();
@@ -2607,27 +2592,40 @@ function sujetsCouverts(q, resultats) {
   const vus = new Set(C.analyser(resultats.map(x => x.texte).join(" "), true));
   return sujets.every(t => vus.has(t));
 }
+// 2e avis : la même relève, mais sans le modèle qui vient de répondre (Groq passe à qwen… ; Gemini seulement si Groq est épuisé)
+function memoireAvis(premier) {
+  const m = memoireRelais();
+  E.avisAuto = E.avisAuto || {};
+  return Object.assign({}, m, { auto: f => E.avisAuto[f] || "", setAuto: (f, x) => { E.avisAuto[f] = x; },
+                                estEpuise: (f, x) => (premier && f === premier.f && x === premier.modele) || m.estEpuise(f, x) });
+}
 async function rediger(rep, reg, surEtat, suite = null) {
-  const appel = async (r, enPlus = "") => {
+  let premier = null;
+  const appel = async (r, enPlus = "", avis = false) => {
     const res = await R.redigerAvecRelais({ connexions: connexions(reg), systeme: R.consignes(CONFIG.identite),
-                                            utilisateur: R.messageUtilisateur(contexte(r, suite)) + enPlus, memoire: memoireRelais(), surEtat });
+                                            utilisateur: R.messageUtilisateur(contexte(r, suite)) + enPlus,
+                                            memoire: avis ? memoireAvis(premier) : memoireRelais(), surEtat });
+    if (avis) res.avis = true;
     return Object.assign(res, { question: rep.question, analyse: R.analyserReponse(res.texte, pourAnalyse(r.resultats)) });
   };
   let res = await appel(rep);
+  premier = { f: res.fournisseur, modele: res.modele };
   const q = suite ? suite.q : rep.question;
   // Refus alors que les 3 premiers passages parlent bien du sujet (« incubation de la dengue ») : une relance avec ces 3 passages seulement
   if (res.analyse.aucune && rep.resultats.length > 3 && sujetsCouverts(suite ? suite.complete : q, rep.resultats.slice(0, 3))) {
-    surEtat("Relecture des 3 meilleurs passages");
-    const r2 = await appel(Object.assign({}, rep, { resultats: rep.resultats.slice(0, 3) }));
+    surEtat("2e avis sur les 3 meilleurs passages");
+    const r2 = await appel(Object.assign({}, rep, { resultats: rep.resultats.slice(0, 3) }),
+      "\nCes extraits parlent bien du sujet de la question : relis-les mot à mot ; la réponse peut y être écrite autrement (numéro, durée, liste). Réponds AUCUNE_REPONSE seulement si elle n'y est vraiment pas.", true).catch(() => null);
+    if (!r2) return res;
     if (!r2.analyse.aucune) res = Object.assign(r2, { relance: "refus" });
   }
   // Numéro demandé, présent dans les passages, mais absent ou incomplet dans la réponse (« 27 » pour le CNR de la peste) : une relance
   else if (!res.analyse.aucune && RE_NUMERO_DEMANDE.test(q)) {
     const tels = new Set(rep.resultats.flatMap(x => chiffresTel(C.texteLLM(x.texte))));
     if (tels.size && !chiffresTel(res.texte).some(n => tels.has(n))) {
-      surEtat("Vérification du numéro");
-      const r2 = await appel(rep, "\nLa question demande un numéro de téléphone : recopie-le en entier (10 chiffres), exactement comme dans l'extrait.");
-      if (chiffresTel(r2.texte).some(n => tels.has(n))) res = Object.assign(r2, { relance: "numero" });
+      surEtat("2e avis sur le numéro");
+      const r2 = await appel(rep, "\nLa question demande un numéro de téléphone : recopie-le en entier (10 chiffres), exactement comme dans l'extrait.", true).catch(() => null);
+      if (r2 && chiffresTel(r2.texte).some(n => tels.has(n))) res = Object.assign(r2, { relance: "numero" });
       else res.analyse.numeroIncomplet = true;
     }
   }
@@ -2735,9 +2733,22 @@ function sujetsCorpus() {
   E.sujetsCorpus = s; E.sujetsPour = E.etat;
   return s;
 }
+// v15 : aussi les mots que les documents ne citent qu'en passant : 1 ou 2 passages, et seulement dans des énumérations
+// (ligne à 5 virgules ou plus : « diagnostic différentiel : varicelle, rougeole, variole… ») ou des tableaux (bibliographies).
+// « Hyalomma », « morve », « Qdenga » : rares mais traités dans une vraie phrase, ils restent des sujets.
+const CITE_EN_PASSANT = 2;
+function citeEnPassant(t) {
+  const p = E.etat.bm25.postings.get(t) || [], lignes = [];
+  for (let i = 0; i < p.length; i += 2)
+    for (const l of String(E.morceaux[p[i]].t).split("\n")) if (C.analyser(l, true).includes(t)) lignes.push(l);
+  return lignes.length > 0 && lignes.every(l => (l.match(/,/g) || []).length >= 5 || (l.match(/\|/g) || []).length >= 2);
+}
 function horsSujet(q, sujetQ) {
-  const sujets = sujetsCorpus();
-  const absents = C.termesRecherche(String(q).replace(/-/g, " "), E.etat.bm25, E.etat.familles).absents.filter(t => t.length >= 4);
+  const sujets = sujetsCorpus(), bm = E.etat.bm25;
+  const nPassages = t => (bm.postings.get(t) || []).length / 2;
+  const rares = [...new Set(C.analyser(String(q).replace(/-/g, " "), true))]
+    .filter(t => t.length >= 3 && !/^\d+$/.test(t) && bm.postings.has(t) && nPassages(t) <= CITE_EN_PASSANT && !sujets.has(t) && citeEnPassant(t));
+  const absents = C.termesRecherche(String(q).replace(/-/g, " "), bm, E.etat.familles).absents.filter(t => t.length >= 4).concat(rares);
   if (!absents.length) return [];
   if (absents.some(a => [...sujets].some(t => Math.abs(t.length - a.length) <= 1 && C.distance(t, a, 1) <= 1))) return [];   // « pest » → peste
   if (C.analyser(String(sujetQ).replace(/-/g, " "), true).some(t => sujets.has(t))) return [];
@@ -2926,7 +2937,8 @@ function lireReglagesVoix() {
   v = v || {};
   return { auto: v.auto !== false, reglage: CONFIG.voix.reglages[v.reglage] ? v.reglage : "fluide", vitesse: Number(v.vitesse) || 1,
            moteur: v.moteur === "gemini" ? "gemini" : "piper", gemini: VX.VOIX_GEMINI[v.gemini] ? v.gemini : "Sulafat", modeleTTS: v.modeleTTS || "",
-           mains: v.mains === true, direct: v.direct === true, modeleLive: v.modeleLive || "", refusGemini: v.refusGemini || null };
+           mains: v.mains === true, direct: v.direct === true, modeleLive: v.modeleLive || "", refusGemini: v.refusGemini || null,
+           reveil: v.reveil === true };
 }
 // Prononciations : le nom de Rebecca, puis l'onglet « Prononciation » du catalogue (publié avec l'index)
 const prononciations = () => [[CONFIG.identite.nom, CONFIG.identite.prononciation], ...(E.prononciations || [])].filter(x => x[0] && x[1]);
@@ -2963,7 +2975,7 @@ function majReglagesVoix() {
   const avant = lireReglagesVoix();
   ecrireReglagesVoix({ auto: $("vx-auto").checked, reglage: $("vx-reglage").value, vitesse: Number($("vx-vitesse").value),
                        moteur: $("vx-moteur").value, gemini: $("vx-gemini").value, modeleTTS: avant.modeleTTS, mains: $("vx-mains").checked,
-                       direct: $("vx-direct").checked, modeleLive: avant.modeleLive, refusGemini: avant.refusGemini });
+                       direct: $("vx-direct").checked, modeleLive: avant.modeleLive, refusGemini: avant.refusGemini, reveil: avant.reveil });
   majBoutonDirect();
   if (id === "vx-mains" && !$("vx-mains").checked) finMainsLibres("");
   if (id === "vx-auto" && !$("vx-auto").checked) VX.arreter();
@@ -3055,7 +3067,8 @@ async function dire(texte) {
   await VX.lire(texte, { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture });
 }
 function lireSiAuto(texte) {
-  if (lireReglagesVoix().auto || D.mainsLibres) dire(texte).catch(e => console.error(e));
+  const parReveil = D.lireUneFois; D.lireUneFois = false;
+  if (lireReglagesVoix().auto || D.mainsLibres || parReveil) dire(texte).catch(e => console.error(e));
 }
 // ---------- Mains libres : écoute → réponse lue → écoute… ----------
 const estArret = t => /^(?:merci|stop|arr[êe]te|c'?est tout|ça ira|ca ira|fin|au revoir|termin[ée]|non merci)\b/i.test(t.trim()) && t.trim().split(/\s+/).length <= 5;
@@ -3134,6 +3147,7 @@ const Reco = window.SpeechRecognition || window.webkitSpeechRecognition;
 const D = { etat: "", reco: null, flux: null, enreg: null, morceaux: [], analyse: null, minuteur: null };
 const peutEnregistrer = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 const sessionAudio = type => { try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) {} };
+const finSession = () => RV.actif ? "play-and-record" : "playback";     // réveil actif : le micro reste ouvert
 function dessinerDictee(etat) {
   D.etat = etat;
   const b = $("dicter");
@@ -3347,17 +3361,20 @@ function arreterEnregistrement() {
 }
 async function dicterWhisper(cle, discret = false) {          // discret : relance des mains libres, la réponse reste affichée
   sessionAudio("play-and-record");                                // iPhone/iPad : sinon le micro est coupé
-  try { D.flux = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
-  catch (e) { sessionAudio("playback"); dessinerDictee(""); montrerReponse({ erreur: MESSAGES_MICRO[e.name] || "Micro indisponible : " + e.message }); return; }
+  const fluxReveil = RV.actif && RV.reveil && RV.reveil.flux && RV.reveil.flux.active ? RV.reveil.flux : null;
+  D.fluxPartage = !!fluxReveil;
+  try { D.flux = fluxReveil || await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  catch (e) { sessionAudio(finSession()); dessinerDictee(""); montrerReponse({ erreur: MESSAGES_MICRO[e.name] || "Micro indisponible : " + e.message }); return; }
   const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || "";
   D.morceaux = [];
   D.enreg = new MediaRecorder(D.flux, type ? { mimeType: type } : undefined);
   D.enreg.ondataavailable = ev => { if (ev.data && ev.data.size) D.morceaux.push(ev.data); };
   D.enreg.onstop = async () => {
-    D.flux.getTracks().forEach(t => t.stop()); D.flux = null;
+    if (!D.fluxPartage) D.flux.getTracks().forEach(t => t.stop());
+    D.flux = null;
     try { if (D.analyse) D.analyse.close(); } catch (e) {}
     D.analyse = null;
-    sessionAudio("playback");
+    sessionAudio(finSession());
     const blob = new Blob(D.morceaux, { type: D.enreg.mimeType || type || "audio/webm" });
     if (!D.parole || blob.size < 2000) {
       dessinerDictee("");
@@ -3444,6 +3461,61 @@ $("dicter").addEventListener("click", () => {
   if (D.mainsLibres) noteVoix("Mains libres : je réponds, puis je t'écoute à nouveau. Dis « merci » pour arrêter.");
 });
 majBoutonDictee();
+
+// ---------- Réveil par la voix (« Dis Rebecca », dossier reveil/ : modèle openWakeWord, tout sur l'appareil) ----------
+// Au réveil : bip, puis la dictée habituelle ; la réponse est lue ; puis Rebecca attend de nouveau « Dis Rebecca ».
+// L'écoute est en pause pendant la dictée, la lecture, les mains libres et la conversation en direct (pas de 2e micro).
+const RV = { actif: false, reveil: null, enPause: false };
+const SEUIL_REVEIL = 0.3;
+function etatReveil(texte) { const el = $("vx-reveil-etat"); el.hidden = !texte; el.textContent = texte || ""; }
+function scriptReveil() {
+  return window.Reveil ? Promise.resolve() : new Promise((ok, ko) => {
+    const s = document.createElement("script");
+    s.src = "reveil/reveil.js"; s.onload = ok; s.onerror = () => ko(new Error("fichiers du réveil absents du site"));
+    document.head.appendChild(s);
+  });
+}
+async function demarrerReveil() {
+  RV.actif = true;
+  try {
+    await scriptReveil();
+    if (!RV.reveil) RV.reveil = new window.Reveil({ seuil: SEUIL_REVEIL, garderEcran: true, surDetection: surReveil,
+      surEtat: e => etatReveil(e === "ecoute" ? "J'écoute : dis « Dis Rebecca »." : e === "coupe" ? "Réveil en pause : touche l'écran pour le relancer."
+                                : e === "erreur" ? "Réveil indisponible (micro refusé ?)." : "") });
+    sessionAudio("play-and-record");
+    await RV.reveil.demarrer();
+    RV.enPause = false;
+  } catch (e) { etatReveil("Réveil indisponible : " + e.message); }
+}
+function arreterReveil() {
+  RV.actif = false;
+  if (RV.reveil) { try { RV.reveil.arreter(); } catch (e) {} RV.reveil = null; }
+  etatReveil(""); sessionAudio("playback");
+}
+function surReveil() {
+  if (!RV.actif || D.etat || L.session) return;
+  RV.reveil.pause(); RV.enPause = true;
+  VX.deverrouiller(); VX.arreter(); VX.bip();
+  D.mainsLibres = lireReglagesVoix().mains;
+  D.lireUneFois = true;
+  setTimeout(() => ecouter(), 250);
+}
+// Pause tant que Rebecca écoute, transcrit, parle ou converse ; reprise dès qu'elle a fini
+setInterval(() => {
+  if (!RV.actif || !RV.reveil) return;
+  const occupe = !!D.etat || $("r-ecouter").dataset.lecture === "1" || !!L.session || D.mainsLibres;
+  if (occupe && !RV.enPause) { RV.reveil.pause(); RV.enPause = true; }
+  else if (!occupe && RV.enPause) { RV.reveil.reprise(); RV.enPause = false; }
+}, 500);
+$("vx-reveil").addEventListener("change", () => {                 // un toucher : le navigateur autorise alors le micro
+  const v = lireReglagesVoix(); ecrireReglagesVoix(Object.assign(v, { reveil: $("vx-reveil").checked }));
+  if ($("vx-reveil").checked) demarrerReveil(); else arreterReveil();
+});
+if (lireReglagesVoix().reveil) {                                   // au rechargement : il faut un toucher pour rouvrir le micro
+  $("vx-reveil").checked = true;
+  etatReveil("Réveil par la voix : touche l'écran pour l'activer.");
+  document.addEventListener("pointerdown", () => { if (lireReglagesVoix().reveil && !RV.actif) demarrerReveil(); }, { once: true });
+}
 
 // ---------- Conversation en direct (Gemini Live, en option) ----------
 // Gemini écoute et parle ; pour répondre, il appelle la recherche de Rebecca (sur l'appareil) et s'en tient aux passages trouvés.
@@ -3657,34 +3729,6 @@ function remplirInfos() {
   $("infos-modele").textContent = `Modèle : ${m.id} (version ${m.revision.slice(0, 7)}, ${m.dtype}), ${E.dim} dimensions — ${E.extracteur ? "chargé" : "non chargé"}.${alerte}`;
 }
 
-$("verifier").addEventListener("click", async () => {
-  const out = $("verif-resultat"), m = E.manifeste.modele;
-  out.textContent = "Calcul en cours…";
-  try {
-    const v = E.verifLocale || JSON.parse(new TextDecoder().decode(await telecharger(CONFIG.dossierIndex + "verif.json")));
-    let entrees = 0, ids = 0, cosMin = 1, ecart = 0;
-    for (const t of v.textes) {
-      const entree = (t.type === "query" ? m.prefixe_question : m.prefixe_passage) + C.normaliserModele(t.texte);
-      if (entree === t.entree) entrees++;
-      const mes = Array.from(E.extracteur.tokenizer.encode(t.entree));
-      if (mes.length === t.ids.length && mes.every((x, i) => x === t.ids[i])) ids++;
-      const a = (await E.extracteur(t.entree, { pooling: "mean", normalize: true })).data, b = t.vecteur;
-      let pa = 0, na = 0, nb = 0;
-      for (let i = 0; i < b.length; i++) { pa += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; ecart = Math.max(ecart, Math.abs(a[i] - b[i])); }
-      cosMin = Math.min(cosMin, pa / Math.sqrt(na * nb));
-    }
-    const n = v.textes.length, memeVersion = v.revision === m.revision;
-    const base = memeVersion && entrees === n && ids === n;
-    const verdict = base && cosMin >= 0.9999 ? ico("circle-check") + " <b>Identique à Colab</b> (aux arrondis de calcul près)"
-      : base && cosMin >= 0.999 ? ico("circle-check") + " <b>Équivalent à Colab</b> (écarts d'arrondi minimes, sans effet sur la recherche)"
-      : ico("circle-x") + " <b>Différence détectée</b> : relance les étapes 4 à 6 de l'atelier";
-    out.innerHTML = `${verdict}<br>
-      Même version du modèle : ${memeVersion ? "oui" : "non"} · Textes préparés à l'identique : ${entrees}/${n} · Tokens identiques : ${ids}/${n}<br>
-      Similarité cosinus minimale : ${cosMin.toFixed(7)} · écart max : ${ecart.toExponential(1)}`;
-  } catch (e) {
-    out.textContent = "Vérification impossible : " + e.message + " (verif.json manquant ? lance l'étape 5 puis 6 de l'atelier).";
-  }
-});
 
 // ---------- Démarrage ----------
 (async () => {
@@ -3734,7 +3778,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-window.RebeccaBanc = { preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { sujetsCorpus, horsSujet, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
