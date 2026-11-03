@@ -1,7 +1,7 @@
 {
  "format": 2,
- "version": "cec653c1c1a0",
- "cree_le": "2026-11-02 16:15",
+ "version": "02847104c81b",
+ "cree_le": "2026-11-03 08:40",
  "fuseau": "Europe/Paris",
  "modele": {
   "id": "Xenova/multilingual-e5-small",
@@ -32,9 +32,10 @@
   "candidats": 50,
   "retenus": 16,
   "par_doc": 5,
-  "total": 10,
+  "total": 7,
   "poids_doc": 0,
   "k_docs": 10,
+  "voisins": 4,
   "seuil_sens": 0.8316,
   "marge_absents": 0.01
  },

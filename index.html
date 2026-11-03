@@ -518,7 +518,9 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     "Covid, coronavirus, SARSCoV2",
     "MERS, MERSCoV",
     "précautions complémentaires, mesures renforcées",
-    "grippe, influenza"
+    "grippe, influenza",
+    "AINS, anti-inflammatoire, anti-inflammatoire non stéroïdien, ibuprofène",
+    "incubation, premiers symptômes, apparition des symptômes"
   ];
   function preparerFamilles(liste) {
     return (liste || []).map(f => String(f).split(",").map(x => [...new Set(analyser(x))]).filter(t => t.length))
@@ -705,7 +707,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     return groupes;
   }
 
-  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 10, poidsDoc: 0, kDocs: 10, seuilSens: null, margeAbsents: 0 };
+  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 7, poidsDoc: 0, kDocs: 10, seuilSens: null, margeAbsents: 0 };
 
   // Étape 1 : la question analysée (sigles, mots, corrections, équivalents)
   // Question de liste (« toutes les FHV », « liste… », « cite… ») : plus de passages, venant de plus de documents
@@ -737,7 +739,10 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       const st = etat.bm25Titres ? scoresBM25Poids(etat.bm25Titres, new Map([...prep.poids].filter(([, w]) => w >= 0.8))) : null;
       rangDoc = classerDocuments(scoresBM25Poids(etat.bm25Docs, prep.poids), ss, R.kDocs, st);
     }
-    const classement = fusionnerDocs(listeSens, listeMots, etat.docDe, rangDoc, R.poidsDoc, 60, R.retenus);
+    let classement = fusionnerDocs(listeSens, listeMots, etat.docDe, rangDoc, R.poidsDoc, 60, R.retenus);
+    // Sujet nommé (« l'incubation de la dengue ») : les passages des documents de ce sujet d'abord, les autres ensuite
+    if (prep.docsSujet && prep.docsSujet.size)
+      classement = [...classement.filter(r => prep.docsSujet.has(etat.docDe[r.id])), ...classement.filter(r => !prep.docsSujet.has(etat.docDe[r.id]))];
     const groupes = grouper(classement, etat.docDe, R.parDoc, R.total);
     // « rien ne correspond » : aucun mot-clé trouvé, ou sens trop faible (un peu plus exigeant si un mot de la question est absent)
     const seuil = R.seuilSens === null || R.seuilSens === undefined ? null : R.seuilSens + ((prep.absents || []).length ? R.margeAbsents || 0 : 0);
@@ -935,6 +940,15 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     return `« ${r.titre || nomLisible(r.fichier)} »` + (infos ? ` (${infos})` : "");
   }
 
+  // Texte d'un passage tel que le lit le Rédacteur : numéros de bibliographie retirés (« 27 Fiche de renseignements CNR de la peste »
+  // faisait répondre « 27 ») et numéros abrégés écrits en entier (« 01 45 68 83 27 / 85 » → « 01 45 68 83 27 ou 01 45 68 83 85 »)
+  function texteLLM(t) {
+    let s = String(t || "");
+    if ((s.match(/https?:\/\//g) || []).length >= 2)
+      s = s.replace(/(^|\n)[ \t]*\d{1,3}[.)]?[ \t]+(?=\p{Lu})/gu, "$1").replace(/(https?:\/\/\S+)\s+\d{1,3}\s+(?=\p{Lu})/gu, "$1 ");
+    return s.replace(/((?<!\d)0\d(?:[ .]\d\d){3}[ .])(\d\d)\s*\/\s*(\d\d)(?![ .]?\d)/g, "$1$2 ou $1$3");
+  }
+
   // extra : { confiance: "faible" | "normale", absents: [mots], precedent: { question, reponse } (question de suite) }
   function formaterPourLLM(question, resultats, sigles = [], extra = {}) {
     let s = "";
@@ -951,7 +965,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     resultats.forEach((r, i) => {
       const pages = r.page_fin && r.page_fin !== r.page ? `pages ${r.page}-${r.page_fin}` : `page ${r.page}`;
       s += `\n[${i + 1}] Document : ${decrireDocument(r)} — fichier ${r.fichier} — ${pages}` + (r.section ? ` — section « ${r.section} »` : "") + "\n";
-      s += r.texte.trim() + "\n";
+      s += texteLLM(r.texte).trim() + "\n";
     });
     return s;
   }
@@ -959,7 +973,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   racine.Coeur = {
     normaliserModele, prenormaliser, analyser, construireBM25, scoresBM25, scoresBM25Poids, scoresVecteurs, classer,
     fusionner, analyserQuestion, rareteTermes, reperer, surligner, extrait, versTexteSimple, rendreMarkdown,
-    echapper, formaterPourLLM, formaterDate, decrireDocument, estUnite, estNombre, preparerSigles, siglesDansQuestion,
+    echapper, formaterPourLLM, texteLLM, formaterDate, decrireDocument, estUnite, estNombre, preparerSigles, siglesDansQuestion,
     developperQuestion, termesRecherche, FAMILLES_DEFAUT, preparerFamilles, distance, corriger, nomLisible, texteDocument,
     classerDocuments, fusionnerDocs, grouper, REGLAGES, preparerQuestion, chercher, estListe
   };
@@ -1029,10 +1043,10 @@ Règles :
 1. Réponds en français, de façon directe : 2 à 6 phrases (200 mots au plus), ou une liste à puces si la réponse est une liste ou des étapes. Pour une liste, donne tous les éléments présents dans les extraits, sans en oublier.
 2. Utilise TOUS les extraits utiles, pas seulement le premier : si plusieurs documents se complètent, combine-les en citant chacun ; s'ils se contredisent, dis-le en citant les deux.
 3. Après chaque information, indique entre crochets le numéro de l'extrait d'où elle vient : [1], [2]. Aucune information sans crochet.
-4. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas.
+4. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas. Un numéro de téléphone se recopie en entier.
 5. Si les extraits ne permettent pas de répondre à la question, réponds exactement et seulement : ${SENTINELLE}. Avant de conclure ainsi, relis chaque extrait : la réponse peut y être écrite avec d'autres mots que ceux de la question (synonyme, périphrase, tableau).
-6. Si la question porte sur une maladie, un germe, un médicament ou un nom qu'aucun extrait ne mentionne, réponds exactement et seulement : ${SENTINELLE}. Ne réponds jamais avec les extraits d'un autre sujet, même proche.
-7. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque.
+6. Si la question porte sur une maladie, un germe, un médicament ou un nom qu'aucun extrait ne mentionne, réponds exactement et seulement : ${SENTINELLE}. Ne réponds jamais avec les extraits d'un autre sujet, même proche. Un extrait qui ne fait que citer ce nom (dans une liste, un diagnostic différentiel, une bibliographie) ne suffit pas.
+7. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque. Si la question suppose quelque chose que les extraits contredisent (mauvais lieu, mauvais vecteur, mauvais traitement), corrige-la en citant l'extrait au lieu de répondre ${SENTINELLE}.
 8. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
 9. N'attribue une action ou une responsabilité à une personne, un service ou un organisme que si l'extrait le dit ; ne mélange pas les rôles de plusieurs acteurs.
 10. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.`;
@@ -2034,7 +2048,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 12;
+const VERSION_PAGE = 13;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2104,7 +2118,7 @@ function demiVersFloat(octets) {
 // Réglages de recherche écrits par l'Atelier (noms Python → noms de la page)
 function reglagesDepuis(r = {}) {
   const t = { candidats: r.candidats, retenus: r.retenus, parDoc: r.par_doc, total: r.total, poidsDoc: r.poids_doc, kDocs: r.k_docs,
-              seuilSens: r.seuil_sens === undefined ? null : r.seuil_sens, margeAbsents: r.marge_absents };
+              seuilSens: r.seuil_sens === undefined ? null : r.seuil_sens, margeAbsents: r.marge_absents, voisins: r.voisins };
   for (const k of Object.keys(t)) if (t[k] === undefined) delete t[k];
   return t;
 }
@@ -2253,11 +2267,21 @@ function avecDefinitions(groupes, prep) {
   return { groupes: gs, nb };
 }
 
+// Documents dont le titre nomme le sujet de la question (maladie, germe, sigle rare) : leurs passages passent devant
+function docsDuSujet(q) {
+  const sujets = sujetsDe(q).filter(t => sujetsCorpus().has(t));
+  if (!sujets.length) return null;
+  const docs = new Set();
+  E.docs.forEach((d, i) => { const t = new Set(C.analyser(`${d.titre || ""} ${d.sous_titre || ""}`, true)); if (sujets.some(s => t.has(s))) docs.add(i); });
+  return docs.size && docs.size <= Math.max(3, E.docs.length / 3) ? docs : null;
+}
+const VOISINS = 4;                                              // nombre de meilleurs passages complétés par leurs voisins
 // La recherche complète : documents puis passages, regroupés par document
 async function rechercher(question) {
   const q = String(question || "").trim();
   if (!q || !E.etat) return null;
   const prep = C.preparerQuestion(E.etat, q);
+  prep.docsSujet = docsDuSujet(q);
   const vus = new Set();                                         // même sigle, même définition (aux accents près) : une fois
   prep.sigles = prep.sigles.filter(x => { const c = x.s.replace(/\s+/g, "").toUpperCase() + "|" + sansAccents(x.def); return !vus.has(c) && vus.add(c); });
   let v = null;
@@ -2265,14 +2289,25 @@ async function rechercher(question) {
   const r = C.chercher(E.etat, prep, v);
   const def = avecDefinitions(r.groupes, prep);
   const questionDefinition = prep.sigles.length > 0 && prep.qx !== prep.question;
+  // Passages voisins (même document) collés aux meilleurs passages : une liste coupée en deux (« EPI : FFP2, gants… » au passage suivant) arrive entière
+  const pris = new Set(def.groupes.flatMap(g => g.passages.map(p => p.id)));
+  const nVoisins = (E.etat.reglages || {}).voisins ?? VOISINS;
+  const ordre = r.classement.filter(x => pris.has(x.id)).slice(0, nVoisins).map(x => x.id);
+  const voisinsDe = id => {
+    const m = E.morceaux[id], av = E.morceaux[id - 1], ap = E.morceaux[id + 1];
+    return [av && av.d === m.d && !pris.has(id - 1) ? id - 1 : null, ap && ap.d === m.d && !pris.has(id + 1) ? id + 1 : null];
+  };
+  const colles = new Map();
+  for (const id of ordre) { const [a, b] = voisinsDe(id); if (a !== null) pris.add(a); if (b !== null) pris.add(b); colles.set(id, [a, b]); }
   let k = 0;
   const documents = def.groupes.map(g => {
     const d = E.docs[g.doc];
     return { fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", pages: d.pages,
              passages: g.passages.map(p => {
-               const m = E.morceaux[p.id];
-               return { rang: ++k, id: p.id, fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", page: m.p, page_fin: m.pf,
-                        section: m.s, texte: m.t, rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc, definition: !!p.definition };
+               const m = E.morceaux[p.id], [a, b] = colles.get(p.id) || [null, null];
+               const bloc = [a, p.id, b].filter(x => x !== null).map(x => E.morceaux[x]);
+               return { rang: ++k, id: p.id, fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", page: bloc[0].p, page_fin: Math.max(...bloc.map(x => x.pf || x.p)),
+                        section: m.s, texte: bloc.map(x => x.t).join("\n\n"), rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc, definition: !!p.definition };
              }) };
   });
   return { question: q, mode: r.mode, confiance: def.nb ? "normale" : r.confiance, sens: r.meilleurSens, documents,
@@ -2561,10 +2596,42 @@ function montrerReponse({ attente, message, erreur, icone }) {
   return attente ? null : erreur ? { erreur } : { message };
 }
 
+// Passages tels que les lit le Rédacteur (bibliographies sans numéros, numéros de téléphone écrits en entier) : pour vérifier la réponse
+const pourAnalyse = resultats => resultats.map(x => Object.assign({}, x, { texte: C.texteLLM(x.texte) }));
+const RE_NUMERO_DEMANDE = /\b(?:num[ée]ros?|t[ée]l[ée]phone|t[ée]l|joindre|appeler)\b/i;
+const chiffresTel = t => (String(t || "").match(/(?<!\d)0\d(?:[ .\u202f\u00a0]?\d\d){4}(?!\d)/g) || []).map(x => x.replace(/\D/g, ""));
+// Tous les sujets connus de la question (maladie, germe, sigle rare) sont dans ces passages
+function sujetsCouverts(q, resultats) {
+  const sujets = sujetsDe(q).filter(t => E.etat.bm25.postings.has(t));
+  if (!sujets.length) return false;
+  const vus = new Set(C.analyser(resultats.map(x => x.texte).join(" "), true));
+  return sujets.every(t => vus.has(t));
+}
 async function rediger(rep, reg, surEtat, suite = null) {
-  const res = await R.redigerAvecRelais({ connexions: connexions(reg), systeme: R.consignes(CONFIG.identite),
-                                          utilisateur: R.messageUtilisateur(contexte(rep, suite)), memoire: memoireRelais(), surEtat });
-  return Object.assign(res, { question: rep.question, analyse: R.analyserReponse(res.texte, rep.resultats) });
+  const appel = async (r, enPlus = "") => {
+    const res = await R.redigerAvecRelais({ connexions: connexions(reg), systeme: R.consignes(CONFIG.identite),
+                                            utilisateur: R.messageUtilisateur(contexte(r, suite)) + enPlus, memoire: memoireRelais(), surEtat });
+    return Object.assign(res, { question: rep.question, analyse: R.analyserReponse(res.texte, pourAnalyse(r.resultats)) });
+  };
+  let res = await appel(rep);
+  const q = suite ? suite.q : rep.question;
+  // Refus alors que les 3 premiers passages parlent bien du sujet (« incubation de la dengue ») : une relance avec ces 3 passages seulement
+  if (res.analyse.aucune && rep.resultats.length > 3 && sujetsCouverts(suite ? suite.complete : q, rep.resultats.slice(0, 3))) {
+    surEtat("Relecture des 3 meilleurs passages");
+    const r2 = await appel(Object.assign({}, rep, { resultats: rep.resultats.slice(0, 3) }));
+    if (!r2.analyse.aucune) res = Object.assign(r2, { relance: "refus" });
+  }
+  // Numéro demandé, présent dans les passages, mais absent ou incomplet dans la réponse (« 27 » pour le CNR de la peste) : une relance
+  else if (!res.analyse.aucune && RE_NUMERO_DEMANDE.test(q)) {
+    const tels = new Set(rep.resultats.flatMap(x => chiffresTel(C.texteLLM(x.texte))));
+    if (tels.size && !chiffresTel(res.texte).some(n => tels.has(n))) {
+      surEtat("Vérification du numéro");
+      const r2 = await appel(rep, "\nLa question demande un numéro de téléphone : recopie-le en entier (10 chiffres), exactement comme dans l'extrait.");
+      if (chiffresTel(r2.texte).some(n => tels.has(n))) res = Object.assign(r2, { relance: "numero" });
+      else res.analyse.numeroIncomplet = true;
+    }
+  }
+  return res;
 }
 
 // ---------- Questions de suite : « Et chez l'enfant ? », « Combien de temps ? » après une réponse ----------
@@ -2650,6 +2717,33 @@ function montrerSuggestion(q, inconnus) {
   $("r-corps").appendChild(p);
   return { message, suggestion: corrigee };
 }
+// Question hors des documents : un mot absent de tous les documents (« otite », « coqueluche ») et aucun sujet des documents nommé
+// (mot des titres ou sigle des documents, hors mots génériques). « Bateau » + « hantavirus » ou « vomit » + « Marburg » passent.
+const GENERIQUES_TITRES = new Set(("atteint bref cadrage connaissance destination document engagement etablissement etat fiche formation generique "
+  + "haute hypothese intensite liee medecin memo menace mission mot multi multidisciplinaire national nationale note operationnelle premiere "
+  + "procedure professionnelle radar recommandation referentiel reperer septembre standardise technique territoire transport triple tube "
+  + "version vigilance groupe groupes annexe aout").split(" "));
+function sujetsCorpus() {
+  if (E.sujetsCorpus && E.sujetsPour === E.etat) return E.sujetsCorpus;
+  const N = E.docs.length, s = new Set();
+  const ajouter = t => { const n = t.length >= 3 && !/^\d+$/.test(t) && !GENERIQUES_TITRES.has(t) ? nbDocsTerme(t) : 0; if (n && n <= 0.6 * N) s.add(t); };
+  for (const d of E.docs) for (const t of C.analyser(`${d.titre || ""} ${d.sous_titre || ""}`, true)) ajouter(t);
+  for (const x of E.sigles || []) {                                // sigle des documents (« REB », « CNR ») : un sujet même s'il est partout
+    const t = C.analyser(String(x.s || ""))[0];
+    if (t && t.length >= 3 && !/^\d+$/.test(t) && nbDocsTerme(t)) s.add(t); else if (t) ajouter(t);
+  }
+  E.sujetsCorpus = s; E.sujetsPour = E.etat;
+  return s;
+}
+function horsSujet(q, sujetQ) {
+  const sujets = sujetsCorpus();
+  const absents = C.termesRecherche(String(q).replace(/-/g, " "), E.etat.bm25, E.etat.familles).absents.filter(t => t.length >= 4);
+  if (!absents.length) return [];
+  if (absents.some(a => [...sujets].some(t => Math.abs(t.length - a.length) <= 1 && C.distance(t, a, 1) <= 1))) return [];   // « pest » → peste
+  if (C.analyser(String(sujetQ).replace(/-/g, " "), true).some(t => sujets.has(t))) return [];
+  const ecrits = (String(q).match(/\p{L}+/gu) || []).filter(m => C.analyser(m).some(t => absents.includes(t)));
+  return ecrits.length ? [...new Set(ecrits)] : absents;
+}
 // Ce que Rebecca décide avant d'appeler le Rédacteur (la page et le banc d'essai passent par ici) :
 // nom inconnu (suggestion), définition du lexique, aucun passage, rien ne correspond, ou réponse à rédiger
 async function avantRedaction(q, suite) {
@@ -2663,6 +2757,9 @@ async function avantRedaction(q, suite) {
   if (rep.questionDefinition && !rep.passagesDefinition)         // sigle ajouté à la main : la définition suffit, pas besoin du LLM
     return Object.assign(av, { etape: "definition", icone: "book-open-text", message: rep.sigles.map(x => `${x.s} : ${x.def}`).join(" ; ") + " (lexique du catalogue)" });
   if (!rep.resultats.length) return Object.assign(av, { etape: "aucun", icone: "inbox", message: "Aucun passage trouvé : pas de réponse possible." });
+  const hors = horsSujet(q, suite ? suite.complete : q);
+  if (hors.length)
+    return Object.assign(av, { etape: "hors", icone: "search-x", message: `${hors.map(x => `« ${x} »`).join(", ")} : dans aucun document, et la question ne parle d'aucun sujet des documents. Pas de réponse rédigée, pour ne rien inventer. Les passages les plus proches sont ci-dessous.` });
   if (rep.confiance === "faible")
     return Object.assign(av, { etape: "faible", icone: "search-x", message: "Rien ne correspond vraiment à ta question dans les documents : pas de réponse rédigée, pour ne rien inventer. Les passages les plus proches sont ci-dessous." });
   return av;
@@ -2707,6 +2804,7 @@ async function repondre() {
     res.complete = E.echange.complete; res.racine = E.echange.racine; res.precisions = E.echange.precisions; garderDerniere(res, rep);
     const a = res.analyse;
     return { question: q, suite: suite ? suite.precedent.question : null, recherche: qr, texte: res.texte, aucune: a.aucune, douteux: a.douteux, fournisseur: res.fournisseur, modele: res.modele, relais: res.relais,
+             relance: res.relance || "", numeroIncomplet: !!a.numeroIncomplet,
              sources: a.cites.map(n => { const r = rep.resultats[n - 1]; return { n, titre: r.titre, fichier: r.fichier, page: r.page }; }) };
   } catch (e) {
     if (!encore()) return null;
@@ -2781,6 +2879,7 @@ function afficherReponse(res, rep, opts = {}) {
   if (a.douteux.length) alertes.push(`Non retrouvé tel quel dans les passages : ${a.douteux.map(x => `« ${C.echapper(x)} »`).join(", ")}. Vérifie dans le document avant d'utiliser.`);
   if (a.invalides.length) alertes.push(`Source citée qui n'existe pas : ${a.invalides.map(n => `[${n}]`).join(", ")}.`);
   if (a.sansSource) alertes.push("Aucune source citée : vérifie dans les passages ci-dessous.");
+  if (a.numeroIncomplet) alertes.push("Numéro de téléphone absent ou incomplet dans la réponse : lis-le dans les passages ci-dessous.");
   if (res.tronque) alertes.push("Réponse coupée (trop longue).");
   $("r-alertes").innerHTML = alertes.map(x => `<div>${ico("triangle-alert")}<span>${x}</span></div>`).join("");
   $("r-alertes").hidden = !alertes.length;
@@ -3606,32 +3705,6 @@ $("verifier").addEventListener("click", async () => {
 })();
 
 // ---------- Pour le banc d'essai de l'Atelier (navigateur sans écran) ----------
-function enWav(pcm, sr) {                                          // son 16 bits mono
-  const n = pcm.length, buf = new ArrayBuffer(44 + 2 * n), v = new DataView(buf);
-  const ecrire = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-  ecrire(0, "RIFF"); v.setUint32(4, 36 + 2 * n, true); ecrire(8, "WAVE"); ecrire(12, "fmt "); v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, 2 * sr, true); v.setUint16(32, 2, true);
-  v.setUint16(34, 16, true); ecrire(36, "data"); v.setUint32(40, 2 * n, true);
-  for (let i = 0; i < n; i++) v.setInt16(44 + 2 * i, Math.max(-1, Math.min(1, pcm[i])) * 32767, true);
-  return buf;
-}
-// Mots importants d'une question (maladie, germe, médicament, sigle) : ceux qu'une dictée ne doit pas perdre
-function motsClefs(q) {
-  const sigles = C.siglesDansQuestion(q, E.sigles || []).flatMap(x => C.analyser(x.s, true));
-  const termesNoms = new Set(noms().map(x => x.terme));
-  return [...new Set([...sujetsDe(q).filter(t => t.length >= 5 || termesNoms.has(t)), ...sigles])];
-}
-async function dicteeDeTest(q, cle) {                              // la question lue par Piper, puis dictée à Whisper, puis corrigée
-  await prechargerVoix();
-  if (!VX.etat().charge) throw new Error("voix Piper indisponible");
-  const dit = VX.pourLaVoix(q, { sigles: [], prononciations: prononciations() });     // les sigles dits comme on les dicte (« NRBC »), pas en entier
-  const { pcm, sr } = await VX.synthetiserTexte(dit, { pret: true, reglages: reglagesVoix() });
-  const brut = await transcrireWhisper(new Blob([enWav(pcm, sr)], { type: "audio/wav" }), cle);
-  const { texte, corrections } = corrigerDictee(brut);
-  const sansTirets = x => String(x).replace(/-/g, " ");                     // « Crimée-Congo » = « Crimée Congo »
-  const obtenus = new Set(C.analyser(sansTirets(texte), true)), perdus = motsClefs(sansTirets(q)).filter(t => !obtenus.has(t));
-  return { dit, brut, texte, corrections, perdus, secondes: Math.round(pcm.length / sr) };
-}
 async function repondreA(q) {                                      // une question isolée (jamais « suite » de la précédente)
   oublierEchange();
   $("question").value = q;
@@ -3650,7 +3723,7 @@ async function preparerPourBanc(q, id, precedent = null) {
   const av = await avantRedaction(q, suite);
   if (!av) return null;
   const passages = av.rep.resultats.map((x, i) => ({ n: i + 1, titre: x.titre, fichier: x.fichier, page: x.page, texte: x.texte }));
-  passagesBanc.set(String(id), passages);
+  passagesBanc.set(String(id), pourAnalyse(passages));
   const message = av.etape === "suggestion"
     ? `${av.inconnus.map(x => `« ${x.ecrit} »`).join(", ")} : dans aucun document, pas de réponse rédigée. Tu voulais dire ${av.inconnus.map(x => x.nom).join(", ")} ?` : av.message;
   return { etape: av.etape, message, recherche: av.qr, complete: suite ? suite.complete : q, racine: suite ? suite.racine : q, precisions: suite ? suite.precisions : [],
@@ -3661,34 +3734,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-// Ce que la voix lirait mal : symboles restés, nombres collés à des lettres, sigles absents du lexique, abréviations
-function lectureDeTest() {
-  const motifs = new Map(), connus = new Set([...(E.sigles || []).map(x => String(x.s || "").replace(/\s+/g, "").toUpperCase()),
-                                              ...prononciations().map(x => String(x[0]).toUpperCase())]);   // un sigle prononcé (onglet Prononciation) n'est plus signalé
-  const noter = (motif, m, ecrit, dit) => {
-    const x = motifs.get(motif) || { motif, n: 0, exemples: [] };
-    x.n++;
-    if (x.exemples.length < 2) {
-      const i = Math.max(0, dit.indexOf(ecrit) - 50);
-      x.exemples.push({ dit: dit.slice(i, i + 120), titre: E.docs[m.d].titre, page: m.p });
-    }
-    motifs.set(motif, x);
-  };
-  for (const m of E.morceaux) {
-    const dit = VX.pourLaVoix(m.t, { sigles: E.sigles, prononciations: prononciations() });
-    // symboles que la voix lit mal ou pas du tout (« + », « = », « … », guillemets : lus correctement ou simple pause)
-    for (const c of dit.match(/[^\p{L}\d\s.,;:!?'’‘“”„()\[\]«»"–—\-+=…]/gu) || []) noter(`symbole « ${c} »`, m, c, dit);
-    for (const c of dit.match(/(?<![\p{L}\d])\d+(?:[.,]\d+)?\p{L}+/gu) || [])
-      if (!/^\d+(?:er|re|ère|e|es|ème|eme|èmes|nd|nde|ers|res|[A-Z])$/.test(c)) noter(`nombre collé : « ${c.replace(/\d+(?:[.,]\d+)?/, "n")} »`, m, c, dit);
-    for (const c of dit.match(/(?<![\p{L}\d])(?:cf|env|max|min|nb|vs|ex|resp|inj|sol|susp|cpr|amp)\.(?=\s)/giu) || []) noter(`abréviation « ${c} »`, m, c, dit);
-    for (const c of String(m.t).match(/(?<![\p{L}\d])[A-Z][A-Z0-9]{1,7}(?![\p{L}\d])/gu) || [])
-      if (/[A-Z]{2}/.test(c) && !connus.has(c) && VX.aEpeler(c) && !VX.MOTS_COURANTS.has(c)) noter(`sigle épelé, absent du lexique : « ${c} » (dit « ${VX.pourLaVoix(c).replace(/\.$/, "")} »)`, m, VX.pourLaVoix(c).replace(/\.$/, ""), dit);
-  }
-  return [...motifs.values()].sort((a, b) => b.n - a.n);
-}
-
-// Pour le banc d'essai de l'Atelier (et les tests) : accès aux fonctions de la page, sans effet sur son usage normal
-window.RebeccaBanc = { preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, dicteeDeTest, repondreA, lectureDeTest, motsClefs, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
