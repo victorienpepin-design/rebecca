@@ -1,0 +1,28 @@
+RAPPORT — mot de réveil « Dis Rebecca »
+
+Seuil conseillé : 0,50
+
+Détection sur une voix jamais entendue pendant l'apprentissage
+  au calme                    : Tom 30 %, Jessica 76 %, 16 lecteurs 88 %
+  sous un masque (simulé)     : Tom 35 %, Jessica 72 %, 16 lecteurs 83 %
+  avec du bruit               : Tom 20 %, Jessica 44 %, 16 lecteurs 55 %
+  à distance, réverbération   : Tom 23 %, Jessica 48 %, 16 lecteurs 61 %
+
+Faux déclenchements par heure, au seuil conseillé
+  parole française réelle         : 0,2  (sur 4 h)
+  bruits, musique, parole diverse : 0,4  (sur 5 h)
+
+Déclenchements par erreur, au seuil conseillé
+  « Rebecca » seul                :   2 %
+  « Bonjour Rebecca »…            :   3 %
+  « Dis-moi », « Dis Jessica »…   :   2 %
+  autres mots proches             :   0 %
+
+À lire avec prudence :
+- voix, bruit et masque sont simulés ; ta vraie voix, ton micro
+  et ta pièce peuvent donner moins bien ;
+- test_reveil.html te donnera le vrai chiffre ;
+- les détections viennent d'un modèle d'essai qui n'a jamais
+  entendu ces voix ; le modèle livré a aussi appris Tom et Jessica.
+Voix : siwis, jessica, pierre, tom, perso et 109 lecteurs MLS.
+Durée de cette session : 0 min.
