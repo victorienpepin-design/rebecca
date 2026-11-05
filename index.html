@@ -99,6 +99,9 @@ ol.resultats { list-style: none; padding: 0; margin: 0; display: grid; gap: 22px
 .doc-titre .ico { color: var(--accent); margin-top: .15em; }
 .doc-infos { font-size: .8rem; color: var(--doux); overflow-wrap: anywhere; padding-left: 26px; }
 .passages { display: grid; gap: 10px; }
+details.autres { display: grid; gap: 10px; }
+details.autres > summary { cursor: pointer; color: var(--accent); font-size: .88rem; font-weight: 600; padding: 2px 4px; }
+details.autres[open] > .carte { margin-top: 10px; }
 .avis, .sigles { border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: .92rem; display: grid; gap: 6px; background: var(--carte); border: 1px solid var(--bord); overflow-wrap: anywhere; }
 .avis[hidden], .sigles[hidden] { display: none; }
 .avis > div, .sigles > div { display: flex; gap: 8px; align-items: flex-start; }
@@ -298,8 +301,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
         <input id="r-adresse" type="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="http://localhost:11434/v1"></label>
       <label>Clé API
         <input id="r-cle" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="colle ta clé ici"></label>
-      <label>Modèle (vide = choix automatique)
-        <input id="r-modele" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="automatique"></label>
+      <label>Modèle
+        <select id="r-modele"><option value="">Automatique</option></select></label>
       <div class="actions"><button id="r-enregistrer" type="button">Enregistrer et tester</button><button id="r-oublier" class="secondaire" type="button">Effacer la clé</button></div>
       <div id="r-etat" class="petit" role="status"></div>
       <label>Essayer en premier
@@ -519,7 +522,10 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     "précautions complémentaires, mesures renforcées",
     "grippe, influenza",
     "AINS, anti-inflammatoire, anti-inflammatoire non stéroïdien, ibuprofène",
-    "incubation, premiers symptômes, apparition des symptômes"
+    "incubation, premiers symptômes, apparition des symptômes",
+    "bioterrorisme, bioterroriste, arme biologique, attaque biologique, guerre biologique, biocrime, malveillance, malveillant, malveillante, usage intentionnel, NRBC",
+    "classification, classer, classé, classement, catégorie, groupe de risque",
+    "dangereux, dangereuse, danger"
   ];
   function preparerFamilles(liste) {
     return (liste || []).map(f => String(f).split(",").map(x => [...new Set(analyser(x))]).filter(t => t.length))
@@ -1039,7 +1045,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 Tu réponds UNIQUEMENT à partir des extraits numérotés fournis, jamais avec tes propres connaissances.
 
 Règles :
-1. Réponds en français, de façon directe : 2 à 6 phrases (200 mots au plus), ou une liste à puces si la réponse est une liste ou des étapes. Pour une liste, donne tous les éléments présents dans les extraits, sans en oublier.
+1. Réponds en français, de façon directe et brève : va à l'essentiel de ce qui est demandé, 2 à 4 phrases courtes (120 mots au plus), ou une liste à puces (une ligne courte par élément) si la réponse est une liste ou des étapes. Pour une liste, donne tous les éléments présents dans les extraits, sans en oublier.
 2. Utilise TOUS les extraits utiles, pas seulement le premier : si plusieurs documents se complètent, combine-les en citant chacun ; s'ils se contredisent, dis-le en citant les deux.
 3. Après chaque information, indique entre crochets le numéro de l'extrait d'où elle vient : [1], [2]. Aucune information sans crochet.
 4. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas. Un numéro de téléphone se recopie en entier.
@@ -1459,11 +1465,14 @@ Règles :
     return l.length <= 3 || !/[AEIOUY]/.test(l) || /\d/.test(sigle) || /^[^AEIOUY]{3}/.test(l);
   }
 
+  // Mots que la voix Piper prononce mal : écrits comme ils se disent
+  const PRONONCIATIONS_VOIX = [["inventer", "inventé"], ["choléra", "koléra"], ["cholera", "koléra"], ["cholérique", "kolérique"], ["cholériques", "kolériques"],
+    ["cholerae", "koléré"], ["Ebola", "Ébola"], ["Bundibugyo", "Boundibouguio"], ["bottes", "botes"], ["botte", "bote"]];
   // sigles : [{ s, def }] (le lexique) ; la 1re fois, un sigle court du lexique est dit en entier
   // prononciations : [[écrit, dit]] (ex. [["Rebecca", "Rébéca"]]) ; mots entiers, sans tenir compte des majuscules
   function pourLaVoix(texte, { sigles = [], prononciations = [] } = {}) {
     let t = String(texte || "");
-    for (const [ecrit, dit] of prononciations)
+    for (const [ecrit, dit] of [...prononciations, ...PRONONCIATIONS_VOIX])
       if (ecrit && dit) t = t.replace(new RegExp(`(?<![\\p{L}])${String(ecrit).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), dit);
     t = t
       .replace(/<think>[\s\S]*?(<\/think>|$)/g, "")
@@ -1501,6 +1510,7 @@ Règles :
          .replace(/\//g, " ");
     // Prononciations fixes : « PO » = per os, sauf « J2 PO » (2e jour post-opératoire)
     t = t.replace(/per os\s*\(PO\)/gi, "per os").replace(/\bjour (\d+) PO\b/g, "jour $1 post-opératoire").replace(/\bPO\b/g, "per os");
+    t = t.replace(/\s*\(\s*/g, ", ").replace(/\s*\)\s*(?=[.,;:!?]|$)/g, "").replace(/\s*\)\s*/g, ", ");   // parenthèses : dites comme des virgules
     // « fièvres hémorragiques virales (FHV) » : la définition est déjà dite, même au pluriel ou sans accents → le sigle est épelé
     const normal = x => " " + String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
       .split(" ").map(m => m.length > 3 ? m.replace(/[sx]$/, "") : m).join(" ") + " ";
@@ -1522,7 +1532,7 @@ Règles :
       if (!/[A-Z]{2}/.test(mot)) return mot;
       if (MOTS_COURANTS.has(mot) && !defs.has(mot)) return mot.toLowerCase();
       const def = defs.get(mot);
-      if (def && aEpeler(mot) && !deja.has(mot) && !bas.includes(normal(def))) {
+      if (false && def) {
         deja.add(mot);
         const d = /\b(?:les|des|ces|aux|plusieurs|deux|trois|quatre)\s+$/i.test(tout.slice(Math.max(0, pos - 12), pos)) ? pluriel(def) : def;
         return d.toLowerCase();
@@ -2044,7 +2054,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 15;
+const VERSION_PAGE = 16;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2406,12 +2416,14 @@ function afficher(rep) {
   ol.innerHTML = rep.documents.map(d => `<li class="groupe">
     <div class="doc"><span class="doc-titre">${ico("file-text")}<span>${C.echapper(d.titre)}</span></span>
       <span class="doc-infos">${C.echapper([infosDocument(d), d.fichier].filter(Boolean).join(" · "))}</span></div>
-    <div class="passages">${d.passages.map(r => {
+    <div class="passages">${d.passages.map((r, j) => {
       const i = r.rang - 1;
       const pages = r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
       const section = (r.section || "").split(" › ").filter(x => x.trim() !== d.titre.trim()).join(" › ");
       const pert = [r.definition && "définition du sigle", r.rang_sens && `sens n°${r.rang_sens}`, r.rang_mots && `mots-clés n°${r.rang_mots}`, r.rang_doc && `document n°${r.rang_doc}`].filter(Boolean).join(" · ");
-      return `<div class="carte" id="passage-${r.rang}">
+      const ouvre = j === 1 ? `<details class="autres"><summary>${d.passages.length - 1} autre${d.passages.length > 2 ? "s" : ""} passage${d.passages.length > 2 ? "s" : ""} de ce document</summary>` : "";
+      const ferme = j > 0 && j === d.passages.length - 1 ? "</details>" : "";
+      return ouvre + `<div class="carte" id="passage-${r.rang}">
         <div class="source"><span class="rang">${r.rang}</span><span><b>${pages}</b>${section ? " · " + C.echapper(section) : ""}</span></div>
         <p class="extrait">${C.extrait(r.texte, qa)}</p>
         <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
@@ -2420,7 +2432,7 @@ function afficher(rep) {
           <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF${ico("external-link")}</a>
         </div>
         ${pert ? `<div class="pertinence">Trouvé par : ${pert}</div>` : ""}
-      </div>`;
+      </div>` + ferme;
     }).join("")}</div>
   </li>`).join("");
   resultats.forEach((r, i) => pdfPresent(r.fichier).then(ok => {
@@ -2443,7 +2455,7 @@ $("resultats").addEventListener("click", ev => {
 
 // ---------- Rédacteur : réglages (gardés seulement sur cet appareil) ----------
 const CLE_STOCKAGE = "rebecca.redacteur.v1";
-const ORDRE = (CONFIG.redacteur.ordre || R.ORDRE_DEFAUT).filter(f => R.FOURNISSEURS[f]);
+const ORDRE = (CONFIG.redacteur.ordre || R.ORDRE_DEFAUT).filter(f => R.FOURNISSEURS[f] && f !== "mistral");   // Mistral : payant, retiré
 let reglagesMemoire = null;
 function lireReglages() {
   let r = null;
@@ -2506,9 +2518,27 @@ function remplirChampsReglages(f) {
   champsVisibles(f);
   $("r-cle").value = r.cles[f] || "";
   $("r-adresse").value = adresseDe(r, f);
-  $("r-modele").value = r.modeles[f] || "";
-  $("r-modele").placeholder = r.auto[f] ? `automatique (dernier choix : ${r.auto[f].modele})` : "automatique";
+  remplirModeles(f, r);
   resumeRelais();
+}
+// Menu « Modèle » : Automatique + les modèles que le fournisseur liste pour cette clé (rien à taper, pas de faute d'orthographe)
+const modelesConnus = new Map();
+function optionsModeles(f, r, ids) {
+  const choisi = r.modeles[f] || "", auto = r.auto[f] ? ` (actuel : ${r.auto[f].modele})` : "";
+  const liste = [...new Set([choisi, ...ids].filter(Boolean))];
+  $("r-modele").innerHTML = `<option value="">Automatique${C.echapper(auto)}</option>` + liste.map(m => `<option value="${C.echapper(m)}">${C.echapper(m)}</option>`).join("");
+  $("r-modele").value = choisi;
+}
+async function remplirModeles(f, r) {
+  optionsModeles(f, r, modelesConnus.get(f) || []);
+  if (!estConfigure(r, f) || modelesConnus.has(f)) return;
+  try {
+    const F = R.FOURNISSEURS[f];
+    const ids = (await R.listerModeles(f, r.cles[f] || "", { base: adresseDe(r, f) }))
+      .filter(id => !F.exclus.test(id) && (!F.seulement || F.seulement.test(id))).sort();
+    modelesConnus.set(f, ids);
+    if ($("r-fournisseur").value === f) optionsModeles(f, lireReglages(), ids);
+  } catch (e) {}
 }
 $("reglages").addEventListener("toggle", () => { if ($("reglages").open) remplirChampsReglages(); });
 $("r-fournisseur").addEventListener("change", () => { remplirChampsReglages($("r-fournisseur").value); $("r-etat").textContent = ""; });
@@ -2516,11 +2546,13 @@ $("r-prefere").addEventListener("change", () => { const r = lireReglages(); r.pr
 $("r-cle").addEventListener("input", () => {        // le début de la clé suffit parfois à reconnaître le fournisseur (« gsk_… » = Groq)
   const v = $("r-cle").value.trim();
   for (const [f, F] of Object.entries(R.FOURNISSEURS))
-    if (F.prefixeCle && F.prefixeCle.test(v) && $("r-fournisseur").value !== f) { $("r-fournisseur").value = f; champsVisibles(f); $("r-modele").value = ""; }
+    if (F.prefixeCle && F.prefixeCle.test(v) && $("r-fournisseur").value !== f) { $("r-fournisseur").value = f; champsVisibles(f); optionsModeles(f, lireReglages(), []); }
 });
 $("r-enregistrer").addEventListener("click", async () => {
   const r = lireReglages(), f = $("r-fournisseur").value, F = R.FOURNISSEURS[f];
   const cle = $("r-cle").value.trim(), modele = $("r-modele").value.trim();
+  const precedent = cle === r.cles[f] && r.auto[f] ? r.auto[f].modele : "";
+  if (cle !== r.cles[f]) modelesConnus.delete(f);
   r.fournisseur = f; r.modeles[f] = modele; delete r.auto[f];
   if (cle) r.cles[f] = cle; else delete r.cles[f];
   if (f === "autre") r.adresses.autre = $("r-adresse").value.trim();
@@ -2530,12 +2562,12 @@ $("r-enregistrer").addEventListener("click", async () => {
   $("r-enregistrer").disabled = true;
   $("r-etat").textContent = "Test en cours…";
   try {
-    const choix = await R.choisirModele(f, cle, { impose: modele, base: adresseDe(r, f), surEtat: t => { $("r-etat").textContent = t; } });
+    const choix = await R.choisirModele(f, cle, { impose: modele || precedent, base: adresseDe(r, f), surEtat: t => { $("r-etat").textContent = t; } });
     const r2 = lireReglages();
     r2.auto[f] = { modele: choix.modele, le: maintenantMs() };
     let note = "";
     if (modele && choix.modele !== modele) {
-      r2.modeles[f] = ""; $("r-modele").value = "";
+      r2.modeles[f] = "";
       note = ` Le modèle « ${C.echapper(modele)} » est refusé : choix automatique à la place.`;
     }
     const garde = ecrireReglages(r2);
@@ -2868,7 +2900,10 @@ function afficherReponse(res, rep, opts = {}) {
   $("reponse").hidden = false;
   E.texteALire = a.aucune ? "Les passages trouvés ne contiennent pas la réponse à cette question." : `${res.texte}\n${phraseSource(a, rep)}`;
   $("r-ecouter").hidden = false;
-  if (opts.lire !== false) { lireSiAuto(E.texteALire); garderDerniere(res, rep); }
+  if (opts.lire !== false) {                                       // lire après l'affichage du texte
+    const t = E.texteALire; let fait = false; const go = () => { if (!fait) { fait = true; lireSiAuto(t); } };
+    requestAnimationFrame(() => setTimeout(go, 30)); setTimeout(go, 400); garderDerniere(res, rep);
+  }
   $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`
     + (res.relais && res.relais.length ? ` (relais : ${res.relais.join(" ; ")})` : "");
   if (a.aucune) {
@@ -2916,6 +2951,7 @@ function afficherReponse(res, rep, opts = {}) {
 function allerAuPassage(n) {
   const el = document.getElementById("passage-" + n);
   if (!el) return;
+  const replie = el.closest("details.autres"); if (replie) replie.open = true;
   el.scrollIntoView({ behavior: "smooth", block: "center" });
   el.classList.add("surligne");
   setTimeout(() => el.classList.remove("surligne"), 2200);
