@@ -2101,10 +2101,16 @@ const CONFIG = {
                autre: { adresse: "", modele: "" } },
 };
 // v16 : programme servi par le site lui-même (lib/lib.json, écrit par l'Atelier) ; sinon les adresses ci-dessus (CDN, Hugging Face)
-const LOCAL = await fetch("lib/lib.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null)
-  .catch(() => caches.match(new URL("lib/lib.json", location.href).href, { ignoreVary: true }).then(r => r ? r.json() : null)).catch(() => null);   // hors connexion
+// v17 : rebecca.json (écrit par l'Atelier sur GitHub) dit où sont le moteur et les PDF (« ../rebecca-moteur/ ») ; absent : tout est à côté
+const lireJson = u => fetch(u, { cache: "no-cache" }).then(r => r.ok ? r.json() : null)
+  .catch(() => caches.match(new URL(u, location.href).href, { ignoreVary: true }).then(r => r ? r.json() : null)).catch(() => null);   // hors connexion
+const SITES = Object.assign({ moteur: "", pdf: "" }, await lireJson("rebecca.json") || {});
+if (SITES.pdf) CONFIG.dossierPdf = SITES.pdf;
+if (SITES.moteur) CONFIG.voix.dossier = SITES.moteur + "voix/";
+const LOCAL = await lireJson(SITES.moteur + "lib/lib.json");
 if (LOCAL) {
-  const adresse = x => new URL(x, location.href).href;          // import() refuse « lib/… » : adresse complète
+  const adresse = x => new URL(SITES.moteur + x, location.href).href;   // import() refuse « lib/… » : adresse complète
+  if (LOCAL.modele) LOCAL.modele.dossier = SITES.moteur + LOCAL.modele.dossier;
   for (const k of ["transformers", "wasm", "pdfjs", "pdfjsWorker"]) if (LOCAL[k]) CONFIG[k] = adresse(LOCAL[k]);
   for (const k of ["ort", "ortWasm", "phonemiseur"]) if (LOCAL[k]) CONFIG.voix[k] = adresse(LOCAL[k]);
 }
@@ -2137,7 +2143,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 16;
+const VERSION_PAGE = 17;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2170,6 +2176,7 @@ async function preparerHorsLigne() {
     if (!navigator.serviceWorker.controller) {
       await new Promise(ok => { navigator.serviceWorker.addEventListener("controllerchange", ok, { once: true }); setTimeout(ok, 3000); });
     }
+    if (SITES.moteur) fetch(SITES.moteur + "lib/lib.json").catch(() => {});   // v17 : gardé pour le hors connexion (lu avant le service worker)
   } catch (e) { /* sw.js absent : la page marche quand même en ligne */ }
 }
 

@@ -3,7 +3,7 @@ const CACHE = "moteur-v1";
 const HF = /(^|\.)huggingface\.co$|(^|\.)hf\.co$|xethub/;
 const API = /(^|\.)groq\.com$|(^|\.)googleapis\.com$/;
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => Promise.all(["./", "index.html", "lib/lib.json"].map(u => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(["./", "index.html", "rebecca.json", "lib/lib.json"].map(u => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("moteur-") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
