@@ -2268,6 +2268,21 @@ $("fichiers-index").addEventListener("change", async ev => {
   } catch (e) { etat("Fichiers refusés : " + e.message, null, "erreur"); }
 });
 
+// v16 : visionneuse hors connexion — pdf.js et les PDF gardés sur l'appareil, en arrière-plan (pas en données mobiles)
+async function prechargerHorsLigne() {
+  if (!HTTP || !navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  const cx = navigator.connection;
+  if (cx && (cx.saveData || cx.type === "cellular")) return;
+  for (const u of [CONFIG.pdfjs, CONFIG.pdfjsWorker]) await fetch(u).catch(() => {});   // le service worker les garde
+  const cache = await caches.open("moteur-v1");
+  for (const d of E.docs) {
+    const u = new URL(lienPdf(d.f), location.href), cle = u.origin + u.pathname;
+    if (await cache.match(cle, { ignoreVary: true })) continue;
+    try { const r = await fetch(u.href, { cache: "no-store" }); if (r.ok) await cache.put(cle, r); } catch (e) { return; }
+    await new Promise(ok => setTimeout(ok, 300));
+  }
+}
+
 // ---------- Modèle ----------
 async function chargerModele() {
   const m = E.manifeste.modele;
@@ -2294,6 +2309,7 @@ async function chargerModele() {
     });
     await E.extracteur(m.prefixe_question + "test", { pooling: "mean", normalize: true });
     etat("Prêt : recherche par le sens et par mots-clés" + (HTTP ? ", même hors connexion" : ""), null, "ok");
+    setTimeout(() => prechargerHorsLigne().catch(() => {}), 15000);
     remplirInfos();
     finModele();
     if (E.derniere && E.derniere.mode === "mots" && $("reponse").hidden) lancer(E.derniere.question, false);
@@ -2364,6 +2380,28 @@ function docsDuSujet(q) {
   E.docs.forEach((d, i) => { const t = new Set(C.analyser(`${d.titre || ""} ${d.sous_titre || ""}`, true)); if (sujets.some(s => t.has(s))) docs.add(i); });
   return docs.size && docs.size <= Math.max(3, E.docs.length / 3) ? docs : null;
 }
+// v16 : la question nomme un sujet des documents (« FHCC », « dengue ») : un passage qui n'en parle pas (ni lui, ni son document) est retiré
+// (« Retour d'une zone d'endémie – RDC » de la fiche Ebola pour une question sur la FHCC). Sigle : le sigle ou tous les mots distinctifs de sa définition.
+function horsDuSujet(q, groupes) {
+  const S = sujetsCorpus(), sujets = sujetsDe(q).filter(t => S.has(t));
+  if (!sujets.length) return;
+  const equivalents = sujets.map(t => {
+    const formes = [[t]];
+    for (const x of C.siglesDansQuestion(q, E.sigles || [])) if (x.cle.includes(t))
+      { const mots = C.analyser(x.def, true).filter(m => S.has(m) && !GENERIQUES_TITRES.has(m)); if (mots.length) formes.push(mots); }
+    return formes;
+  });
+  const parle = texte => { const vus = new Set(C.analyser(texte, true)); return equivalents.some(f => f.some(mots => mots.every(m => vus.has(m)))); };
+  const docOk = new Map();
+  const garde = groupes.map(g => {
+    if (!docOk.has(g.doc)) { const d = E.docs[g.doc]; docOk.set(g.doc, parle(`${d.titre || ""} ${d.sous_titre || ""}`)); }
+    return docOk.get(g.doc) ? g.passages : g.passages.filter(p => p.definition || parle(`${E.morceaux[p.id].s || ""}\n${E.morceaux[p.id].t}`));
+  });
+  const reste = garde.reduce((n, p) => n + p.length, 0);
+  if (reste < 2) return;                                          // presque tout retiré : on garde tout (prudence)
+  groupes.forEach((g, i) => { g.passages = garde[i]; });
+  for (let i = groupes.length - 1; i >= 0; i--) if (!groupes[i].passages.length) groupes.splice(i, 1);
+}
 const VOISINS = 4;                                              // nombre de meilleurs passages complétés par leurs voisins
 // La recherche complète : documents puis passages, regroupés par document
 async function rechercher(question) {
@@ -2376,6 +2414,7 @@ async function rechercher(question) {
   let v = null;
   if (E.extracteur) v = (await E.extracteur(E.manifeste.modele.prefixe_question + C.normaliserModele(prep.qx), { pooling: "mean", normalize: true })).data;
   const r = C.chercher(E.etat, prep, v);
+  horsDuSujet(q, r.groupes);
   const def = avecDefinitions(r.groupes, prep);
   const questionDefinition = prep.sigles.length > 0 && prep.qx !== prep.question;
   // Passages voisins (même document) collés aux meilleurs passages : une liste coupée en deux (« EPI : FFP2, gants… » au passage suivant) arrive entière
@@ -2396,7 +2435,7 @@ async function rechercher(question) {
                const m = E.morceaux[p.id], [a, b] = colles.get(p.id) || [null, null];
                const bloc = [a, p.id, b].filter(x => x !== null).map(x => E.morceaux[x]);
                return { rang: ++k, id: p.id, fichier: d.f, titre: d.titre, type: d.type || "", date: d.date || "", page: bloc[0].p, page_fin: Math.max(...bloc.map(x => x.pf || x.p)),
-                        section: m.s, texte: bloc.map(x => x.t).join("\n\n"), rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc, definition: !!p.definition };
+                        section: m.s, texte: bloc.map(x => x.t).join("\n\n"), coeur: m.t, page_coeur: m.p, page_coeur_fin: m.pf || m.p, rang_sens: p.rangSens, rang_mots: p.rangMots, rang_doc: p.rangDoc, definition: !!p.definition };
              }) };
   });
   return { question: q, mode: r.mode, confiance: def.nb ? "normale" : r.confiance, sens: r.meilleurSens, documents,
@@ -2513,7 +2552,7 @@ function afficher(rep) {
         <p class="extrait">${C.extrait(r.texte, qa)}</p>
         <details class="complet"><summary>Afficher tout le passage</summary><div class="md">${C.rendreMarkdown(r.texte, qa)}</div></details>
         <div class="actions" hidden data-i="${i}">
-          <button type="button" data-voir="${i}">Voir la page ${r.page}</button>
+          <button type="button" data-voir="${i}">Voir ${pages}</button>
           <a class="bouton secondaire" target="_blank" rel="noopener" href="${lienPdf(r.fichier)}#page=${r.page}">Ouvrir le PDF${ico("external-link")}</a>
         </div>
         ${pert ? `<div class="pertinence">Trouvé par : ${pert}</div>` : ""}
@@ -2535,7 +2574,7 @@ $("resultats").addEventListener("click", ev => {
   const b = ev.target.closest("[data-voir]");
   if (!b || !E.derniere) return;
   const r = E.derniere.resultats[Number(b.dataset.voir)];
-  ouvrirVisionneuse(r.fichier, r.page, r.texte);
+  ouvrirVisionneuse(r.fichier, r.page, r);
 });
 
 // ---------- Rédacteur : réglages (gardés seulement sur cet appareil) ----------
@@ -3040,7 +3079,7 @@ function afficherReponse(res, rep, opts = {}) {
     const pages = r.page_fin && r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
     return `<div class="r-source"><a class="cite" data-cite="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener">${n}</a>
       <span class="r-doc"><b>${C.echapper(r.titre)}</b> · ${pages}</span>
-      <button class="secondaire" type="button" data-voir-r="${n}" hidden>Voir la page ${r.page}</button>
+      <button class="secondaire" type="button" data-voir-r="${n}" hidden>Voir ${pages}</button>
       <a class="bouton secondaire" data-pdf-r="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener" hidden>PDF${ico("external-link")}</a></div>`;
   }).join("");
   $("r-sources").hidden = !a.cites.length;
@@ -3067,7 +3106,7 @@ $("reponse").addEventListener("click", ev => {
   if (!a || !E.derniere) return;
   const n = Number(a.dataset.cite || a.dataset.voirR), r = E.derniere.resultats[n - 1];
   if (!r) return;
-  if (a.dataset.voirR || pdfOk.get(r.fichier)) { ev.preventDefault(); ouvrirVisionneuse(r.fichier, r.page, r.texte); }
+  if (a.dataset.voirR || pdfOk.get(r.fichier)) { ev.preventDefault(); ouvrirVisionneuse(r.fichier, r.page, r); }
   else if (pdfOk.get(r.fichier) === false || !HTTP) { ev.preventDefault(); allerAuPassage(n); }
 });
 
@@ -3795,19 +3834,41 @@ window.addEventListener("pagehide", () => { if (L.session) L.session.arreter(); 
 
 // ---------- Visionneuse PDF ----------
 const V = { pdfjs: null, tache: null, doc: null, fichier: null, page: 1, zoom: 1, rendu: null, cible: null, defiler: false };
-// Passage à encadrer dans la page : ses suites de 3 mots (mots sans accents ni ponctuation)
+// Passage à encadrer : ses suites de 4 mots (sans accents ni ponctuation), cherchées dans le texte de la page PDF
 const motsPdf = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().match(/[a-z0-9]+/g) || [];
-function triplets(mots) { const s = new Set(); for (let i = 0; i + 2 < mots.length; i++) s.add(mots[i] + " " + mots[i + 1] + " " + mots[i + 2]); return s; }
+const N_MOTS = 4;
+function suites(mots) { const s = new Set(); for (let i = 0; i + N_MOTS <= mots.length; i++) s.add(mots.slice(i, i + N_MOTS).join(" ")); return s; }
+// Éléments de texte de la page qui reprennent le passage : le plus gros bloc d'un seul tenant (les phrases répétées ailleurs sont ignorées)
+async function marquesPage(p) {
+  const contenu = await p.getTextContent();
+  const mots = [];
+  contenu.items.forEach((it, i) => { for (const m of motsPdf(it.str)) mots.push([m, i]); });
+  const marques = new Set();
+  for (let i = 0; i + N_MOTS <= mots.length; i++)
+    if (V.cible.has(mots.slice(i, i + N_MOTS).map(x => x[0]).join(" "))) for (let k = i; k < i + N_MOTS; k++) marques.add(mots[k][1]);
+  const tri = [...marques].sort((x, y) => x - y), blocs = [];
+  for (const i of tri) { const b = blocs[blocs.length - 1]; if (b && i - b[b.length - 1] <= 4) b.push(i); else blocs.push([i]); }
+  if (!blocs.length) return { contenu, marques: [] };
+  const taille = b => b.length, max = Math.max(...blocs.map(taille));
+  const gardes = blocs.filter(b => taille(b) >= Math.max(3, max / 2));
+  const res = [];
+  for (const b of gardes.length ? gardes : [blocs.find(x => taille(x) === max)])
+    for (let i = b[0]; i <= b[b.length - 1]; i++) if (String(contenu.items[i].str || "").trim()) res.push(i);   // trous comblés
+  return { contenu, marques: res };
+}
+// Parmi les pages du passage (« p. 11-12 »), celle qui en contient le plus
+async function meilleurePage(debut, fin) {
+  let best = debut, n = -1;
+  for (let pg = debut; pg <= Math.min(fin, debut + 3, V.doc.numPages); pg++) {
+    try { const m = (await marquesPage(await V.doc.getPage(pg))).marques.length; if (m > n) { n = m; best = pg; } } catch (e) {}
+  }
+  return best;
+}
 async function encadrerPassage(p, vp, c, ratio) {
   c.dataset.marques = "0";
   if (!V.cible || !V.cible.size) return;
-  const contenu = await p.getTextContent();
-  const mots = [];                                              // [mot, n° de l'élément de texte]
-  contenu.items.forEach((it, i) => { for (const m of motsPdf(it.str)) mots.push([m, i]); });
-  const marques = new Set();
-  for (let i = 0; i + 2 < mots.length; i++)
-    if (V.cible.has(mots[i][0] + " " + mots[i + 1][0] + " " + mots[i + 2][0])) for (let k = i; k < i + 3; k++) marques.add(mots[k][1]);
-  if (!marques.size) return;
+  const { contenu, marques } = await marquesPage(p);
+  if (!marques.length) return;
   const ctx = c.getContext("2d");
   ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "rgba(255, 221, 0, 0.45)";
   let haut = Infinity;
@@ -3819,11 +3880,13 @@ async function encadrerPassage(p, vp, c, ratio) {
     haut = Math.min(haut, t[5] - h);
   }
   ctx.restore();
-  c.dataset.marques = String(marques.size);
+  c.dataset.marques = String(marques.length);
   if (V.defiler && haut < Infinity) { V.defiler = false; $("v-zone").scrollTop = Math.max(0, haut / ratio - 80); }
 }
-async function ouvrirVisionneuse(fichier, page, texte = "") {
-  V.cible = texte ? triplets(motsPdf(texte)) : null; V.defiler = !!texte;
+async function ouvrirVisionneuse(fichier, page, passage = null) {
+  const texte = passage ? passage.coeur || passage.texte || "" : "";
+  V.cible = texte ? suites(motsPdf(texte)) : null; V.defiler = !!texte;
+  V.plage = passage ? [passage.page_coeur || passage.page, passage.page_coeur_fin || passage.page_fin || passage.page] : null;
   $("visionneuse").hidden = false;
   document.body.classList.add("bloque");
   if (!history.state || !history.state.visionneuse) history.pushState({ visionneuse: true }, "");
@@ -3847,6 +3910,7 @@ async function ouvrirVisionneuse(fichier, page, texte = "") {
       V.doc = doc; V.fichier = fichier;
     }
     V.page = Math.min(Math.max(1, page), V.doc.numPages);
+    if (V.cible && V.plage && V.plage[1] > V.plage[0]) V.page = await meilleurePage(V.plage[0], V.plage[1]);   // la page où est vraiment le passage
     V.zoom = 1;
     await dessinerPage();
   } catch (e) {
@@ -3969,7 +4033,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-window.RebeccaBanc = { sujetsCorpus, horsSujet, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
