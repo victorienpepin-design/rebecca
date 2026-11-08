@@ -173,7 +173,18 @@ a.cite { display: inline-grid; place-items: center; min-width: 22px; height: 22p
   color: var(--accent); font-size: .76rem; font-weight: 700; text-decoration: none; vertical-align: 2px; }
 a.cite.invalide { background: transparent; border: 1px solid var(--erreur); color: var(--erreur); }
 mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px dotted var(--erreur); border-radius: 0; padding: 0; font-weight: 600; }
-.r-alertes { display: grid; gap: 6px; font-size: .88rem; color: var(--erreur); background: var(--erreur-doux); border-radius: 10px; padding: 8px 10px; }
+.r-alertes { display: grid; gap: 6px; font-size: .9rem; font-weight: 600; color: var(--erreur); background: var(--erreur-doux); border-left: 4px solid var(--erreur); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.r-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.r-actions[hidden], .r-motifs[hidden] { display: none; }
+.r-actions button { min-height: 40px; padding: 8px 12px; font-size: .9rem; }
+.r-pouces { display: flex; gap: 6px; }
+.r-pouces .carre-petit { width: 44px; min-height: 40px; padding: 0; justify-content: center; }
+.r-pouces button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-doux); color: var(--accent-fort); }
+.r-motifs { display: grid; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid var(--bord); border-radius: 10px; background: var(--carte-2); }
+.r-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.r-puces button { min-height: 36px; padding: 6px 12px; font-size: .88rem; border-radius: 999px; background: var(--carte); color: var(--texte); border: 1px solid var(--bord-fort); }
+.r-puces button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-doux); }
+.r-date { color: var(--doux); white-space: nowrap; }
 .r-alertes > div { display: flex; gap: 8px; align-items: flex-start; }
 .r-alertes .ico { margin-top: .15em; }
 .r-alertes[hidden], .r-sources[hidden], .r-pied[hidden] { display: none; }
@@ -237,6 +248,10 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 <symbol id="i-text-search" viewBox="0 0 24 24"><path d="M21 5H3"/><path d="M10 12H3"/><path d="M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/></symbol>
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></symbol>
 <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-thumbs-up" viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></symbol>
+<symbol id="i-thumbs-down" viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></symbol>
+<symbol id="i-list-plus" viewBox="0 0 24 24"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
 </svg>
 <div class="page">
   <header>
@@ -274,10 +289,21 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     <div class="r-tete"><b><svg class="ico" aria-hidden="true"><use href="#i-sparkles"></use></svg>Réponse</b><span id="r-meta" class="petit"></span><button id="r-ecouter" class="secondaire" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-volume-2"></use></svg>Écouter</button></div>
     <p id="r-voix" class="petit" hidden></p>
     <p id="r-suite" class="petit r-suite" hidden></p>
-    <div id="r-corps" class="r-corps"></div>
     <div id="r-alertes" class="r-alertes" hidden></div>
+    <div id="r-corps" class="r-corps"></div>
     <div id="r-sources" class="r-sources" hidden></div>
     <p id="r-pied" class="petit r-pied" hidden>Rédigée par une IA à partir des passages ci-dessous : vérifie la source avant d'agir.</p>
+    <div id="r-actions" class="r-actions" hidden>
+      <button id="r-detailler" class="secondaire" type="button"><svg class="ico" aria-hidden="true"><use href="#i-list-plus"></use></svg>Détailler</button>
+      <span class="r-pouces"><button id="r-pouce-haut" class="secondaire carre-petit" type="button" aria-label="Réponse utile" title="Réponse utile"><svg class="ico" aria-hidden="true"><use href="#i-thumbs-up"></use></svg></button><button id="r-pouce-bas" class="secondaire carre-petit" type="button" aria-label="Réponse décevante" title="Réponse décevante"><svg class="ico" aria-hidden="true"><use href="#i-thumbs-down"></use></svg></button></span>
+    </div>
+    <div id="r-motifs" class="r-motifs" hidden>
+      <p class="petit" style="margin:0">Qu'est-ce qui ne va pas ?</p>
+      <div class="r-puces"><button type="button" data-motif="fausse">Fausse</button><button type="button" data-motif="incomplete">Incomplète</button><button type="button" data-motif="pas_claire">Pas claire / trop longue</button><button type="button" data-motif="mauvaise_source">Mauvaise source</button><button type="button" data-motif="bof">Bof</button></div>
+      <input id="r-commentaire" type="text" placeholder="Commentaire (facultatif)" autocomplete="off">
+      <div class="actions"><button id="r-avis-envoyer" type="button">Envoyer</button></div>
+    </div>
+    <p id="r-merci" class="petit" hidden></p>
   </section>
 
   <div id="outils" class="outils" hidden>
@@ -328,6 +354,12 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
         <select id="vx-vitesse"><option value="1.15">Lente</option><option value="1">Normale</option><option value="0.9">Rapide</option></select></label>
       <div class="actions"><button id="vx-essai" class="secondaire" type="button"><svg class="ico" aria-hidden="true"><use href="#i-play"></use></svg>Essayer la voix</button></div>
       <p id="vx-etat" class="petit" style="margin:0"></p>
+      <label>Apparence
+        <select id="theme"><option value="auto">Automatique (comme l'appareil)</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
+      <label>Journal des questions : lien prérempli d'un formulaire Google (facultatif)
+        <input id="journal-lien" type="url" placeholder="https://docs.google.com/forms/…/viewform?…entry.123…=test" autocomplete="off"></label>
+      <div class="actions"><button id="journal-exporter" class="secondaire" type="button"><svg class="ico" aria-hidden="true"><use href="#i-download"></use></svg>Exporter le journal</button></div>
+      <p id="journal-etat" class="petit" style="margin:0"></p>
     </div>
   </details>
 
@@ -2161,7 +2193,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 20;
+const VERSION_PAGE = 21;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2788,6 +2820,7 @@ function montrerReponse({ attente, message, erreur, icone }) {
   $("r-ecouter").hidden = !message;
   if (message) lireSiAuto(message);
   $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
+  $("r-actions").hidden = $("r-motifs").hidden = $("r-merci").hidden = true;
   $("r-corps").innerHTML = attente ? `<p class="r-attente">${ico("loader-circle", "tourne")}${C.echapper(attente.replace(/…$/, ""))}</p>`
     : erreur ? `<p class="r-message erreur">${ico("triangle-alert")}<span>${C.echapper(erreur)}</span></p>`
     : `<p class="r-message">${ico(icone || "info")}<span>${C.echapper(message)}</span></p>`;
@@ -2797,6 +2830,33 @@ function montrerReponse({ attente, message, erreur, icone }) {
 // Passages tels que les lit le Rédacteur (bibliographies sans numéros, numéros de téléphone écrits en entier) : pour vérifier la réponse
 const pourAnalyse = resultats => resultats.map(x => Object.assign({}, x, { texte: C.texteLLM(x.texte) }));
 const RE_NUMERO_DEMANDE = /\b(?:num[ée]ros?|t[ée]l[ée]phone|t[ée]l|joindre|appeler)\b/i;
+// v21 : noms propres de la question (« Samu », « Lyon », « Nord ») absents de la ligne du passage où le numéro est écrit
+const GENERIQUES_NUMERO = new Set(["numero", "numeros", "telephone", "tel", "cnr", "reb", "esr", "quel", "quelle", "est", "pour", "appeler", "joindre"]);
+function nomsDeQuestion(q) {
+  const mots = String(q || "").replace(/[’']/g, " ").split(/[\s,;:?!.()«»"]+/).filter(Boolean);
+  const noms = mots.filter((m, i) => i > 0 && /^\p{Lu}/u.test(m) && m.length >= 3).flatMap(m => C.analyser(m, true));
+  return [...new Set(noms)].filter(t => t.length >= 3 && !GENERIQUES_NUMERO.has(t));
+}
+function numerosNonAttribues(texte, resultats, q) {
+  const noms = nomsDeQuestion(q);
+  if (!noms.length) return [];
+  const proche = (mots, t) => [...mots].some(m => m.slice(0, 5) === t.slice(0, 5));
+  const douteux = [];
+  for (const n of new Set(chiffresTel(texte))) {
+    const contextes = [];
+    for (const x of resultats) {
+      const lignes = C.texteLLM(x.texte).split(/\n+/);
+      const titre = x.titre || "";   // le sujet du document (« Hantavirus ») n'a pas à être répété sur la ligne (pas le sous-titre : « … pour les SAMU »)
+      // la ligne du numéro, plus la ligne d'avant seulement si c'est un intitulé court (« ## CNR Hantavirus », « Contacts : »)
+      const intitule = l => !!l && l.length < 80 && (/^\s*(?:#|\*\*)/.test(l) || /:\s*$/.test(l)) && !chiffresTel(l).length;
+      lignes.forEach((l, i) => { if (chiffresTel(l).includes(n)) contextes.push({ c: `${intitule(lignes[i - 1]) ? lignes[i - 1] : ""} ${l}`, titre: new Set(C.analyser(titre, true)) }); });
+    }
+    if (!contextes.length) continue;                                        // numéro absent des passages : la vérification des chiffres s'en charge
+    const ok = contextes.some(({ c, titre }) => { const mots = new Set(C.analyser(c, true)); return noms.every(t => proche(titre, t) || proche(mots, t)); });
+    if (!ok) douteux.push(n.replace(/(\d\d)(?=\d)/g, "$1 "));
+  }
+  return douteux;
+}
 const chiffresTel = t => (String(t || "").match(/(?<!\d)0\d(?:[ .\u202f\u00a0]?\d\d){4}(?!\d)/g) || []).map(x => x.replace(/\D/g, ""));
 // Tous les sujets connus de la question (maladie, germe, sigle rare) sont dans ces passages
 function sujetsCouverts(q, resultats) {
@@ -2830,7 +2890,7 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
   };
   const q = suite ? suite.q : rep.question;
   const fermee = estFermee(q);
-  let res = await appel(rep, fermee ? INDICE_FERMEE : "");
+  let res = await appel(rep, (fermee ? INDICE_FERMEE : "") + (E.detailler ? INDICE_DETAIL : ""));
   premier = { f: res.fournisseur, modele: res.modele };
   // v18 : question fermée ou à idée fausse refusée (« Peut-on envoyer par pneumatique ? ») : une relance sur tous les passages
   if (res.analyse.aucune && fermee && rep.confiance !== "faible" && sujetsCouverts(suite ? suite.complete : q, rep.resultats)) {
@@ -2847,15 +2907,19 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
   }
   // v19 : toujours un refus alors que des passages envoyés nomment le sujet de la question (« Mastomys » dans la fiche Lassa) :
   // une dernière relance sur tous les passages, en désignant ceux qui parlent du sujet
-  if (res.analyse.aucune && !res.relance && rep.confiance !== "faible" && sujetsCouverts(suite ? suite.complete : q, rep.resultats)) {
+  // v21 : ou question en langage oral familier (« le pti bavoir », « c'est bon ou pas ») : l'IA la prend trop à la lettre
+  const familier = RE_FAMILIER.test(q) || RE_FAMILIER.test(String(E.questionBrute || "")) || (E.questionBrute && developperAbreviations(E.questionBrute) !== E.questionBrute);
+  if (res.analyse.aucune && !res.relance && rep.confiance !== "faible" && (familier || sujetsCouverts(suite ? suite.complete : q, rep.resultats))) {
     const qq = suite ? suite.complete : q;
     let sujets = sujetsDe(qq).filter(t => E.etat.bm25.postings.has(t));
     if (!sujets.length) sujets = C.analyser(String(qq).replace(/-/g, " "), true).filter(t => sujetsCorpus().has(t));
-    const nums = rep.resultats.map((x, i) => new Set(C.analyser(C.texteLLM(x.texte), true)).has(sujets[0]) ? `[${i + 1}]` : null).filter(Boolean).slice(0, 5);
+    let nums = sujets.length ? rep.resultats.map((x, i) => new Set(C.analyser(C.texteLLM(x.texte), true)).has(sujets[0]) ? `[${i + 1}]` : null).filter(Boolean).slice(0, 5) : [];
+    if (!nums.length && familier) nums = rep.resultats.slice(0, 4).map((x, i) => `[${i + 1}]`);
     if (nums.length) {
       surEtat("2e avis : relecture des passages du sujet");
-      const r3 = await appel(rep, `\nLes extraits ${nums.join(", ")} parlent du sujet de la question : relis-les mot à mot. Si la réponse y est (même écrite autrement), ou si la question contient une idée fausse qu'ils corrigent, donne-la avec sa source. Réponds AUCUNE_REPONSE seulement si elle n'y est vraiment pas.` + (fermee ? INDICE_FERMEE : ""), true).catch(() => null);
-      if (r3 && !r3.analyse.aucune) res = Object.assign(r3, { relance: "relecture" });
+      const oral = familier ? "\nLa question est posée à l'oral, en langage familier : comprends d'abord ce que le soignant veut savoir (le sens, pas les mots exacts), puis cherche-le dans les extraits." : "";
+      const r3 = await appel(rep, `${oral}\nLes extraits ${nums.join(", ")} parlent du sujet de la question : relis-les mot à mot. Si la réponse y est (même écrite autrement), ou si la question contient une idée fausse qu'ils corrigent, donne-la avec sa source. Réponds AUCUNE_REPONSE seulement si elle n'y est vraiment pas.` + (fermee ? INDICE_FERMEE : ""), true).catch(() => null);
+      if (r3 && !r3.analyse.aucune) res = Object.assign(r3, { relance: familier ? "oral" : "relecture" });
     }
   }
   // Numéro demandé, présent dans les passages, mais absent ou incomplet dans la réponse (« 27 » pour le CNR de la peste) : une relance
@@ -2866,6 +2930,16 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
       const r2 = await appel(rep, "\nLa question demande un numéro de téléphone : recopie-le en entier (10 chiffres), exactement comme dans l'extrait.", true).catch(() => null);
       if (r2 && chiffresTel(r2.texte).some(n => tels.has(n))) res = Object.assign(r2, { relance: "numero" });
       else res.analyse.numeroIncomplet = true;
+    }
+  }
+  // v21 : numéro demandé pour un nom précis (« Samu de Lyon ») : le numéro donné doit être écrit à côté de ce nom dans les passages
+  if (!res.analyse.aucune && RE_NUMERO_DEMANDE.test(q)) {
+    const douteux = numerosNonAttribues(res.texte, rep.resultats, q);
+    if (douteux.length) {
+      if (C.texteLLM(res.texte).replace(/\[\d+\]/g, "").trim().length <= 160) {   // la réponse n'est que ce numéro : on ne le donne pas
+        res = Object.assign({}, res, { texte: "AUCUNE_REPONSE", relance: res.relance || "numero-non-confirme" });
+        res.analyse = R.analyserReponse(res.texte, pourAnalyse(rep.resultats));
+      } else res.analyse.numeroNonConfirme = douteux;
     }
   }
   // v19 : vraie réponse suivie de « AUCUNE_REPONSE » (non comptée comme refus) : le mot est retiré du texte (affichage, voix)
@@ -2897,6 +2971,10 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
   }
   return res;
 }
+// v21 : langage oral familier (le texte d'origine, avant le développement des abréviations, est dans E.questionBrute)
+const RE_MINUSCULE = /^\s*\p{Ll}/u;                                  // sans l'option i : sinon \p{Ll} reconnaît aussi les majuscules
+const RE_FAMILIER_MOTS = /(?:^|\s)(?:on\s+(?:met|fait|donne|peut|doit)|c['’]?\s?est\s+(?:bon|quoi|ça|ca)|ou\s+pas|ou\s+quoi|y\s+a|un\s+truc|ça|ca\s|mec|gamin|chope|pti|cb|kel|stp|svp)(?=\s|[?!.,]|$)|[^?!.]\s*$/iu;
+const RE_FAMILIER = { test: q => RE_MINUSCULE.test(String(q)) || RE_FAMILIER_MOTS.test(String(q)) };
 // Question fermée (oui / non) : le Rédacteur doit répondre à la question telle qu'elle est posée
 const RE_FERMEE = /(?:^|[:;]\s*)\s*(?:est[- ]ce\s+qu|est[- ]il\s+vrai|est[- ]elle|est[- ]il|faut[- ]il|faudrait[- ]il|peut[- ]on|doit[- ]on|on\s+(?:peut|doit)|y\s+a[- ]t[- ]il|pourquoi\s+faut[- ]il|il\s+faut)|vrai\s+ou\s+faux|c['’]est\s+(?:bon|vrai)\b|\b(?:ou\s+pas|oui\s+ou\s+non)\s*\??\s*$/i;
 // v19 : aussi les inversions (« se traite-t-il », « se transmet-elle ») sans mot interrogatif (quel, combien, quand…)
@@ -2907,6 +2985,7 @@ function estFermee(q) {
   if (RE_FERMEE.test(t)) return true;
   return RE_INVERSION.test(t) && !RE_INTERROGATIF.test(t);
 }
+const INDICE_DETAIL = "\nDemande de réponse détaillée : donne une réponse plus complète, avec toutes les informations utiles des extraits sur cette question (conditions, durées, doses, exceptions, cas particuliers), toujours uniquement à partir des extraits, en phrases courtes ou en liste, avec les sources.";
 const INDICE_FERMEE = "\nQuestion fermée : commence par « Oui » ou « Non », qui répond exactement à la question telle qu'elle est posée, puis la justification avec sa source. Si la question contient une idée que les extraits contredisent, dis « Non » (ou « Attention : ») et donne ce que disent les extraits.";
 // Ce que les passages interdisent : « (aspirine et AINS à proscrire) », « AINS et anticoagulants contre-indiqués », « ne pas utiliser le pneumatique »
 const RE_INTERDIT = /(?:à\s+proscrire|proscrits?|proscrites?|contre[- ]indiqu[ée]e?s?|interdits?|interdites?|à\s+éviter|ne\s+(?:pas|jamais)\s+(?:administrer|utiliser|donner|prescrire|passer))/giu;
@@ -3141,6 +3220,7 @@ function developperAbreviations(q) {
 }
 async function repondre() {
   const brute = $("question").value.trim(), developpee = developperAbreviations(brute);
+  E.questionBrute = brute;
   if (developpee && developpee !== brute) $("question").value = developpee;
   const q = $("question").value.trim();
   if (!q) { $("question").focus(); return null; }
@@ -3166,8 +3246,8 @@ async function repondre() {
   const av = await avantRedaction(q, suite);
   if (!encore() || !av) return null;
   const { rep, qr } = av;
-  if (av.etape === "suggestion") return montrerSuggestion(q, av.inconnus);
-  if (av.etape !== "rediger") return montrerReponse({ icone: av.icone, message: av.message });
+  if (av.etape === "suggestion") { journaliser({ type: "suggestion", q, qBrute: brute, message: (av.inconnus || []).map(x => x.ecrit).join(", ") }); return montrerSuggestion(q, av.inconnus); }
+  if (av.etape !== "rediger") { journaliser({ type: "arret", q, qBrute: brute, message: av.message }); return montrerReponse({ icone: av.icone, message: av.message }); }
   if (navigator.onLine === false)
     return montrerReponse({ icone: "wifi-off", message: "Pas de connexion : la réponse rédigée a besoin d'internet. Les passages ci-dessous restent consultables." });
   try {
@@ -3177,8 +3257,9 @@ async function repondre() {
     if (E.debutLu === null) E.debutLu = "";
     if (!encore()) return null;
     res.questionPosee = q;
-    E.reponse = res;
+    E.reponse = res; E.dernierRep = rep;
     afficherReponse(res, rep);
+    journaliserReponse(res, rep, q, brute, "reponse");
     montrerSuite(suite);
     E.echange = { question: q, complete: suite ? suite.complete : q, racine: suite ? suite.racine : q, precisions: suite ? suite.precisions : [], texte: res.texte, t: Date.now() };
     res.complete = E.echange.complete; res.racine = E.echange.racine; res.precisions = E.echange.precisions; garderDerniere(res, rep);
@@ -3188,6 +3269,7 @@ async function repondre() {
              sources: a.cites.map(n => { const r = rep.resultats[n - 1]; return { n, titre: r.titre, fichier: r.fichier, page: r.page }; }) };
   } catch (e) {
     if (!encore()) return null;
+    journaliser({ type: "erreur", q, qBrute: brute, message: String(e.message || e).slice(0, 200) });
     return montrerReponse({ erreur: e.message || String(e) });
   }
 }
@@ -3243,6 +3325,7 @@ function afficherReponse(res, rep, opts = {}) {
   }
   $("r-meta").textContent = `· ${F.nom} · ${res.modele} · ${(res.ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`
     + (res.relais && res.relais.length ? ` (relais : ${res.relais.join(" ; ")})` : "");
+  initialiserAvis(res);
   if (a.aucune) {
     $("r-corps").innerHTML = `<p class="r-message">${ico("inbox")}<span>Les passages trouvés ne contiennent pas la réponse à cette question : ${C.echapper(CONFIG.identite.nom)} préfère ne rien inventer. Vérifie les passages ci-dessous ou reformule.</span></p>`;
     $("r-alertes").hidden = $("r-sources").hidden = $("r-pied").hidden = true;
@@ -3263,15 +3346,17 @@ function afficherReponse(res, rep, opts = {}) {
   if (a.invalides.length) alertes.push(`Source citée qui n'existe pas : ${a.invalides.map(n => `[${n}]`).join(", ")}.`);
   if (a.sansSource) alertes.push("Aucune source citée : vérifie dans les passages ci-dessous.");
   if (a.numeroIncomplet) alertes.push("Numéro de téléphone absent ou incomplet dans la réponse : lis-le dans les passages ci-dessous.");
+  if (a.numeroNonConfirme && a.numeroNonConfirme.length) alertes.push(`À vérifier : le numéro ${a.numeroNonConfirme.join(", ")} n'est pas écrit à côté du nom demandé dans les passages.`);
   if (a.contreIndication && a.contreIndication.length) alertes.push(`À vérifier : ${a.contreIndication.join(", ")} est à proscrire ou contre-indiqué d'après les passages, et la réponse le cite sans le dire.`);
   if (res.tronque) alertes.push("Réponse coupée (trop longue).");
-  $("r-alertes").innerHTML = alertes.map(x => `<div>${ico("triangle-alert")}<span>${x}</span></div>`).join("");
+  if (alertes.length) alertes.unshift("<b>À vérifier avant d'agir</b>");
+  $("r-alertes").innerHTML = alertes.map((x, i) => i === 0 ? `<div>${ico("triangle-alert")}<span>${x}</span></div>` : `<div><span style="padding-left:1.6em">${x}</span></div>`).join("");
   $("r-alertes").hidden = !alertes.length;
   $("r-sources").innerHTML = a.cites.map(n => {
     const r = rep.resultats[n - 1];
     const pages = r.page_fin && r.page_fin !== r.page ? `p. ${r.page}-${r.page_fin}` : `p. ${r.page}`;
     return `<div class="r-source"><a class="cite" data-cite="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener">${n}</a>
-      <span class="r-doc"><b>${C.echapper(r.titre)}</b> · ${pages}</span>
+      <span class="r-doc"><b>${C.echapper(r.titre)}</b> · ${pages}${dateDoc(r.fichier)}</span>
       <button class="secondaire" type="button" data-voir-r="${n}" hidden>Voir ${pages}</button>
       <a class="bouton secondaire" data-pdf-r="${n}" href="${lienPdf(r.fichier)}#page=${r.page}" target="_blank" rel="noopener" hidden>PDF${ico("external-link")}</a></div>`;
   }).join("");
@@ -3285,6 +3370,120 @@ function afficherReponse(res, rep, opts = {}) {
     });
   }
 }
+
+// ---------- v21 : date du document, journal des questions, avis, « Détailler », apparence ----------
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+function dateDoc(fichier) {
+  const d = (E.docs.find(x => x.f === fichier) || {}).date || "";
+  const m = /^(\d{4})-(\d{2})/.exec(d);
+  return m ? ` · <span class="r-date">${MOIS[+m[2] - 1] || ""} ${m[1]}</span>` : "";
+}
+const CLE_JOURNAL = "rebecca.journal.v1", CLE_JOURNAL_LIEN = "rebecca.journal.lien", CLE_THEME = "rebecca.theme";
+const lireJsonLocal = (cle, defaut) => { try { return JSON.parse(localStorage.getItem(cle)) ?? defaut; } catch (e) { return defaut; } };
+const ecrireJsonLocal = (cle, v) => { try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) {} };
+function formulaireJournal() {
+  let lien = ""; try { lien = localStorage.getItem(CLE_JOURNAL_LIEN) || ""; } catch (e) {}
+  const m = /^(https:\/\/docs\.google\.com\/forms\/(?:u\/\d+\/)?d\/e\/[\w-]+)\/viewform\?.*?(entry\.\d+)=/.exec(lien.trim());
+  return m ? { url: `${m[1]}/formResponse`, champ: m[2] } : null;
+}
+function journaliser(entree) {
+  if (window.RebeccaBanc && window.RebeccaBanc.sansJournal) return null;         // examens et bancs : jamais dans le journal
+  const e = Object.assign({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, t: new Date().toISOString(),
+                            v: VERSION_PAGE, appareil: /iPad|iPhone|Android/i.exec(navigator.userAgent || "")?.[0] || "autre" }, entree);
+  const j = lireJsonLocal(CLE_JOURNAL, []); j.push(e);
+  ecrireJsonLocal(CLE_JOURNAL, j.slice(-3000));
+  envoyerJournal();
+  return e.id;
+}
+function journaliserReponse(res, rep, q, brute, type) {
+  const a = res.analyse || {};
+  E.idJournal = journaliser({ type, q, qBrute: brute !== q ? brute : undefined, aucune: !!a.aucune, r: String(res.texte || "").slice(0, 600),
+    modele: res.modele, f: res.fournisseur, ms: res.ms, relance: res.relance || "", confiance: rep.confiance || "",
+    docs: (a.cites || []).map(n => { const x = rep.resultats[n - 1]; return x ? `${x.fichier} p${x.page}` : ""; }),
+    alertes: [].concat(a.douteux || [], a.contreIndication || [], a.numeroNonConfirme || [], a.numeroIncomplet ? ["numéro incomplet"] : []) });
+}
+let envoiEnCours = false;
+async function envoyerJournal() {
+  const F = formulaireJournal();
+  if (!F || envoiEnCours || navigator.onLine === false) return;
+  envoiEnCours = true;
+  try {
+    for (const e of lireJsonLocal(CLE_JOURNAL, []).filter(x => !x.envoye).slice(0, 50)) {
+      const corps = new URLSearchParams({ [F.champ]: JSON.stringify(Object.assign({}, e, { envoye: undefined })) });
+      await fetch(F.url, { method: "POST", mode: "no-cors", body: corps });   // réponse opaque : seul un échec réseau lève une erreur
+      const j = lireJsonLocal(CLE_JOURNAL, []); const k = j.find(x => x.id === e.id); if (k) k.envoye = true; ecrireJsonLocal(CLE_JOURNAL, j);
+    }
+  } catch (e) { /* hors ligne : nouvel essai plus tard */ }
+  envoiEnCours = false;
+  majEtatJournal();
+}
+function majEtatJournal() {
+  const j = lireJsonLocal(CLE_JOURNAL, []), n = j.filter(x => !x.envoye).length;
+  if ($("journal-etat")) $("journal-etat").textContent = `${j.length} ligne(s) dans le journal de cet appareil` + (formulaireJournal() ? ` · ${n} en attente d'envoi.` : " · pas de formulaire : le journal reste sur l'appareil (bouton Exporter).");
+}
+window.addEventListener("online", envoyerJournal);
+function initialiserAvis(res) {
+  $("r-actions").hidden = false;
+  $("r-detailler").hidden = !!(res.analyse && res.analyse.aucune);
+  $("r-motifs").hidden = $("r-merci").hidden = true;
+  for (const b of ["r-pouce-haut", "r-pouce-bas"]) $(b).setAttribute("aria-pressed", "false");
+  $("r-motifs").querySelectorAll("[data-motif]").forEach(b => b.setAttribute("aria-pressed", "false"));
+  $("r-commentaire").value = "";
+}
+function envoyerAvis(avis, motif = "", commentaire = "") {
+  journaliser({ type: "avis", ref: E.idJournal || "", avis, motif, commentaire: commentaire.slice(0, 300), q: E.reponse ? E.reponse.questionPosee : "" });
+  $("r-merci").textContent = avis === "pouce_haut" ? "Merci, c'est noté." : "Merci : c'est noté dans le journal pour corriger.";
+  $("r-merci").hidden = false;
+}
+$("r-pouce-haut").addEventListener("click", () => {
+  $("r-pouce-haut").setAttribute("aria-pressed", "true"); $("r-pouce-bas").setAttribute("aria-pressed", "false");
+  $("r-motifs").hidden = true; envoyerAvis("pouce_haut");
+});
+$("r-pouce-bas").addEventListener("click", () => {
+  $("r-pouce-bas").setAttribute("aria-pressed", "true"); $("r-pouce-haut").setAttribute("aria-pressed", "false");
+  $("r-motifs").hidden = false; $("r-merci").hidden = true;
+});
+$("r-motifs").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-motif]"); if (!b) return;
+  b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+});
+$("r-avis-envoyer").addEventListener("click", () => {
+  const motifs = [...$("r-motifs").querySelectorAll('[data-motif][aria-pressed="true"]')].map(b => b.dataset.motif);
+  $("r-motifs").hidden = true; envoyerAvis("pouce_bas", motifs.join(",") || "non_precise", $("r-commentaire").value.trim());
+});
+$("r-detailler").addEventListener("click", async () => {
+  const rep = E.dernierRep; if (!rep || !E.reponse) return;
+  const q = E.reponse.questionPosee || rep.question, reg = lireReglages();
+  E.detailler = true;
+  try {
+    montrerReponse({ attente: "Réponse détaillée" });
+    const res = await rediger(rep, reg, t => montrerReponse({ attente: t }), null, t => afficherFlux(t, q));
+    res.questionPosee = q; E.reponse = res;
+    afficherReponse(res, rep);
+    journaliserReponse(res, rep, q, q, "detail");
+  } catch (e) { montrerReponse({ erreur: e.message || String(e) }); }
+  finally { E.detailler = false; }
+});
+function appliquerTheme(v) {
+  if (v === "light" || v === "dark") document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
+}
+appliquerTheme((() => { try { return localStorage.getItem(CLE_THEME) || "auto"; } catch (e) { return "auto"; } })());
+$("theme").value = (() => { try { return localStorage.getItem(CLE_THEME) || "auto"; } catch (e) { return "auto"; } })();
+$("theme").addEventListener("change", () => { try { localStorage.setItem(CLE_THEME, $("theme").value); } catch (e) {} appliquerTheme($("theme").value); });
+$("journal-lien").value = (() => { try { return localStorage.getItem(CLE_JOURNAL_LIEN) || ""; } catch (e) { return ""; } })();
+$("journal-lien").addEventListener("change", () => {
+  try { localStorage.setItem(CLE_JOURNAL_LIEN, $("journal-lien").value.trim()); } catch (e) {}
+  $("journal-etat").textContent = formulaireJournal() ? "Formulaire reconnu : envoi du journal…" : "Lien non reconnu : colle le « lien prérempli » du formulaire (il contient « entry. »).";
+  envoyerJournal();
+});
+$("journal-exporter").addEventListener("click", () => {
+  const j = lireJsonLocal(CLE_JOURNAL, []);
+  const lien = document.createElement("a");
+  lien.href = URL.createObjectURL(new Blob([JSON.stringify(j, null, 1)], { type: "application/json" }));
+  lien.download = `journal-rebecca-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(lien); lien.click(); setTimeout(() => { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
+});
+majEtatJournal(); setTimeout(envoyerJournal, 3000);
 
 function allerAuPassage(n) {
   const el = document.getElementById("passage-" + n);
@@ -4209,6 +4408,7 @@ async function repondreA(q) {                                      // une questi
 // analysée comme sur la page (citations, chiffres retrouvés ou non dans les passages)
 const passagesBanc = new Map();
 async function preparerPourBanc(q, id, precedent = null) {
+  E.questionBrute = q;
   q = developperAbreviations(q);
   // precedent (conversations) : { question, complete, racine, precisions, texte } du tour d'avant ; sinon une question isolée
   E.echange = precedent ? Object.assign({ t: Date.now() }, precedent) : null;
@@ -4228,7 +4428,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-window.RebeccaBanc = { passagesMotsRares, estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { journaliser, formulaireJournal, numerosNonAttribues, nomsDeQuestion, passagesMotsRares, estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
