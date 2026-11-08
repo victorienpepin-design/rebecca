@@ -1053,12 +1053,11 @@ Règles :
 4. Recopie les doses, chiffres, durées, unités et noms de médicaments exactement comme dans l'extrait. Ne calcule pas, ne convertis pas, n'arrondis pas. Un numéro de téléphone se recopie en entier.
 5. Si les extraits ne permettent pas de répondre à la question, réponds exactement et seulement : ${SENTINELLE}. Avant de conclure ainsi, relis chaque extrait : la réponse peut y être écrite avec d'autres mots que ceux de la question (synonyme, périphrase, tableau).
 6. Si la question porte sur une maladie, un germe, un médicament ou un nom qu'aucun extrait ne mentionne, réponds exactement et seulement : ${SENTINELLE}. Ne réponds jamais avec les extraits d'un autre sujet, même proche. Un extrait qui ne fait que citer ce nom (dans une liste, un diagnostic différentiel, une bibliographie) ne suffit pas. Exception : si la question porte sur un sujet des extraits mais avance une idée fausse (un traitement, un geste, un délai ou un mode de transport que les extraits ne prévoient pas), applique la règle 7.
-7. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque. Si la question suppose quelque chose que les extraits contredisent (mauvais lieu, mauvais vecteur, mauvais traitement), corrige-la en citant l'extrait au lieu de répondre ${SENTINELLE} : commence par « Non » et donne ce que disent les extraits.
+7. Si les extraits répondent en partie sur le bon sujet, donne ce qu'ils disent, puis dis en une phrase ce qui manque. Si la question suppose quelque chose que les extraits contredisent (mauvais lieu, mauvais vecteur, mauvais traitement), corrige-la en citant l'extrait au lieu de répondre ${SENTINELLE} : commence par « Attention : » et donne ce que disent les extraits.
 8. Si l'extrait précise une population (adulte, enfant, femme enceinte…) ou une condition, garde-la.
 9. N'attribue une action ou une responsabilité à une personne, un service ou un organisme que si l'extrait le dit ; ne mélange pas les rôles de plusieurs acteurs.
 10. Pas d'introduction, pas de conclusion, pas de conseil général, pas de formule de politesse.
-11. Question fermée (« Est-ce que… », « Faut-il… », « Peut-on… », « Doit-on… », « Est-il vrai… », « vrai ou faux ») : commence par « Oui » ou « Non », qui répond exactement à la question telle qu'elle est posée (à « Faut-il attendre ? », si les extraits disent de ne pas attendre, réponds « Non »), puis la justification avec sa source.
-12. Si la question présente comme acquis ce que les extraits interdisent ou contredisent (« Pourquoi faut-il donner X ? » alors que X est à proscrire), ne le justifie jamais : commence par « Attention : » et donne ce que disent les extraits.`;
+11. Si la question présente comme acquis ce que les extraits interdisent ou contredisent (« Pourquoi faut-il donner X ? » alors que X est à proscrire), ne le justifie jamais : commence par « Attention : » et donne ce que disent les extraits.`;
   }
   const CONSIGNES = consignes();
 
@@ -1430,8 +1429,13 @@ Règles :
 
   // Découpe la réponse en lignes et morceaux (texte, citation, chiffre vérifié) pour l'affichage
   function analyserReponse(texte, passages) {
-    const t = nettoyer(texte);
-    const aucune = /AUCUNE[_ ]?R[EÉ]PONSE/i.test(t.replace(/\*/g, ""));
+    let t = nettoyer(texte);
+    let aucune = /AUCUNE[_ ]?R[EÉ]PONSE/i.test(t.replace(/\*/g, ""));
+    // v19 : vraie réponse suivie de « AUCUNE_REPONSE » (l'IA hésite) : ce n'est pas un refus, on retire le mot
+    if (aucune) {
+      const reste = t.replace(/\**\s*AUCUNE[_ ]?R[EÉ]PONSE\s*\**\.?/gi, " ").trim();
+      if (reste.replace(/\[\d+\]|[\s.,;:!?*-]/g, "").length >= 40) { t = reste; aucune = false; }
+    }
     const index = indexSources(passages.map(p => p.texte || ""));
     const n = passages.length;
     const lignes = [], cites = [], invalides = new Set(), douteux = [];
@@ -2145,7 +2149,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 18;
+const VERSION_PAGE = 19;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2383,7 +2387,17 @@ function avecDefinitions(groupes, prep) {
 
 // Documents dont le titre nomme le sujet de la question (maladie, germe, sigle rare) : leurs passages passent devant
 function docsDuSujet(q) {
-  const sujets = sujetsDe(q).filter(t => sujetsCorpus().has(t));
+  let sujets = sujetsDe(q).filter(t => sujetsCorpus().has(t));
+  // v19 : sujet écrit en adjectif (« diphtérique » → diphtérie, « pesteux » → peste) : le nom du titre qui partage le même début
+  if (!sujets.length) {
+    const corpus = [...sujetsCorpus()].filter(x => x.length >= 5 && !GENERIQUES_TITRES.has(x));
+    for (const t of C.analyser(String(q).replace(/-/g, " "), true)) {
+      if (t.length < 6) continue;
+      const x = corpus.find(x => t !== x && Math.abs(t.length - x.length) <= 4 && (t.startsWith(x) || x.startsWith(t)
+        || (x.length >= 7 && t.length >= 7 && x.slice(0, 7) === t.slice(0, 7))));
+      if (x) sujets.push(x);
+    }
+  }
   if (!sujets.length) return null;
   const docs = new Set();
   E.docs.forEach((d, i) => { const t = new Set(C.analyser(`${d.titre || ""} ${d.sous_titre || ""}`, true)); if (sujets.some(s => t.has(s))) docs.add(i); });
@@ -2781,7 +2795,7 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
     return Object.assign(res, { question: rep.question, analyse: R.analyserReponse(res.texte, pourAnalyse(r.resultats)) });
   };
   const q = suite ? suite.q : rep.question;
-  const fermee = RE_FERMEE.test(q);
+  const fermee = estFermee(q);
   let res = await appel(rep, fermee ? INDICE_FERMEE : "");
   premier = { f: res.fournisseur, modele: res.modele };
   // v18 : question fermée ou à idée fausse refusée (« Peut-on envoyer par pneumatique ? ») : une relance sur tous les passages
@@ -2795,8 +2809,20 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
     surEtat("2e avis sur les 3 meilleurs passages");
     const r2 = await appel(Object.assign({}, rep, { resultats: rep.resultats.slice(0, 3) }),
       "\nCes extraits parlent bien du sujet de la question : relis-les mot à mot ; la réponse peut y être écrite autrement (numéro, durée, liste). Réponds AUCUNE_REPONSE seulement si elle n'y est vraiment pas.", true).catch(() => null);
-    if (!r2) return res;
-    if (!r2.analyse.aucune) res = Object.assign(r2, { relance: "refus" });
+    if (r2 && !r2.analyse.aucune) res = Object.assign(r2, { relance: "refus" });
+  }
+  // v19 : toujours un refus alors que des passages envoyés nomment le sujet de la question (« Mastomys » dans la fiche Lassa) :
+  // une dernière relance sur tous les passages, en désignant ceux qui parlent du sujet
+  if (res.analyse.aucune && !res.relance && rep.confiance !== "faible" && sujetsCouverts(suite ? suite.complete : q, rep.resultats)) {
+    const qq = suite ? suite.complete : q;
+    let sujets = sujetsDe(qq).filter(t => E.etat.bm25.postings.has(t));
+    if (!sujets.length) sujets = C.analyser(String(qq).replace(/-/g, " "), true).filter(t => sujetsCorpus().has(t));
+    const nums = rep.resultats.map((x, i) => new Set(C.analyser(C.texteLLM(x.texte), true)).has(sujets[0]) ? `[${i + 1}]` : null).filter(Boolean).slice(0, 5);
+    if (nums.length) {
+      surEtat("2e avis : relecture des passages du sujet");
+      const r3 = await appel(rep, `\nLes extraits ${nums.join(", ")} parlent du sujet de la question : relis-les mot à mot. Si la réponse y est (même écrite autrement), ou si la question contient une idée fausse qu'ils corrigent, donne-la avec sa source. Réponds AUCUNE_REPONSE seulement si elle n'y est vraiment pas.` + (fermee ? INDICE_FERMEE : ""), true).catch(() => null);
+      if (r3 && !r3.analyse.aucune) res = Object.assign(r3, { relance: "relecture" });
+    }
   }
   // Numéro demandé, présent dans les passages, mais absent ou incomplet dans la réponse (« 27 » pour le CNR de la peste) : une relance
   else if (!res.analyse.aucune && RE_NUMERO_DEMANDE.test(q)) {
@@ -2806,6 +2832,20 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
       const r2 = await appel(rep, "\nLa question demande un numéro de téléphone : recopie-le en entier (10 chiffres), exactement comme dans l'extrait.", true).catch(() => null);
       if (r2 && chiffresTel(r2.texte).some(n => tels.has(n))) res = Object.assign(r2, { relance: "numero" });
       else res.analyse.numeroIncomplet = true;
+    }
+  }
+  // v19 : vraie réponse suivie de « AUCUNE_REPONSE » (non comptée comme refus) : le mot est retiré du texte (affichage, voix)
+  if (!res.analyse.aucune && /AUCUNE[_ ]?R[EÉ]PONSE/i.test(res.texte || "")) {
+    res.texte = res.texte.replace(/\**\s*AUCUNE[_ ]?R[EÉ]PONSE\s*\**\.?/gi, " ").replace(/[ \t]{2,}/g, " ").trim();
+    res.analyse = R.analyserReponse(res.texte, pourAnalyse(rep.resultats));
+  }
+  // v19 : question ouverte (« Combien de temps faut-il… ») : un « Oui, » ou « Non, » en tête de réponse est trompeur, on le retire
+  if (!res.analyse.aucune && !fermee) {
+    const m = /^\s*(?:\*\*)?(?:oui|non)(?:\*\*)?\s*[,.:;!]\s*/i.exec(res.texte || "");
+    if (m) {
+      const reste = res.texte.slice(m[0].length);
+      res.texte = reste.charAt(0).toUpperCase() + reste.slice(1);
+      res.analyse = R.analyserReponse(res.texte, pourAnalyse(rep.resultats));
     }
   }
   // v18 : garde-fou : la réponse cite sans négation ce que les passages interdisent (« aspirine et AINS à proscrire ») : une relance, sinon alerte
@@ -2825,6 +2865,14 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
 }
 // Question fermée (oui / non) : le Rédacteur doit répondre à la question telle qu'elle est posée
 const RE_FERMEE = /(?:^|[:;]\s*)\s*(?:est[- ]ce\s+qu|est[- ]il\s+vrai|est[- ]elle|est[- ]il|faut[- ]il|faudrait[- ]il|peut[- ]on|doit[- ]on|on\s+(?:peut|doit)|y\s+a[- ]t[- ]il|pourquoi\s+faut[- ]il|il\s+faut)|vrai\s+ou\s+faux|c['’]est\s+(?:bon|vrai)\b|\b(?:ou\s+pas|oui\s+ou\s+non)\s*\??\s*$/i;
+// v19 : aussi les inversions (« se traite-t-il », « se transmet-elle ») sans mot interrogatif (quel, combien, quand…)
+const RE_INVERSION = /\b[\p{L}]+-(?:t-)?(?:il|elle|on|ils|elles)\b/iu;
+const RE_INTERROGATIF = /\b(?:quel(?:le)?s?|lequel|laquelle|lesquel(?:le)?s|combien|quand|où|comment|qui|que|quoi|pourquoi|à partir de quand|jusqu['’]?à quand)\b|\bqu['’]/iu;
+function estFermee(q) {
+  const t = String(q || "").trim();
+  if (RE_FERMEE.test(t)) return true;
+  return RE_INVERSION.test(t) && !RE_INTERROGATIF.test(t);
+}
 const INDICE_FERMEE = "\nQuestion fermée : commence par « Oui » ou « Non », qui répond exactement à la question telle qu'elle est posée, puis la justification avec sa source. Si la question contient une idée que les extraits contredisent, dis « Non » (ou « Attention : ») et donne ce que disent les extraits.";
 // Ce que les passages interdisent : « (aspirine et AINS à proscrire) », « AINS et anticoagulants contre-indiqués », « ne pas utiliser le pneumatique »
 const RE_INTERDIT = /(?:à\s+proscrire|proscrits?|proscrites?|contre[- ]indiqu[ée]e?s?|interdits?|interdites?|à\s+éviter|ne\s+(?:pas|jamais)\s+(?:administrer|utiliser|donner|prescrire|passer))/giu;
@@ -2844,7 +2892,13 @@ function interditsDes(resultats) {
 }
 function contreIndicationsCitees(texte, resultats, q = "") {
   const dansQ = new Set(C.analyser(String(q), true));
-  const objets = interditsDes(resultats).filter(o => C.analyser(o, true).some(t => dansQ.has(t)) || /^[A-Z]{3,}$/.test(o)
+  const tous = interditsDes(resultats);
+  // v19 : « Oui, on prescrit de l'aspirine… » à une question qui nomme un objet interdit : erreur, même si « proscrire » est dans la phrase
+  if (/^\s*(?:\*\*)?oui\b/i.test(String(texte || "")) && !/contre[- ]?indiqu|interdi|proscri|évit|dangereu/i.test(String(q))) {
+    const nommes = tous.filter(o => C.analyser(o, true).some(t => dansQ.has(t)));
+    if (nommes.length) return [...new Set(nommes)];
+  }
+  const objets = tous.filter(o => C.analyser(o, true).some(t => dansQ.has(t)) || /^[A-Z]{3,}$/.test(o)
     || /(?:ine|ol|one|ide|ate|ane|ène|mab|vir|ïdes?|ants?|iques?)$/i.test(o));         // médicament, classe, sigle, ou cité dans la question
   if (!objets.length) return [];
   const NEG = /\b(?:non|pas|jamais|proscri\w*|contre[- ]indiqu\w*|évit\w*|interdi\w*|ni|sans|attention|surtout pas|aucun\w*)\b|\bn['’]/iu;
@@ -4138,7 +4192,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-window.RebeccaBanc = { developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
