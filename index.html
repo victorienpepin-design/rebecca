@@ -750,6 +750,16 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     // Sujet nommé (« l'incubation de la dengue ») : les passages des documents de ce sujet d'abord, les autres ensuite
     if (prep.docsSujet && prep.docsSujet.size)
       classement = [...classement.filter(r => prep.docsSujet.has(etat.docDe[r.id])), ...classement.filter(r => !prep.docsSujet.has(etat.docDe[r.id]))];
+    // v20 : passage garanti pour un mot rare de la question (« pneumatique ») : il prend la dernière place retenue s'il n'y est pas
+    if (prep.garantir && prep.garantir.length) {
+      const place = Math.max(0, R.total - 1);
+      for (const g of prep.garantir) {
+        const i = classement.findIndex(r => r.id === g);
+        if (i >= 0 && i < place) continue;
+        const item = i >= 0 ? classement.splice(i, 1)[0] : { id: g, score: 0, rangSens: null, rangMots: null };
+        classement.splice(Math.min(place, classement.length), 0, item);
+      }
+    }
     const groupes = grouper(classement, etat.docDe, R.parDoc, R.total);
     // « rien ne correspond » : aucun mot-clé trouvé, ou sens trop faible (un peu plus exigeant si un mot de la question est absent)
     const seuil = R.seuilSens === null || R.seuilSens === undefined ? null : R.seuilSens + ((prep.absents || []).length ? R.margeAbsents || 0 : 0);
@@ -1129,6 +1139,8 @@ Règles :
   // ---------- Appels ----------
   FOURNISSEURS.groq.extras = modele => /gpt-oss/.test(modele) ? { reasoning_effort: "low", include_reasoning: false }
     : /qwen3|qwq/.test(modele) ? { reasoning_effort: "none", reasoning_format: "hidden" } : null;
+  // v19 : gpt-oss via OpenRouter : même réflexion « faible » que chez Groq (sinon réflexion longue → limite atteinte → réponse vide)
+  FOURNISSEURS.openrouter.extras = modele => /gpt-oss/.test(modele) ? { reasoning: { effort: "low", exclude: true } } : null;
   FOURNISSEURS.gemini.extras = modele => /^gemini-2\.5/.test(modele) ? { thinkingBudget: 0 } : /^gemini/.test(modele) ? { thinkingLevel: "low" } : null;
   const nettoyer = t => String(t || "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
   const sansBarre = u => String(u || "").trim().replace(/\/+$/, "");
@@ -1159,7 +1171,7 @@ Règles :
     const F = FOURNISSEURS[fournisseur];
     if (!F) throw new ErreurRedacteur("autre", `Fournisseur inconnu : ${fournisseur}`);
     const f = opts.fetch || racine.fetch.bind(racine), base = baseDe(F, opts), mode = opts.mode || "complet";
-    const maxTokens = opts.maxTokens || (F.format === "gemini" ? 2048 : 900);   // réponse courte : ménage les limites
+    const maxTokens = opts.maxTokens || (F.format === "gemini" || /gpt-oss/.test(modele) ? 2048 : 900);   // réponse courte : ménage les limites ; gpt-oss : la réflexion compte dans la limite (v20)
     const temperature = mode === "minimal" ? {} : { temperature: 0 };   // 0 : même question, même réponse
     const extras = mode === "complet" && F.extras ? F.extras(modele) : null;
     let url, corps;
@@ -2149,7 +2161,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 19;
+const VERSION_PAGE = 20;
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2386,6 +2398,27 @@ function avecDefinitions(groupes, prep) {
 }
 
 // Documents dont le titre nomme le sujet de la question (maladie, germe, sigle rare) : leurs passages passent devant
+// v20 : mot rare de la question (dans 1 à 3 passages, hors sujets des titres déjà traités) : le passage qui le contient
+// ET au moins un autre mot de la question (« pneumatique » + « tube » / « laboratoire ») ; sinon rien (mot sans rapport)
+function passagesMotsRares(q) {
+  const bm = E.etat.bm25, sujets = sujetsCorpus();
+  const termes = [...new Set(C.analyser(String(q).replace(/-/g, " "), true))].filter(t => t.length >= 5 && bm.postings.has(t));
+  const idf = x => { const pp = bm.postings.get(x); return pp ? Math.log(1 + bm.n / (pp.length / 2)) : 0; };
+  const autres = t => termes.filter(x => x !== t && x.length >= 4);
+  const ids = [];
+  for (const t of termes) {
+    const p = bm.postings.get(t), df = p.length / 2;
+    if (df > 3 || sujets.has(t) || GENERIQUES_TITRES.has(t) || RE_VERBE.test(t)) continue;   // pas un verbe (« envoyer »)
+    let meilleur = null, mieux = 0;
+    for (let i = 0; i < p.length; i += 2) {
+      const d = p[i], mots = new Set(C.analyser(C.texteLLM(E.morceaux[d].t || E.morceaux[d].texte || ""), true));
+      const n = autres(t).filter(x => mots.has(x)).reduce((a, x) => a + idf(x), 0);   // mots de la question, les rares comptent plus
+      if (n > mieux) { mieux = n; meilleur = d; }
+    }
+    if (meilleur !== null && !ids.includes(meilleur)) ids.push(meilleur);
+  }
+  return ids.slice(0, 2);
+}
 function docsDuSujet(q) {
   let sujets = sujetsDe(q).filter(t => sujetsCorpus().has(t));
   // v19 : sujet écrit en adjectif (« diphtérique » → diphtérie, « pesteux » → peste) : le nom du titre qui partage le même début
@@ -2432,6 +2465,7 @@ async function rechercher(question) {
   if (!q || !E.etat) return null;
   const prep = C.preparerQuestion(E.etat, q);
   prep.docsSujet = docsDuSujet(q);
+  prep.garantir = passagesMotsRares(q);
   const vus = new Set();                                         // même sigle, même définition (aux accents près) : une fois
   prep.sigles = prep.sigles.filter(x => { const c = x.s.replace(/\s+/g, "").toUpperCase() + "|" + sansAccents(x.def); return !vus.has(c) && vus.add(c); });
   let v = null;
@@ -2867,7 +2901,7 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
 const RE_FERMEE = /(?:^|[:;]\s*)\s*(?:est[- ]ce\s+qu|est[- ]il\s+vrai|est[- ]elle|est[- ]il|faut[- ]il|faudrait[- ]il|peut[- ]on|doit[- ]on|on\s+(?:peut|doit)|y\s+a[- ]t[- ]il|pourquoi\s+faut[- ]il|il\s+faut)|vrai\s+ou\s+faux|c['’]est\s+(?:bon|vrai)\b|\b(?:ou\s+pas|oui\s+ou\s+non)\s*\??\s*$/i;
 // v19 : aussi les inversions (« se traite-t-il », « se transmet-elle ») sans mot interrogatif (quel, combien, quand…)
 const RE_INVERSION = /\b[\p{L}]+-(?:t-)?(?:il|elle|on|ils|elles)\b/iu;
-const RE_INTERROGATIF = /\b(?:quel(?:le)?s?|lequel|laquelle|lesquel(?:le)?s|combien|quand|où|comment|qui|que|quoi|pourquoi|à partir de quand|jusqu['’]?à quand)\b|\bqu['’]/iu;
+const RE_INTERROGATIF = /(?<![\p{L}])(?:quel(?:le)?s?|lequel|laquelle|lesquel(?:le)?s|combien|quand|où|comment|qui|que|quoi|pourquoi)(?![\p{L}])|(?<![\p{L}])qu['’]/iu;   // v20 : « où » (\b ne voit pas les accents)
 function estFermee(q) {
   const t = String(q || "").trim();
   if (RE_FERMEE.test(t)) return true;
@@ -2930,10 +2964,12 @@ function sujetsDe(q) {
   const termesNoms = new Set(noms().filter(x => x.poids >= 3 || !RE_VERBE.test(x.terme)).map(x => x.terme));
   const rare = Math.max(2, Math.round(nD * 0.07)), siglePropre = Math.max(2, Math.round(nD * 0.3));
   const sigles = new Set(C.siglesDansQuestion(q, E.sigles || []).flatMap(x => x.cle));
-  for (const m of String(q).match(/(?<![\p{L}\d])[A-Z][A-Z0-9]{1,6}(?![\p{L}\d])/gu) || []) for (const t of C.analyser(m, true)) sigles.add(t);
+  // v20 : pas les morceaux d'un mot composé (« RT » de « RT-PCR ») : faux sujet introuvable qui bloquait la relance
+  for (const m of String(q).match(/(?<![\p{L}\d-])[A-Z][A-Z0-9]{1,6}(?![\p{L}\d]|-[\p{L}\d])/gu) || []) for (const t of C.analyser(m, true)) sigles.add(t);
   const propres = new Set((String(q).match(/(?<=\S\s+)\p{Lu}\p{Ll}{3,}/gu) || []).flatMap(m => C.analyser(m, true)));
   const colles = new Set((String(q).match(/\p{L}+(?:-\p{L}+)+/gu) || []).map(m => sansAccents(m).replace(/-/g, "")));   // « peut-on », « faut-il »
   return [...new Set(C.analyser(q, true))].filter(t => {
+    if (t.length <= 2) return false;                                                  // v20 : « rt » (de RT-PCR), « ou »…
     if (termesNoms.has(t) || propres.has(t)) return true;
     if (sigles.has(t)) return !bm.postings.has(t) || nbDocsTerme(t) <= siglePropre;     // « EPI » (partout) n'est pas un sujet ; « FHCC » oui
     if (bm.postings.has(t)) return t.length >= 6 && !RE_VERBE.test(t) && RE_ENTITE.test(t) && nbDocsTerme(t) <= rare;   // « dexaméthasone »
@@ -4192,7 +4228,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-window.RebeccaBanc = { estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { passagesMotsRares, estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
