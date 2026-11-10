@@ -176,6 +176,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
 .r-alertes { display: grid; gap: 6px; font-size: .9rem; font-weight: 600; color: var(--erreur); background: var(--erreur-doux); border-left: 4px solid var(--erreur); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
 .r-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .r-actions[hidden], .r-motifs[hidden] { display: none; }
+.r-motifs[data-sens="haut"] [data-sens="bas"], .r-motifs[data-sens="bas"] [data-sens="haut"] { display: none; }
 .r-actions button { min-height: 40px; padding: 8px 12px; font-size: .9rem; }
 .r-pouces { display: flex; gap: 6px; }
 .r-pouces .carre-petit { width: 44px; min-height: 40px; padding: 0; justify-content: center; }
@@ -298,8 +299,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       <span class="r-pouces"><button id="r-pouce-haut" class="secondaire carre-petit" type="button" aria-label="Réponse utile" title="Réponse utile"><svg class="ico" aria-hidden="true"><use href="#i-thumbs-up"></use></svg></button><button id="r-pouce-bas" class="secondaire carre-petit" type="button" aria-label="Réponse décevante" title="Réponse décevante"><svg class="ico" aria-hidden="true"><use href="#i-thumbs-down"></use></svg></button></span>
     </div>
     <div id="r-motifs" class="r-motifs" hidden>
-      <p class="petit" style="margin:0">Qu'est-ce qui ne va pas ?</p>
-      <div class="r-puces"><button type="button" data-motif="fausse">Fausse</button><button type="button" data-motif="incomplete">Incomplète</button><button type="button" data-motif="pas_claire">Pas claire / trop longue</button><button type="button" data-motif="mauvaise_source">Mauvaise source</button><button type="button" data-motif="bof">Bof</button></div>
+      <p id="r-motifs-titre" class="petit" style="margin:0">Qu'est-ce qui ne va pas ?</p>
+      <div class="r-puces"><button type="button" data-sens="bas" data-motif="fausse">Fausse</button><button type="button" data-sens="bas" data-motif="incomplete">Incomplète</button><button type="button" data-sens="bas" data-motif="pas_claire">Pas claire / trop longue</button><button type="button" data-sens="bas" data-motif="mauvaise_source">Mauvaise source</button><button type="button" data-sens="bas" data-motif="bof">Bof</button><button type="button" data-sens="haut" data-motif="surlignage">Surlignage / page</button><button type="button" data-sens="haut" data-motif="prononciation">Prononciation</button></div>
       <input id="r-commentaire" type="text" placeholder="Commentaire (facultatif)" autocomplete="off">
       <div class="actions"><button id="r-avis-envoyer" type="button">Envoyer</button></div>
     </div>
@@ -1044,8 +1045,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     groq: { nom: "Groq", format: "openai", base: "https://api.groq.com/openai/v1", cout: "gratuit", prefixeCle: /^gsk_/,
       aideCle: "Clé gratuite : console.groq.com › API Keys", champMax: "max_completion_tokens", relaisModeles: 3,
       exclus: /whisper|tts|orpheus|playai|guard|safeguard|compound|allam|embed|vision|audio|speech|distil/i,
-      prefere: [/gpt-oss-120b/, /kimi/, /qwen/, /llama-3\.3-70b/, /llama-4/, /gpt-oss-20b/, /llama/, /gemma|mistral/],
-      defauts: ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "openai/gpt-oss-20b"] },
+      prefere: [/gpt-oss-120b/, /gpt-oss-20b/, /kimi/, /qwen/, /llama-3\.3-70b/, /llama-4/, /llama/, /gemma|mistral/],   // v23 : 20b (modèle des examens) avant qwen
+      defauts: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"] },
     mistral: { nom: "Mistral", format: "openai", base: "https://api.mistral.ai/v1", cout: "payant", relaisModeles: 2,
       aideCle: "Payant (l'offre gratuite « Experiment » n'est plus proposée à tous) : console.mistral.ai › API Keys",
       exclus: /embed|ocr|moderation|codestral|devstral|pixtral|voxtral|saba|magistral|ministral-3b|tiny|nemo/i,
@@ -2132,6 +2133,8 @@ const CONFIG = {
   // Ce qui dépend du thème (pour une Rebecca « vierge » destinée à un autre service : changer ces lignes)
   identite: { nom: "Rebecca", prononciation: "Rébéca", sousTitre: "Recherche dans les protocoles, référentiels et fiches",
               public: "une équipe soignante (infirmiers, médecins) dans un hôpital français" },
+  // Journal central : « lien prérempli » du formulaire Google (vide = journal seulement sur l'appareil). Un lien collé dans Réglages est prioritaire.
+  journal: "https://docs.google.com/forms/d/e/1FAIpQLSdyyQc3bDC5ShBokjTgFtrWcPzLMrrqdKfEZ5I5CPSIvNc0DA/viewform?usp=pp_url&entry.74587119=Test",
   // Adresses externes. Produit final hors ligne : chemins locaux (ex. "lib/transformers.min.js", modeles: "modeles/")
   transformers: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
   versionTransformers: "3.8.1",
@@ -2194,7 +2197,8 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 22;
+const VERSION_PAGE = 23;                       // numéro de livraison (journal, mesures) : ne jamais remettre à zéro
+const VERSION_AFFICHEE = `0.${VERSION_PAGE}`;   // 0.x = prototype ; 1.0 = prototype validé (critères écrits à l'avance) ; 2.0 = produit final
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
 const $ = id => document.getElementById(id);
@@ -2291,7 +2295,7 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
     sigles: E.sigles,
     reglages: reglagesDepuis(manifeste.recherche),
   };
-  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · mis à jour le ${dateCourte(manifeste.cree_le)} · v${VERSION_PAGE}`;
+  $("sous-titre").textContent = `${E.docs.length} document${E.docs.length > 1 ? "s" : ""} · mis à jour le ${dateCourte(manifeste.cree_le)} · version ${VERSION_AFFICHEE}`;
   remplirInfos();
   remplirBibliotheque();
   $("question").disabled = $("chercher").disabled = $("repondre").disabled = false;
@@ -3384,7 +3388,8 @@ const lireJsonLocal = (cle, defaut) => { try { return JSON.parse(localStorage.ge
 const ecrireJsonLocal = (cle, v) => { try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) {} };
 function formulaireJournal() {
   let lien = ""; try { lien = localStorage.getItem(CLE_JOURNAL_LIEN) || ""; } catch (e) {}
-  const m = /^(https:\/\/docs\.google\.com\/forms\/(?:u\/\d+\/)?d\/e\/[\w-]+)\/viewform\?.*?(entry\.\d+)=/.exec(lien.trim());
+  lien = lien || CONFIG.journal || "";                                       // lien intégré : tous les appareils, sans réglage
+  const m = /^(https:\/\/docs\.google\.com\/forms\/(?:u\/\d+\/)?d\/e\/[\w-]+)\/viewform\?.*?(entry\.\d+)(?:=|&|$)/.exec(lien.trim());   // « =test » facultatif
   return m ? { url: `${m[1]}/formResponse`, champ: m[2] } : null;
 }
 function journaliser(entree) {
@@ -3398,7 +3403,7 @@ function journaliser(entree) {
 }
 function journaliserReponse(res, rep, q, brute, type) {
   const a = res.analyse || {};
-  E.idJournal = journaliser({ type, q, qBrute: brute !== q ? brute : undefined, aucune: !!a.aucune, r: String(res.texte || "").slice(0, 600),
+  E.idJournal = journaliser({ type, q, qBrute: brute !== q ? brute : undefined, aucune: !!a.aucune, r: String(res.texte || "").slice(0, 8000),
     modele: res.modele, f: res.fournisseur, ms: res.ms, relance: res.relance || "", confiance: rep.confiance || "",
     docs: (a.cites || []).map(n => { const x = rep.resultats[n - 1]; return x ? `${x.fichier} p${x.page}` : ""; }),
     alertes: [].concat(a.douteux || [], a.contreIndication || [], a.numeroNonConfirme || [], a.numeroIncomplet ? ["numéro incomplet"] : []) });
@@ -3423,6 +3428,13 @@ function majEtatJournal() {
   if ($("journal-etat")) $("journal-etat").textContent = `${j.length} ligne(s) dans le journal de cet appareil` + (formulaireJournal() ? ` · ${n} en attente d'envoi.` : " · pas de formulaire : le journal reste sur l'appareil (bouton Exporter).");
 }
 window.addEventListener("online", envoyerJournal);
+// v23, une seule fois : les lignes d'avant le formulaire central (10/11) étaient « envoyées » vers un ancien lien sans jamais arriver → on les renvoie
+(() => { try {
+  if (localStorage.getItem("rebecca.journal.renvoi23")) return;
+  const j = lireJsonLocal(CLE_JOURNAL, []); for (const e of j) if (String(e.t) < "2026-11-10T00:00:00Z") delete e.envoye;
+  ecrireJsonLocal(CLE_JOURNAL, j); localStorage.setItem("rebecca.journal.renvoi23", "1");
+} catch (e) {} })();
+setTimeout(envoyerJournal, 3000);
 function initialiserAvis(res) {
   $("r-actions").hidden = false;
   $("r-detailler").hidden = !!(res.analyse && res.analyse.aucune);
@@ -3431,6 +3443,11 @@ function initialiserAvis(res) {
   $("r-motifs").querySelectorAll("[data-motif]").forEach(b => b.setAttribute("aria-pressed", "false"));
   $("r-commentaire").value = "";
 }
+function ouvrirMotifs(sens) {                     // 👍 : détail facultatif (surlignage, prononciation) ; 👎 : ce qui ne va pas
+  const m = $("r-motifs"); m.dataset.sens = sens; m.hidden = false;
+  m.querySelectorAll("[data-motif]").forEach(b => b.setAttribute("aria-pressed", "false")); $("r-commentaire").value = "";
+  $("r-motifs-titre").textContent = sens === "haut" ? "Réponse juste, mais un détail à signaler ? (facultatif)" : "Qu'est-ce qui ne va pas ?";
+}
 function envoyerAvis(avis, motif = "", commentaire = "") {
   journaliser({ type: "avis", ref: E.idJournal || "", avis, motif, commentaire: commentaire.slice(0, 300), q: E.reponse ? E.reponse.questionPosee : "" });
   $("r-merci").textContent = avis === "pouce_haut" ? "Merci, c'est noté." : "Merci : c'est noté dans le journal pour corriger.";
@@ -3438,19 +3455,22 @@ function envoyerAvis(avis, motif = "", commentaire = "") {
 }
 $("r-pouce-haut").addEventListener("click", () => {
   $("r-pouce-haut").setAttribute("aria-pressed", "true"); $("r-pouce-bas").setAttribute("aria-pressed", "false");
-  $("r-motifs").hidden = true; envoyerAvis("pouce_haut");
+  envoyerAvis("pouce_haut"); ouvrirMotifs("haut");
 });
 $("r-pouce-bas").addEventListener("click", () => {
   $("r-pouce-bas").setAttribute("aria-pressed", "true"); $("r-pouce-haut").setAttribute("aria-pressed", "false");
-  $("r-motifs").hidden = false; $("r-merci").hidden = true;
+  ouvrirMotifs("bas"); $("r-merci").hidden = true;
 });
 $("r-motifs").addEventListener("click", ev => {
   const b = ev.target.closest("[data-motif]"); if (!b) return;
   b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
 });
 $("r-avis-envoyer").addEventListener("click", () => {
-  const motifs = [...$("r-motifs").querySelectorAll('[data-motif][aria-pressed="true"]')].map(b => b.dataset.motif);
-  $("r-motifs").hidden = true; envoyerAvis("pouce_bas", motifs.join(",") || "non_precise", $("r-commentaire").value.trim());
+  const sens = $("r-motifs").dataset.sens, com = $("r-commentaire").value.trim();
+  const motifs = [...$("r-motifs").querySelectorAll(`[data-sens="${sens}"][aria-pressed="true"]`)].map(b => b.dataset.motif);
+  $("r-motifs").hidden = true;
+  if (sens === "haut") { if (motifs.length || com) envoyerAvis("pouce_haut", motifs.join(","), com); }   // remplace le 👍 seul (le dernier avis compte)
+  else envoyerAvis("pouce_bas", motifs.join(",") || "non_precise", com);
 });
 $("r-detailler").addEventListener("click", async () => {
   const rep = E.dernierRep; if (!rep || !E.reponse) return;
