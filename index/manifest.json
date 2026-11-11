@@ -1,7 +1,7 @@
 {
  "format": 2,
- "version": "6f3b23c85ceb",
- "cree_le": "2026-11-11 16:05",
+ "version": "80909f14ef9e",
+ "cree_le": "2026-11-11 22:32",
  "fuseau": "Europe/Paris",
  "modele": {
   "id": "Xenova/multilingual-e5-small",
@@ -19,13 +19,13 @@
  "embeddings": {
   "fichier": "embeddings.bin",
   "format": "float16",
-  "n": 2220,
+  "n": 2217,
   "dim": 384
  },
  "docs_vecteurs": {
   "fichier": "docs.bin",
   "format": "float16",
-  "n": 39,
+  "n": 38,
   "dim": 384
  },
  "recherche": {
@@ -36,10 +36,10 @@
   "poids_doc": 0,
   "k_docs": 10,
   "voisins": 4,
-  "seuil_sens": 0.8443,
+  "seuil_sens": 0.8327,
   "marge_absents": 0
  },
  "morceaux": "chunks.json",
- "nb_docs": 39,
- "nb_morceaux": 2220
+ "nb_docs": 38,
+ "nb_morceaux": 2217
 }
