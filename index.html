@@ -561,7 +561,8 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     "bioterrorisme, bioterroriste, arme biologique, attaque biologique, guerre biologique, biocrime, malveillance, malveillant, malveillante, usage intentionnel, NRBC",
     "classification, classer, classé, classement, catégorie, groupe de risque",
     "dangereux, dangereuse, danger",
-    "charbon, anthrax, Bacillus anthracis, anthracis"
+    "charbon, anthrax, Bacillus anthracis, anthracis",
+    "mpox, monkeypox, variole du singe, variole simienne"
   ];
   function preparerFamilles(liste) {
     return (liste || []).map(f => String(f).split(",").map(x => Object.assign([...new Set(analyser(x))], { brut: x.trim() })).filter(t => t.length))
@@ -724,11 +725,12 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
   }
 
   // Fusion des passages (RRF) + petit bonus selon le rang de leur document.
-  function fusionnerDocs(listeVec, listeMots, docDe, rangDoc, poidsDoc = 0.01, k = 60, limite = 8) {
+  function fusionnerDocs(listeVec, listeMots, docDe, rangDoc, poidsDoc = 0.01, k = 60, limite = 8, bonusDoc = null) {
     const score = new Map(), rv = new Map(), rm = new Map();
     listeVec.forEach((d, i) => { rv.set(d, i + 1); score.set(d, (score.get(d) || 0) + 1 / (k + i + 1)); });
     listeMots.forEach((d, i) => { rm.set(d, i + 1); score.set(d, (score.get(d) || 0) + 1 / (k + i + 1)); });
     if (rangDoc) for (const [d, s] of score) { const r = rangDoc[docDe[d]]; if (r > 0) score.set(d, s + poidsDoc / (1 + r)); }
+    if (bonusDoc) for (const [d, s] of score) { const b = bonusDoc[docDe[d]]; if (b) score.set(d, s + b); }   // v25 : fiches réflexes
     const ids = [...score.keys()];
     ids.sort((a, b) => (score.get(b) - score.get(a)) || (a - b));
     return ids.slice(0, limite).map(d => ({ id: d, score: score.get(d), rangSens: rv.get(d) || null, rangMots: rm.get(d) || null,
@@ -754,7 +756,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     return groupes;
   }
 
-  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 7, poidsDoc: 0.01, kDocs: 10, seuilSens: null, margeAbsents: 0 };   // v24 : poidsDoc 0,01
+  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 7, poidsDoc: 0.01, kDocs: 10, seuilSens: null, margeAbsents: 0, bonusFiche: 0 };   // v24 : poidsDoc 0,01
 
   // Étape 1 : la question analysée (sigles, mots, corrections, équivalents)
   // Question de liste (« toutes les FHV », « liste… », « cite… ») : plus de passages, venant de plus de documents
@@ -786,8 +788,12 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
       const st = etat.bm25Titres ? scoresBM25Poids(etat.bm25Titres, new Map([...prep.poids].filter(([, w]) => w >= 0.8))) : null;
       rangDoc = classerDocuments(scoresBM25Poids(etat.bm25Docs, prep.poids), ss, R.kDocs, st);
     }
-    let classement = fusionnerDocs(listeSens, listeMots, etat.docDe, rangDoc, R.poidsDoc, 60, R.retenus);
+    const bonusDoc = R.bonusFiche && etat.fiches ? etat.fiches.map(f => f ? R.bonusFiche : 0) : null;
+    let classement = fusionnerDocs(listeSens, listeMots, etat.docDe, rangDoc, R.poidsDoc, 60, R.retenus, bonusDoc);
     // Sujet nommé (« l'incubation de la dengue ») : les passages des documents de ce sujet d'abord, les autres ensuite
+    // v25 : la question nomme une maladie : les documents consacrés à une AUTRE maladie sont écartés (le rapport Ebola de 461 passages
+    // sortait pour le mpox) ; les documents généraux (référentiel, transport, SF2H…) restent
+    if (prep.exclureDocs && prep.exclureDocs.size) classement = classement.filter(r => !prep.exclureDocs.has(etat.docDe[r.id]));
     if (prep.docsSujet && prep.docsSujet.size)
       classement = [...classement.filter(r => prep.docsSujet.has(etat.docDe[r.id])), ...classement.filter(r => !prep.docsSujet.has(etat.docDe[r.id]))];
     // v20 : passage garanti pour un mot rare de la question (« pneumatique ») : il prend la dernière place retenue s'il n'y est pas
@@ -1178,10 +1184,11 @@ Règles :
   }
 
   // ---------- Appels ----------
-  FOURNISSEURS.groq.extras = modele => /gpt-oss/.test(modele) ? { reasoning_effort: "low", include_reasoning: false }
+  // v25 : réflexion « medium » pour gpt-oss (examen 20b du 12/11 : 197 → 204/255, refus à tort 18 → 12)
+  FOURNISSEURS.groq.extras = (modele, o = {}) => /gpt-oss/.test(modele) ? { reasoning_effort: o.reflexion || "medium", include_reasoning: false }
     : /qwen3|qwq/.test(modele) ? { reasoning_effort: "none", reasoning_format: "hidden" } : null;
   // v19 : gpt-oss via OpenRouter : même réflexion « faible » que chez Groq (sinon réflexion longue → limite atteinte → réponse vide)
-  FOURNISSEURS.openrouter.extras = modele => /gpt-oss/.test(modele) ? { reasoning: { effort: "low", exclude: true } } : null;
+  FOURNISSEURS.openrouter.extras = (modele, o = {}) => /gpt-oss/.test(modele) ? { reasoning: { effort: o.reflexion || "medium", exclude: true } } : null;
   FOURNISSEURS.gemini.extras = modele => /^gemini-2\.5/.test(modele) ? { thinkingBudget: 0 } : /^gemini/.test(modele) ? { thinkingLevel: "low" } : null;
   const nettoyer = t => String(t || "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
   const sansBarre = u => String(u || "").trim().replace(/\/+$/, "");
@@ -1214,7 +1221,7 @@ Règles :
     const f = opts.fetch || racine.fetch.bind(racine), base = baseDe(F, opts), mode = opts.mode || "complet";
     const maxTokens = opts.maxTokens || (F.format === "gemini" || /gpt-oss/.test(modele) ? 2048 : 900);   // réponse courte : ménage les limites ; gpt-oss : la réflexion compte dans la limite (v20)
     const temperature = mode === "minimal" ? {} : { temperature: 0 };   // 0 : même question, même réponse
-    const extras = mode === "complet" && F.extras ? F.extras(modele) : null;
+    const extras = mode === "complet" && F.extras ? F.extras(modele, opts) : null;
     let url, corps;
     const flux = !!opts.surTexte && !opts.essai && F.format !== "anthropic";   // v16 : réponse affichée au fur et à mesure
     if (F.format === "gemini") {
@@ -1263,6 +1270,9 @@ Règles :
       tronque = c.finish_reason === "length";
     }
     texte = nettoyer(texte);
+    // v25 : gpt-oss en réflexion « medium » coupé par la limite (la réflexion compte dedans) : un nouvel essai en réflexion « low »
+    if ((!texte || tronque) && /gpt-oss/.test(modele) && mode === "complet" && !opts.reflexion)
+      return appeler(fournisseur, cle, modele, systeme, utilisateur, Object.assign({}, opts, { reflexion: "low" }));
     if (!texte) throw new ErreurRedacteur("vide", tronque ? "Réponse coupée avant d'être écrite (trop longue)." : "Réponse vide.");
     return { texte, modele, ms, tronque };
   }
@@ -2221,7 +2231,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 24;                       // numéro de livraison (journal, mesures) : ne jamais remettre à zéro
+const VERSION_PAGE = 25;                       // numéro de livraison (journal, mesures) : ne jamais remettre à zéro
 const VERSION_AFFICHEE = `0.${VERSION_PAGE}`;   // 0.x = prototype ; 1.0 = prototype validé (critères écrits à l'avance) ; 2.0 = produit final
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
@@ -2293,7 +2303,7 @@ function demiVersFloat(octets) {
 // Réglages de recherche écrits par l'Atelier (noms Python → noms de la page)
 function reglagesDepuis(r = {}) {
   const t = { candidats: r.candidats, retenus: r.retenus, parDoc: r.par_doc, total: r.total, poidsDoc: r.poids_doc, kDocs: r.k_docs,
-              seuilSens: r.seuil_sens === undefined ? null : r.seuil_sens, margeAbsents: r.marge_absents, voisins: r.voisins };
+              seuilSens: r.seuil_sens === undefined ? null : r.seuil_sens, margeAbsents: r.marge_absents, voisins: r.voisins, bonusFiche: r.bonus_fiche };
   for (const k of Object.keys(t)) if (t[k] === undefined) delete t[k];
   return t;
 }
@@ -2302,6 +2312,7 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
   E.manifeste = manifeste;
   E.docs = donnees.docs;
   E.morceaux = donnees.morceaux;
+  E.idsDoc = null;                                               // v25 : passages de chaque document (fiche entière), recalculés à la demande
   E.sigles = C.preparerSigles(donnees.sigles);
   E.prononciations = (donnees.prononciations || []).filter(x => Array.isArray(x) && x[0] && x[1]);
   E.dim = manifeste.embeddings.dim;
@@ -2315,6 +2326,7 @@ function installerIndex(manifeste, donnees, octets, octetsDocs) {
     bm25Titres: C.construireBM25(E.docs.map(d => d.titre || "")),
     vecteurs: E.vecteurs, dim: E.dim, vecteursDocs,
     docDe: Int32Array.from(E.morceaux, m => m.d),
+    fiches: E.docs.map(d => /(^|[-_])fiche[-_]/i.test(d.f || "")),          // v25 : fiches réflexes (COREB…)
     familles: C.preparerFamilles(donnees.familles || C.FAMILLES_DEFAUT),
     sigles: E.sigles,
     reglages: reglagesDepuis(manifeste.recherche),
@@ -2487,6 +2499,30 @@ function passagesMotsRares(q) {
   }
   return ids.slice(0, 2);
 }
+// v25 : maladies = mots propres à UN seul titre de fiche (« ebola », « mpox », « nipah »… ; pas « fhv » ni « fièvre », communs à plusieurs).
+// Un document dont le titre nomme une maladie est « consacré » à elle ; la question en nomme une autre : il est écarté.
+function maladiesDe(texte) {
+  if (!E.maladies || E.maladiesPour !== E.etat) {
+    const compte = new Map(), parDoc = [];
+    for (const d of E.docs) {
+      const t = new Set(C.analyser(`${d.titre || ""}`, true).filter(x => x.length >= 3 && !GENERIQUES_TITRES.has(x)));
+      parDoc.push(t);
+      if (/(^|[-_])fiche/i.test(d.f || "")) for (const x of t) compte.set(x, (compte.get(x) || 0) + 1);
+    }
+    const generiques = new Set(["reb", "coreb", "esr", "nrbc", "fhv", "virus", "maladie", "fiche", "infection", "patient", "suspect"].flatMap(x => C.analyser(x, true)));
+    E.maladies = new Set([...compte].filter(([x, n]) => n <= 2 && !generiques.has(x)).map(([x]) => x));   // ≤ 2 : « mpox » (2 fiches)
+    E.maladiesDoc = parDoc.map(t => new Set([...t].filter(x => E.maladies.has(x))));
+    E.maladiesPour = E.etat;
+  }
+  return new Set(C.analyser(String(texte).replace(/-/g, " "), true).filter(x => E.maladies.has(x)));
+}
+function docsAutresMaladies(q) {
+  const m = maladiesDe(q);
+  if (!m.size) return null;
+  const ex = new Set();
+  E.maladiesDoc.forEach((d, i) => { if (d.size && ![...d].some(x => m.has(x))) ex.add(i); });
+  return ex.size ? ex : null;
+}
 function docsDuSujet(q) {
   let sujets = sujetsDe(q).filter(t => sujetsCorpus().has(t));
   // v19 : sujet écrit en adjectif (« diphtérique » → diphtérie, « pesteux » → peste) : le nom du titre qui partage le même début
@@ -2506,9 +2542,10 @@ function docsDuSujet(q) {
 }
 // v16 : la question nomme un sujet des documents (« FHCC », « dengue ») : un passage qui n'en parle pas (ni lui, ni son document) est retiré
 // (« Retour d'une zone d'endémie – RDC » de la fiche Ebola pour une question sur la FHCC). Sigle : le sigle ou tous les mots distinctifs de sa définition.
+// v25 : renvoie les documents dont les passages ont été triés (titre sans le sujet) : ceux-là ne sont jamais envoyés en entier
 function horsDuSujet(q, groupes) {
   const S = sujetsCorpus(), sujets = sujetsDe(q).filter(t => S.has(t));
-  if (!sujets.length) return;
+  if (!sujets.length) return new Set();
   const equivalents = sujets.map(t => {
     const formes = [[t]];
     for (const x of C.siglesDansQuestion(q, E.sigles || [])) if (x.cle.includes(t))
@@ -2522,13 +2559,44 @@ function horsDuSujet(q, groupes) {
     return docOk.get(g.doc) ? g.passages : g.passages.filter(p => p.definition || parle(`${E.morceaux[p.id].s || ""}\n${E.morceaux[p.id].t}`));
   });
   const reste = garde.reduce((n, p) => n + p.length, 0);
-  if (reste < 2) return;                                          // presque tout retiré : on garde tout (prudence)
+  if (reste < 2) return new Set();                                // presque tout retiré : on garde tout (prudence)
   groupes.forEach((g, i) => { g.passages = garde[i]; });
   for (let i = groupes.length - 1; i >= 0; i--) if (!groupes[i].passages.length) groupes.splice(i, 1);
+  return new Set([...docOk].filter(([, ok]) => !ok).map(([d]) => d));
 }
 const VOISINS = 4;                                              // nombre de meilleurs passages complétés par leurs voisins
+// v25 : FICHE ENTIÈRE. Le reste des 2 premiers documents, s'ils sont courts (fiches COREB : 4 000 à 11 000 caractères), est ajouté
+// après leurs meilleurs passages, si le total envoyé reste sous le budget. Rien de ce qui était envoyé avant n'est retiré.
+// Banc du 12/11 : la bonne fiche était presque toujours trouvée, mais pas toujours le bon passage dedans.
+// Budget : 16 000 caractères ≈ 4 500 tokens, pour rester sous la limite gratuite de Groq (8 000 tokens par minute, réponse comprise).
+const FICHE_ENTIERE = { taille: 12000, budget: 16000, docs: 2 };
+function idsDuDoc(d) {
+  if (!E.idsDoc) {
+    E.idsDoc = new Map();
+    E.morceaux.forEach((m, i) => { if (!E.idsDoc.has(m.d)) E.idsDoc.set(m.d, []); E.idsDoc.get(m.d).push(i); });
+  }
+  return E.idsDoc.get(d) || [];
+}
+const longueurPassage = id => String(E.morceaux[id].t || "").length;
+const tailleDoc = d => idsDuDoc(d).reduce((n, i) => n + longueurPassage(i), 0);
+function ficheEntiere(groupes, colles, tries) {
+  const F = Object.assign({}, FICHE_ENTIERE, (E.etat.reglages || {}).ficheEntiere || {});
+  const blocDe = p => [p.id, ...(colles.get(p.id) || [])].filter(x => x !== null);
+  let total = groupes.reduce((n, g) => n + g.passages.reduce((m, p) => m + blocDe(p).reduce((k, x) => k + longueurPassage(x), 0), 0), 0);
+  const entiers = new Set();
+  for (const g of groupes.slice(0, F.docs)) {
+    if (tries.has(g.doc) || tailleDoc(g.doc) > F.taille) continue;
+    const vus = new Set(g.passages.flatMap(blocDe));
+    const manque = idsDuDoc(g.doc).filter(id => !vus.has(id));
+    const n = manque.reduce((k, x) => k + longueurPassage(x), 0);
+    if (!manque.length || total + n > F.budget) continue;
+    for (const id of manque) g.passages.push({ id, complement: true });   // dans l'ordre du document, après ses meilleurs passages
+    total += n; entiers.add(g.doc);
+  }
+  return entiers;
+}
 // La recherche complète : documents puis passages, regroupés par document
-async function rechercher(question) {
+async function rechercher(question, opts = {}) {
   const q = String(question || "").trim();
   if (!q || !E.etat) return null;
   const prep = C.preparerQuestion(E.etat, q);
@@ -2541,7 +2609,7 @@ async function rechercher(question) {
   let v = null;
   if (E.extracteur) v = (await E.extracteur(E.manifeste.modele.prefixe_question + C.normaliserModele(prep.qx), { pooling: "mean", normalize: true })).data;
   const r = C.chercher(E.etat, prep, v);
-  horsDuSujet(q, r.groupes);
+  const tries = horsDuSujet(q, r.groupes);
   const def = avecDefinitions(r.groupes, prep);
   const questionDefinition = prep.sigles.length > 0 && prep.qx !== prep.question;
   // Passages voisins (même document) collés aux meilleurs passages : une liste coupée en deux (« EPI : FFP2, gants… » au passage suivant) arrive entière
@@ -2554,6 +2622,7 @@ async function rechercher(question) {
   };
   const colles = new Map();
   for (const id of ordre) { const [a, b] = voisinsDe(id); if (a !== null) pris.add(a); if (b !== null) pris.add(b); colles.set(id, [a, b]); }
+  const entiers = opts.sansFiche ? new Set() : ficheEntiere(def.groupes, colles, tries);   // conversation en direct : extraits courts, comme avant
   let k = 0;
   const documents = def.groupes.map(g => {
     const d = E.docs[g.doc];
@@ -2566,7 +2635,7 @@ async function rechercher(question) {
              }) };
   });
   return { question: q, mode: r.mode, confiance: def.nb ? "normale" : r.confiance, sens: r.meilleurSens, documents,
-           questionDefinition, passagesDefinition: def.nb,
+           questionDefinition, passagesDefinition: def.nb, fichesEntieres: [...entiers].map(d => E.docs[d].f),
            resultats: documents.flatMap(d => d.passages), sigles: prep.sigles,
            corrections: prep.corrections.map(([a, b]) => ({ ecrit: motVu(q, a, true) || a, cherche: motDesDocuments(b), terme: b })),
            absents: prep.absents.map(t => motVu(q, t, true) || t) };
@@ -3004,6 +3073,15 @@ async function rediger(rep, reg, surEtat, suite = null, surTexte = null) {
         const ci2 = contreIndicationsCitees(r2.texte, rep.resultats, q);
         if (ci2.length < ci.length) { res = Object.assign(r2, { relance: "contre-indication" }); ci = ci2; }
       }
+      // v25 : la contre-indication est toujours là après le 2e avis : la réponse n'est PAS montrée ;
+      // à la place, la phrase du document qui l'interdit (« L'aspirine et les AINS sont à proscrire… [1] »)
+      const sures = ci.length ? phrasesInterdit(rep.resultats, ci) : [];
+      if (sures.length) {
+        const texte = "Attention, d'après les documents :\n" + sures.map(x => `- ${x.phrase} [${x.n}]`).join("\n");
+        res = Object.assign({}, res, { texte, relance: "contre-indication-bloquee" });
+        res.analyse = R.analyserReponse(res.texte, pourAnalyse(rep.resultats));
+        ci = [];
+      }
       if (ci.length) res.analyse.contreIndication = ci;
     }
   }
@@ -3026,7 +3104,7 @@ function estFermee(q) {
 const INDICE_DETAIL = "\nDemande de réponse détaillée : donne une réponse plus complète, avec toutes les informations utiles des extraits sur cette question (conditions, durées, doses, exceptions, cas particuliers), toujours uniquement à partir des extraits, en phrases courtes ou en liste, avec les sources.";
 const INDICE_FERMEE = "\nQuestion fermée : commence par « Oui » ou « Non », qui répond exactement à la question telle qu'elle est posée, puis la justification avec sa source. Si la question contient une idée que les extraits contredisent, dis « Non » (ou « Attention : ») et donne ce que disent les extraits.";
 // Ce que les passages interdisent : « (aspirine et AINS à proscrire) », « AINS et anticoagulants contre-indiqués », « ne pas utiliser le pneumatique »
-const RE_INTERDIT = /(?:à\s+proscrire|proscrits?|proscrites?|contre[- ]indiqu[ée]e?s?|interdits?|interdites?|à\s+éviter|ne\s+(?:pas|jamais)\s+(?:administrer|utiliser|donner|prescrire|passer))/giu;
+const RE_INTERDIT = /(?:à\s+proscrire|proscrits?|proscrites?|contre[- ]?indiqu[ée]e?s?|contre[- ]?indications?\s+(?:aux?|à\s+la|à\s+l['’]|à|de)\s|interdits?|interdites?|à\s+éviter|ne\s+(?:pas|jamais)\s+(?:administrer|utiliser|donner|prescrire|passer))/giu;   // v25 : « contreindication aux AINS »
 const MOTS_VIDES_CI = new Set(["formellement", "strictement", "absolument", "totalement", "risque", "cause", "raison", "patient", "patients", "chez", "cette", "dans", "avec", "pour", "sont", "être", "toute", "tous", "tout"]);
 function interditsDes(resultats) {
   const objets = new Set();
@@ -3034,12 +3112,26 @@ function interditsDes(resultats) {
     const t = C.texteLLM(x.texte);
     for (const m of t.matchAll(RE_INTERDIT)) {
       const avant = t.slice(Math.max(0, m.index - 80), m.index).split(/[(:;.\n•]|,\s(?=\p{Ll})/u).pop();
-      const apres = /^ne\s/i.test(m[0]) ? t.slice(m.index + m[0].length, m.index + m[0].length + 60).split(/[):;.,\n]/)[0] : "";
+      const apres = /^(?:ne\s|contre[- ]?indication)/i.test(m[0]) ? t.slice(m.index + m[0].length, m.index + m[0].length + 60).split(/[):;.,\n]/)[0] : "";
       for (const mot of `${avant} ${apres}`.match(/[\p{L}][\p{L}-]{3,}/gu) || [])
         if (!MOTS_VIDES_CI.has(mot.toLowerCase()) && !/^(?:les?|des|et|ou|du|de|la|aux?)$/i.test(mot)) objets.add(mot);
     }
   }
   return [...objets];
+}
+// v25 : phrases des passages qui interdisent un des objets (au plus 2), avec le numéro du passage
+function phrasesInterdit(resultats, objets) {
+  const sortie = [], cles = objets.map(o => C.analyser(o, true)).filter(x => x.length);
+  resultats.forEach((x, i) => {
+    for (const phrase of C.texteLLM(x.texte || "").split(/(?<=[.!?])\s+|\n+/)) {
+      if (sortie.length >= 2 || !RE_INTERDIT.test(phrase)) { RE_INTERDIT.lastIndex = 0; continue; }
+      RE_INTERDIT.lastIndex = 0;
+      const termes = new Set(C.analyser(phrase, true));
+      const p = phrase.replace(/^[\s\-*•►✓▪#|]+/, "").replace(/[\s|]+$/, "").replace(/\s+/g, " ").trim();
+      if (p.length >= 15 && p.length <= 400 && cles.some(k => k.some(t => termes.has(t))) && !sortie.some(y => y.phrase === p)) sortie.push({ n: i + 1, phrase: p });
+    }
+  });
+  return sortie;
 }
 function contreIndicationsCitees(texte, resultats, q = "") {
   const dansQ = new Set(C.analyser(String(q), true));
@@ -3052,7 +3144,7 @@ function contreIndicationsCitees(texte, resultats, q = "") {
   const objets = tous.filter(o => C.analyser(o, true).some(t => dansQ.has(t)) || /^[A-Z]{3,}$/.test(o)
     || /(?:ine|ol|one|ide|ate|ane|ène|mab|vir|ïdes?|ants?|iques?)$/i.test(o));         // médicament, classe, sigle, ou cité dans la question
   if (!objets.length) return [];
-  const NEG = /\b(?:non|pas|jamais|proscri\w*|contre[- ]indiqu\w*|évit\w*|interdi\w*|ni|sans|attention|surtout pas|aucun\w*)\b|\bn['’]/iu;
+  const NEG = /\b(?:non|pas|jamais|proscri\w*|contre[- ]?indi\w*|évit\w*|interdi\w*|ni|sans|attention|surtout pas|aucun\w*)\b|\bn['’]/iu;
   const trouves = new Set();
   for (const phrase of String(texte || "").split(/(?<=[.!?])\s+|\n+/)) {
     if (NEG.test(phrase)) continue;
@@ -3088,6 +3180,7 @@ function sujetsDe(q) {
   return [...new Set(C.analyser(q, true))].filter(t => {
     if (t.length <= 2) return false;                                                  // v20 : « rt » (de RT-PCR), « ou »…
     if (termesNoms.has(t) || propres.has(t)) return true;
+    if (titresRares().has(t)) return true;                                            // v25 : « mpox » (titre de 2 documents)
     if (sigles.has(t)) return !bm.postings.has(t) || nbDocsTerme(t) <= siglePropre;     // « EPI » (partout) n'est pas un sujet ; « FHCC » oui
     if (bm.postings.has(t)) return t.length >= 6 && !RE_VERBE.test(t) && RE_ENTITE.test(t) && nbDocsTerme(t) <= rare;   // « dexaméthasone »
     return /^[a-z]{5,}$/.test(t) && !colles.has(t) && !RE_VERBE.test(t) && !C.corriger(t, bm);    // mot inconnu des documents (un nom qu'ils n'ont pas)
@@ -3153,6 +3246,19 @@ const GENERIQUES_TITRES = new Set(("atteint bref cadrage connaissance destinatio
   + "haute hypothese intensite liee medecin memo menace mission mot multi multidisciplinaire national nationale note operationnelle premiere "
   + "procedure professionnelle radar recommandation referentiel reperer septembre standardise technique territoire transport triple tube "
   + "version vigilance groupe groupes annexe aout patient personne cas prise charge conduite tenir").split(" "));
+// v25 : mots qui n'apparaissent que dans 1 à 3 titres de documents (« mpox », « nipah », « hantavirus »)
+function titresRares() {
+  if (E.titresRares && E.titresRaresPour === E.etat) return E.titresRares;
+  const n = new Map();
+  for (const d of E.docs) for (const t of new Set(C.analyser(d.titre || "", true))) n.set(t, (n.get(t) || 0) + 1);
+  // et rares dans les textes aussi (≤ 1/4 des documents) : « virus » (titre de 3 documents, mais cité dans 27) n'est pas un sujet ;
+  // il bloquait la relecture (« réservoir du virus Lassa » : passages « du sujet » = ceux qui disent « virus »)
+  const maxi = Math.max(3, 0.25 * E.docs.length);
+  E.titresRares = new Set([...n].filter(([t, k]) => k <= 3 && t.length >= 3 && !/^\d+$/.test(t) && !GENERIQUES_TITRES.has(t)
+    && nbDocsTerme(t) <= maxi).map(([t]) => t));
+  E.titresRaresPour = E.etat;
+  return E.titresRares;
+}
 function sujetsCorpus() {
   if (E.sujetsCorpus && E.sujetsPour === E.etat) return E.sujetsCorpus;
   const N = E.docs.length, s = new Set();
@@ -4204,7 +4310,7 @@ async function outilDirect(nom, args) {
   ligneDirect("recherche", q);
   const inconnus = nomsInconnus(q).filter(x => x.nom);
   if (inconnus.length) return { resultat: `${inconnus.map(x => `« ${x.ecrit} »`).join(", ")} n'apparaît dans aucun document. Nom proche : ${inconnus.map(x => x.nom).join(", ")}. Demande si c'est ce nom-là.` };
-  const rep = await rechercher(q);
+  const rep = await rechercher(q, { sansFiche: true });
   if (!rep || !rep.resultats.length) return { resultat: "Aucun passage trouvé dans les documents." };
   E.derniere = rep; afficher(rep); $("effacer").hidden = false;
   if (rep.confiance === "faible") return { resultat: "Aucun passage ne répond vraiment à cette question dans les documents. Dis-le simplement." };
@@ -4518,7 +4624,7 @@ function analyserPourBanc(id, texte) {
   const a = R.analyserReponse(texte, passagesBanc.get(String(id)) || []);
   return { aucune: a.aucune, cites: a.cites, invalides: a.invalides, douteux: a.douteux, sansSource: a.sansSource };
 }
-window.RebeccaBanc = { journaliser, formulaireJournal, numerosNonAttribues, nomsDeQuestion, passagesMotsRares, estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, partieCitee, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
+window.RebeccaBanc = { journaliser, phrasesInterdit, maladiesDe, docsAutresMaladies, titresRares, formulaireJournal, numerosNonAttribues, nomsDeQuestion, passagesMotsRares, estFermee, developperAbreviations, contreIndicationsCitees, interditsDes, RE_FERMEE, partieCitee, sujetsCouverts, sujetsCorpus, horsSujet, ouvrirVisionneuse, preparerPourBanc, analyserPourBanc, D, L, titreCourt, phraseSource, repondreA, prechargerVoix, VERSION_PAGE, E, lancer, repondre, rechercher, corrigerDictee, nomProche, noms, nomsInconnus, sujetsDe, suiteDe, vocabulaire, transcrireWhisper, lireReglages, ecrireReglages, CONFIG };
 </script>
 </body>
 </html>
