@@ -560,10 +560,11 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     "incubation, premiers symptômes, apparition des symptômes",
     "bioterrorisme, bioterroriste, arme biologique, attaque biologique, guerre biologique, biocrime, malveillance, malveillant, malveillante, usage intentionnel, NRBC",
     "classification, classer, classé, classement, catégorie, groupe de risque",
-    "dangereux, dangereuse, danger"
+    "dangereux, dangereuse, danger",
+    "charbon, anthrax, Bacillus anthracis, anthracis"
   ];
   function preparerFamilles(liste) {
-    return (liste || []).map(f => String(f).split(",").map(x => [...new Set(analyser(x))]).filter(t => t.length))
+    return (liste || []).map(f => String(f).split(",").map(x => Object.assign([...new Set(analyser(x))], { brut: x.trim() })).filter(t => t.length))
       .filter(f => f.length > 1);
   }
   let FAMILLES_PRETES = null;
@@ -625,13 +626,19 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
         if (c && !poids.has(c)) { poids.set(c, 0.8); corrections.push([t, c]); }
       }
     }
-    const connus = new Set(poids.keys()), couverts = new Set();
+    const connus = new Set(poids.keys()), couverts = new Set(), remplacements = [];
     for (const f of familles) {
       const touche = f.map(item => item.every(t => connus.has(t)));
       if (touche.indexOf(true) < 0) continue;
+      // v24 : mot de la question absent de tous les documents (« anthrax ») : son 1er équivalent présent (« charbon ») compte plein
+      let plein = null;
+      if (index && f.every((item, i) => !touche[i] || item.every(t => !index.postings.has(t)))) {
+        const j = f.findIndex((item, i) => !touche[i] && item.every(t => index.postings.has(t)));
+        if (j >= 0) { plein = new Set(f[j]); f.forEach((item, i) => { if (touche[i] && item.brut && f[j].brut) remplacements.push([item.brut, f[j].brut]); }); }
+      }
       const ajout = new Set();
       f.forEach((item, i) => { for (const t of item) (touche[i] ? couverts : ajout).add(t); });
-      for (const t of [...ajout].sort()) if (!poids.has(t)) poids.set(t, 0.5);
+      for (const t of [...ajout].sort()) if (!poids.has(t)) poids.set(t, plein && plein.has(t) ? 1 : 0.5);
     }
     const absents = [];
     if (index) {
@@ -643,7 +650,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
         absents.push(t);
       }
     }
-    return { poids, corrections, absents };
+    return { poids, corrections, absents, remplacements };
   }
 
   function scoresBM25Poids(index, poids) {
@@ -747,7 +754,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     return groupes;
   }
 
-  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 7, poidsDoc: 0, kDocs: 10, seuilSens: null, margeAbsents: 0 };
+  const REGLAGES = { candidats: 50, retenus: 16, parDoc: 5, total: 7, poidsDoc: 0.01, kDocs: 10, seuilSens: null, margeAbsents: 0 };   // v24 : poidsDoc 0,01
 
   // Étape 1 : la question analysée (sigles, mots, corrections, équivalents)
   // Question de liste (« toutes les FHV », « liste… », « cite… ») : plus de passages, venant de plus de documents
@@ -759,7 +766,7 @@ mark.douteux { background: transparent; color: var(--erreur); border-bottom: 2px
     const sigles = siglesDansQuestion(q, etat.sigles || []);
     const qx = developperQuestion(q, sigles);
     const t = termesRecherche(qx, etat.bm25, etat.familles);
-    return { question: q, qx, sigles, poids: t.poids, corrections: t.corrections, absents: t.absents, liste: estListe(q) };
+    return { question: q, qx, sigles, poids: t.poids, corrections: t.corrections, absents: t.absents, remplacements: t.remplacements || [], liste: estListe(q) };
   }
 
   // Étape 2 : documents puis passages. vecteurQ = empreinte de sens de la question (null : mots-clés seulement).
@@ -1554,7 +1561,8 @@ Règles :
   // Mots courants souvent écrits en capitales dans les titres : lus comme des mots, jamais épelés
   const MOTS_COURANTS = new Set(("LE LA LES DE DES DU EN ET UN UNE AU AUX PAR POUR SUR DANS AVEC SANS OU NE PAS SI CE CES SON SA SES " +
     "EST SONT IL ILS ELLE QUI QUE NE NI MAIS DONC CAR TOUT TOUS LORS VIA").split(" "));
-  const epeler = s => s.split("").map(c => /\d/.test(c) ? ` ${c} ` : (LETTRES[c.toUpperCase()] || c)).join(" ").replace(/\s+/g, " ").trim();
+  // v24 : lettres capitales séparées (« O M S ») : espeak dit leur nom juste (« emme » se disait « an-me ») et sans liaison (« précautions R E B »)
+  const epeler = s => s.split("").map(c => /\d/.test(c) ? ` ${c} ` : (LETTRES[c.toUpperCase()] ? c.toUpperCase() : c)).join(" ").replace(/\s+/g, " ").trim();
   // « ESR », « FFP2 », « OMS » : épelés ; « SAMU », « COREB », « COVID » : lus comme des mots
   function aEpeler(sigle) {
     const l = sigle.replace(/[^A-Z]/g, "");
@@ -1563,7 +1571,8 @@ Règles :
 
   // Mots que la voix Piper prononce mal : écrits comme ils se disent
   const PRONONCIATIONS_VOIX = [["inventer", "inventé"], ["choléra", "koléra"], ["cholera", "koléra"], ["cholérique", "kolérique"], ["cholériques", "kolériques"],
-    ["cholerae", "koléré"], ["Ebola", "Ébola"], ["Bundibugyo", "Boundibouguio"], ["bottes", "botes"], ["botte", "bote"]];
+    ["cholerae", "koléré"], ["Ebola", "Ébola"], ["Bundibugyo", "Boundibouguio"], ["bottes", "botes"], ["botte", "bote"],
+    ["DEET", "dé ète"], ["EN REB", "E N R E B"], ["Qdenga", "ku denga"], ["Dengvaxia", "Dingvaxia"]];                     // v24 : DEET se disait « dite »
   // sigles : [{ s, def }] (le lexique) ; la 1re fois, un sigle court du lexique est dit en entier
   // prononciations : [[écrit, dit]] (ex. [["Rebecca", "Rébéca"]]) ; mots entiers, sans tenir compte des majuscules
   function pourLaVoix(texte, { sigles = [], prononciations = [] } = {}) {
@@ -1585,6 +1594,8 @@ Règles :
     t = t.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => /[.!?:;]$/.test(l) ? l : l + ".").join(" ");
     t = t.replace(/\b(\d{1,2})\/(\d{1,2})\/((?:19|20)\d{2})\b/g, (m, j, mo, a) => +mo >= 1 && +mo <= 12 ? `${+j === 1 ? "1er" : +j} ${MOIS[+mo - 1]} ${a}` : m);
     t = t.replace(/([tT])h/g, "$1");                                                         // « th » se dit [t] (méthode, thrombose)
+    t = t.replace(/(\p{L}{2,}val)ent(s?)(?!\p{L})/gu, "$1an$2");                           // v24 : « tétravalents » se disait « tétraval »
+    t = t.replace(/((?:\+33\s?|0)\d(?:[\s.]?\d{2}){4})\s*\/\s*(?=(?:\+33|0)\s?\d)/g, "$1, ou ");   // v24 : « 01 53… / 01 45… » : « ou », pas « sur »
     t = t.replace(/(\d)\s*[-–]\s*(\d)/g, "$1 à $2")
          .replace(/\bJ\s?\+\s?(\d+)/g, "jour plus $1").replace(/\bJ\s?-\s?(\d+)/g, "jour moins $1").replace(/\bJ(\d+)\b/g, "jour $1")
          .replace(/[x×]\s?(\d+)\s?\/\s?j(?:our)?\b/gi, "$1 fois par jour")
@@ -1594,7 +1605,7 @@ Règles :
          .replace(/\/\s?(\d+)\s?h\b/gi, " toutes les $1 heures")
          .replace(/\/\s?(j|jour|h|heure|kg|min|sem|semaine|l|ml|dl|µl|μl|m2|m²|mm3|mm³|s|mois|an|dose|prise)(?![\p{L}\d])/giu, (m, u) => " " + PAR[u.toLowerCase()])
          .replace(/(?<![\d,.\/])([123])\/([234])(?![\d\/,.])/g, (m, a, b) => FRACTIONS[`${a}/${b}`] || m)
-         .replace(/(?<![\d,.])(\d+(?:[.,]\d+)?)\s?(mg|µg|μg|mcg|ug|kg|g|ml|dl|cl|l|UI|U|mmol|mEq|%|°C|°|h|min|mn|j|sem|cp|mm|cm|mmHg)(?![\p{L}\d])/giu,
+         .replace(/(?<![\p{L}\d,.])(\d+(?:[.,]\d+)?)\s?(mg|µg|μg|mcg|ug|kg|g|ml|dl|cl|l|UI|U|mmol|mEq|%|°C|°|h|min|mn|j|sem|cp|mm|cm|mmHg)(?![\p{L}\d])/giu,
                   (m, n, u, pos, tout) => {
                     const mot = UNITES[u.toLowerCase()] || u, millier = /\d\s$/.test(tout.slice(Math.max(0, pos - 2), pos));
                     return `${n} ${!millier && Math.abs(parseFloat(n.replace(",", "."))) < 2 ? singulier(mot) : mot}`;
@@ -1782,11 +1793,19 @@ Règles :
     const suivante = () => {
       if (jeton !== E.jeton || i >= phrases.length) { surFin(); return; }
       const u = new SpeechSynthesisUtterance(phrases[i++]);
+      E.phraseNav = u;                 // v24 : gardée en mémoire (sinon Safari/Chrome peuvent la jeter et « onend » n'arrive jamais : la lecture s'arrête)
       u.lang = "fr-FR"; if (voixFr[0]) u.voice = voixFr[0];
       u.onend = suivante; u.onerror = suivante;
       synth.speak(u);
     };
     suivante();
+  }
+
+  // v24 : une erreur de la voix est comptée (et signalée à la page : journal) au lieu d'arrêter la lecture en silence
+  function noterErreur(opts, ou, e) {
+    E.stats.erreurs = (E.stats.erreurs || 0) + 1;
+    E.stats.derniereErreur = `${ou} : ${(e && (e.message || e.status)) || e}`.slice(0, 200);
+    try { if (opts && opts.surErreur) opts.surErreur(E.stats.derniereErreur); } catch (x) {}
   }
 
   // Lit un texte : phrase par phrase, la suivante se calcule pendant que la précédente est dite.
@@ -1804,14 +1823,19 @@ Règles :
     const surFin = () => { if (jeton === E.jeton && opts.surFin) opts.surFin(); };
     if (!phrases.length) { surFin(); return; }
     if (opts.navigateur || E.mode !== "piper" || !E.ctx) { if (opts.surDebut) opts.surDebut(); lireNavigateur(phrases, jeton, surFin); return; }
-    const ids = phonemiser(phrases);
+    let ids;
+    try { ids = phonemiser(phrases); }
+    catch (e) { noterErreur(opts, "phonèmes", e); ids = phrases.map(p => { try { return phonemiser([p])[0]; } catch (x) { return null; } }); }   // v24 : phrase par phrase
     const sr = E.config.audio.sample_rate || 22050;
     let t = Math.max(E.ctx.currentTime + 0.05, suite ? E.tFin || 0 : 0), dernier = null, debutSignale = false;
     for (const sequence of ids) {
       if (jeton !== E.jeton) return;
       if (!sequence || !sequence.length) continue;
-      const pcm = await synthetiser(sequence, opts.reglages);
+      let pcm;
+      try { pcm = await synthetiser(sequence, opts.reglages); }
+      catch (e) { noterErreur(opts, "calcul", e); continue; }                // v24 : une phrase ratée ne coupe plus toute la lecture
       if (jeton !== E.jeton) return;
+      if (E.ctx.state !== "running") { try { await E.ctx.resume(); } catch (e) {} }   // v24 : son mis en pause par le système
       E.stats.phrases++; E.stats.echantillons += pcm.length;
       const buf = E.ctx.createBuffer(1, pcm.length, sr);
       buf.getChannelData(0).set(pcm);
@@ -2197,7 +2221,7 @@ document.title = CONFIG.identite.nom;
 document.getElementById("titre").textContent = CONFIG.identite.nom;
 document.getElementById("sous-titre").textContent = CONFIG.identite.sousTitre;
 const C = globalThis.Coeur;
-const VERSION_PAGE = 23;                       // numéro de livraison (journal, mesures) : ne jamais remettre à zéro
+const VERSION_PAGE = 24;                       // numéro de livraison (journal, mesures) : ne jamais remettre à zéro
 const VERSION_AFFICHEE = `0.${VERSION_PAGE}`;   // 0.x = prototype ; 1.0 = prototype validé (critères écrits à l'avance) ; 2.0 = produit final
 const R = globalThis.Redacteur;
 const VX = globalThis.Voix;
@@ -2439,18 +2463,25 @@ function avecDefinitions(groupes, prep) {
 // ET au moins un autre mot de la question (« pneumatique » + « tube » / « laboratoire ») ; sinon rien (mot sans rapport)
 function passagesMotsRares(q) {
   const bm = E.etat.bm25, sujets = sujetsCorpus();
-  const termes = [...new Set(C.analyser(String(q).replace(/-/g, " "), true))].filter(t => t.length >= 5 && bm.postings.has(t));
+  const tous = [...new Set(C.analyser(String(q).replace(/-/g, " "), true))].filter(t => bm.postings.has(t));
+  const termes = tous.filter(t => t.length >= 5);
   const idf = x => { const pp = bm.postings.get(x); return pp ? Math.log(1 + bm.n / (pp.length / 2)) : 0; };
-  const autres = t => termes.filter(x => x !== t && x.length >= 4);
+  // v24 : les sigles courts de la question comptent (« ESR REB de Bretagne » : sans eux, aucun passage n'était garanti)
+  const autres = t => tous.filter(x => x !== t && x.length >= 3);
+  let scoresMots = null;                                     // départage : le passage le mieux classé par les mots-clés
+  const mieuxClasse = (d, e) => (scoresMots || (scoresMots = C.scoresBM25Poids(bm, new Map(tous.map(x => [x, 1])))))[d] > scoresMots[e];
+  // v24 : nom propre de la question (« Pays de la Loire », « Corse ») : rare jusqu'à 8 passages (au lieu de 3)
+  const propres = new Set(String(q).split(/\s+/).slice(1).filter(m => /^[A-ZÀ-Ý][a-zà-ÿ]/.test(m)).flatMap(m => C.analyser(m.replace(/-/g, " "), true)));
   const ids = [];
   for (const t of termes) {
     const p = bm.postings.get(t), df = p.length / 2;
-    if (df > 3 || sujets.has(t) || GENERIQUES_TITRES.has(t) || RE_VERBE.test(t)) continue;   // pas un verbe (« envoyer »)
+    if (df > (propres.has(t) ? 8 : 3) || sujets.has(t) || GENERIQUES_TITRES.has(t) || RE_VERBE.test(t)) continue;   // pas un verbe (« envoyer »)
     let meilleur = null, mieux = 0;
     for (let i = 0; i < p.length; i += 2) {
-      const d = p[i], mots = new Set(C.analyser(C.texteLLM(E.morceaux[d].t || E.morceaux[d].texte || ""), true));
+      const d = p[i], m = E.morceaux[d];
+      const mots = new Set(C.analyser(`${(E.docs[m.d] || {}).titre || ""} ${C.texteLLM(m.t || m.texte || "")}`, true));   // v24 : titre compris (« … (ESR) »)
       const n = autres(t).filter(x => mots.has(x)).reduce((a, x) => a + idf(x), 0);   // mots de la question, les rares comptent plus
-      if (n > mieux) { mieux = n; meilleur = d; }
+      if (n > mieux || (n > 0 && n === mieux && meilleur !== null && mieuxClasse(d, meilleur))) { mieux = n; meilleur = d; }
     }
     if (meilleur !== null && !ids.includes(meilleur)) ids.push(meilleur);
   }
@@ -2501,7 +2532,9 @@ async function rechercher(question) {
   const q = String(question || "").trim();
   if (!q || !E.etat) return null;
   const prep = C.preparerQuestion(E.etat, q);
-  prep.docsSujet = docsDuSujet(q);
+  for (const [mot, syn] of prep.remplacements || [])          // v24 : « anthrax », absent des documents → « charbon (anthrax) » pour le sens et le sujet
+    prep.qx = prep.qx.replace(new RegExp(`(?<![\\p{L}])${mot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), m => `${syn} (${m})`);
+  prep.docsSujet = docsDuSujet(prep.remplacements && prep.remplacements.length ? prep.qx : q);
   prep.garantir = passagesMotsRares(q);
   const vus = new Set();                                         // même sigle, même définition (aux accents près) : une fois
   prep.sigles = prep.sigles.filter(x => { const c = x.s.replace(/\s+/g, "").toUpperCase() + "|" + sansAccents(x.def); return !vus.has(c) && vus.add(c); });
@@ -3630,6 +3663,13 @@ async function modeleTTS(cle) {
   ecrireReglagesVoix(Object.assign(v, { modeleTTS: m }));
   return m;
 }
+// v24 : une erreur de la voix va dans le journal (une fois par réponse) : « la voix s'est arrêtée » devient diagnosticable
+function erreurVoix(message) {
+  const cle = E.idJournal || "-";
+  if (erreurVoix.vu === cle) return;
+  erreurVoix.vu = cle;
+  journaliser({ type: "voix", ref: E.idJournal || "", q: E.reponse ? E.reponse.questionPosee : "", message: String(message).slice(0, 200) });
+}
 // Lit un texte : voix Gemini si choisie (et disponible), sinon la voix Piper (ou celle du navigateur)
 async function dire(texte, suite = false) {
   if (!texte) return;
@@ -3644,7 +3684,7 @@ async function dire(texte, suite = false) {
         const suitePiper = async (reste, e) => {                      // la suite refusée par Gemini : Piper la lit
           noteVoix(`Voix Gemini interrompue (${e.code === "limite" ? "limite gratuite atteinte" : e.message}) : la voix Piper lit la suite.`);
           await prechargerVoix();
-          await VX.lire(reste, { pret: true, reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture });
+          await VX.lire(reste, { pret: true, reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture, surErreur: erreurVoix });
         };
         if (v.refusGemini) { ecrireReglagesVoix(Object.assign(lireReglagesVoix(), { refusGemini: null })); }
         await VX.lireGemini(VX.pourLaVoix(texte, { sigles: E.sigles, prononciations: prononciations() }),
@@ -3661,7 +3701,7 @@ async function dire(texte, suite = false) {
   }
   await prechargerVoix();
   if (note) noteVoix(note);                                        // (le chargement de Piper a pu remplacer le message)
-  await VX.lire(texte, { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture, suite });
+  await VX.lire(texte, { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix(), navigateur: !VX.etat().charge, surFin: finLecture, suite, surErreur: erreurVoix });
 }
 function lireSiAuto(texte) {
   const parReveil = D.lireUneFois; D.lireUneFois = false;
@@ -3669,9 +3709,9 @@ function lireSiAuto(texte) {
   if (!(lireReglagesVoix().auto || D.mainsLibres || parReveil)) return;
   if (debut) {                                                    // la 1re phrase est déjà dite : la suite seulement, si le texte final commence pareil
     const fin = debut.slice(-14), i = texte.indexOf(fin);
-    if (i >= 0 && i <= debut.length + 40) { dire(texte.slice(i + fin.length).trim(), true).catch(e => console.error(e)); return; }
+    if (i >= 0 && i <= debut.length + 40) { dire(texte.slice(i + fin.length).trim(), true).catch(e => { console.error(e); erreurVoix(e.message || e); }); return; }
   }
-  dire(texte).catch(e => console.error(e));
+  dire(texte).catch(e => { console.error(e); erreurVoix(e.message || e); });
 }
 // v16 : la réponse s'affiche pendant qu'elle s'écrit ; la voix Piper commence dès la 1re phrase complète
 function afficherFlux(texte, q) {
@@ -3685,7 +3725,7 @@ function afficherFlux(texte, q) {
   if (!m) return;
   E.debutLu = m[0];
   boutonEcouter(true);
-  VX.lire(m[0], { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix() }).catch(e => console.error(e));
+  VX.lire(m[0], { sigles: E.sigles, prononciations: prononciations(), reglages: reglagesVoix(), surErreur: erreurVoix }).catch(e => { console.error(e); erreurVoix(e.message || e); });
 }
 // ---------- Mains libres : écoute → réponse lue → écoute… ----------
 const estArret = t => /^(?:merci|stop|arr[êe]te|c'?est tout|ça ira|ca ira|fin|au revoir|termin[ée]|non merci)\b/i.test(t.trim()) && t.trim().split(/\s+/).length <= 5;
@@ -3831,12 +3871,14 @@ function nomProche(mot) {
 // Mots tapés absents de tous les documents, avec le nom proche s'il y en a un : [{ ecrit, nom }]
 function nomsInconnus(question) {
   const sortie = [], vus = new Set();
-  for (const brut of String(question).match(/[\p{L}][\p{L}'’-]*/gu) || []) {
+  // v24 : morceau par morceau (« a-t-elle » n'est pas un mot inconnu ; « Franche-Comté » = 2 mots)
+  for (const brut of (String(question).match(/[\p{L}][\p{L}'’-]*/gu) || []).flatMap(m => m.split("-"))) {
     const mot = brut.replace(/^(?:[cdjlmnst]|qu)['’]/i, "");
     if (mot.length < 5 || vus.has(mot.toLowerCase())) continue;
     vus.add(mot.toLowerCase());
     const t = C.analyser(mot);
     if (t.length !== 1 || E.etat.bm25.postings.has(t[0]) || C.corriger(t[0], E.etat.bm25)) continue;
+    if (E.etat.familles.some(f => f.some(x => x.length === 1 && x[0] === t[0]) && f.some(x => x.every(y => E.etat.bm25.postings.has(y))))) continue;   // v24 : « anthrax » = charbon (synonymes)
     sortie.push({ ecrit: mot, nom: sigleProche(mot) || nomProche(mot) });
   }
   return sortie;
